@@ -1,0 +1,44 @@
+name:                core
+version:             0.1.0.0
+github:              "Szetty/seven_wonders"
+license:             MIT
+author:              "Arnold & Andra Szederjesi-Dragomir"
+copyright:           "2020 Arnold & Andra Szederjesi-Dragomir"
+
+dependencies:
+  - base >= 4.7 && < 5
+  - ilist
+  - random-shuffle
+  - containers
+  - transformers
+
+default-extensions:
+  - NamedFieldPuns
+  - OverloadedStrings
+  - DuplicateRecordFields
+
+library:
+  source-dirs: src
+
+executables:
+  core-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - core
+
+tests:
+  core-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - core
+    - hspec
