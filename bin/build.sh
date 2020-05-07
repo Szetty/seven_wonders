@@ -1,0 +1,1 @@
+docker build -t "seven_wonders:$(cat VERSION)" .
