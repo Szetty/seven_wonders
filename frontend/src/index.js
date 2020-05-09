@@ -1,6 +1,7 @@
-import './main.css';
+import './styles/main.scss';
 import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
+import 'bootstrap';
 
 Elm.Main.init({
   node: document.getElementById('root')

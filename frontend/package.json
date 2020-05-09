@@ -1,0 +1,39 @@
+{
+  "name": "frontend",
+  "version": "0.0.1",
+  "description": "Seven Wonders Online frontend",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Szetty/seven_wonders.git"
+  },
+  "keywords": [
+    "seven_wonders",
+    "haskell",
+    "go",
+    "elm"
+  ],
+  "author": "Arnold & Andra Szederjesi-Dragomir",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Szetty/seven_wonders/issues"
+  },
+  "homepage": "https://github.com/Szetty/seven_wonders#readme",
+  "dependencies": {
+    "bootstrap": "^4.4.1",
+    "jquery": "^3.5.1",
+    "popper.js": "^1.16.1"
+  },
+  "devDependencies": {
+    "css-loader": "^3.5.3",
+    "node-sass": "^4.14.1",
+    "sass-loader": "^8.0.2",
+    "style-loader": "^1.2.1"
+  }
+}

@@ -1,0 +1,18 @@
+@import "./theme.scss";
+@import "~bootstrap/scss/bootstrap";
+
+[data-elm-hot="true"] {
+  height: inherit;
+}
+
+body {
+  font-family: 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', 'Helvetica Neue', sans-serif;
+  margin: 0;
+  text-align: center;
+  color: #293c4b;
+  background-color: $background-color;
+}
+
+h1 {
+  font-size: 30px;
+}

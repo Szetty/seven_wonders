@@ -783,6 +783,242 @@ module.exports = {
 }
 ```
 
+Default:
+
+```js
+{
+	"mode": "development",
+	"devtool": "cheap-module-source-map",
+	"entry": ["/usr/local/share/.config/yarn/global/node_modules/create-elm-app/config/polyfills.js", "/usr/local/share/.config/yarn/global/node_modules/create-elm-app/scripts/utils/webpackHotDevClient.js", "/usr/local/share/.config/yarn/global/node_modules/react-error-overlay/lib/index.js", "/Users/arnold/Projects/seven_wonders/frontend/src/index.js"],
+	"output":
+	{
+		"pathinfo": true,
+		"filename": "static/js/bundle.js",
+		"chunkFilename": "static/js/[name].chunk.js",
+		"publicPath": "/"
+	},
+	"optimization":
+	{
+		"splitChunks":
+		{
+			"chunks": "all",
+			"name": "vendors"
+		},
+		"runtimeChunk": true
+	},
+	"resolve":
+	{
+		"modules": ["node_modules"],
+		"extensions": [".js", ".elm"]
+	},
+	"module":
+	{
+		"strictExportPresence": true,
+		"rules": [
+		{
+			"parser":
+			{
+				"requireEnsure": false
+			}
+		},
+		{
+			"test":
+			{},
+			"exclude": [
+			{},
+			{}],
+			"include": "/Users/arnold/Projects/seven_wonders/frontend/src",
+			"loader": "/usr/local/share/.config/yarn/global/node_modules/babel-loader/lib/index.js",
+			"query":
+			{
+				"presets": [
+					["/usr/local/share/.config/yarn/global/node_modules/@babel/preset-env/lib/index.js",
+					{
+						"useBuiltIns": "entry",
+						"modules": false
+					}]
+				],
+				"plugins": [
+					[null,
+					{
+						"helpers": false,
+						"regenerator": true
+					}]
+				]
+			}
+		},
+		{
+			"test":
+			{},
+			"use": [
+			{
+				"loader": "/usr/local/share/.config/yarn/global/node_modules/babel-loader/lib/index.js",
+				"options":
+				{
+					"babelrc": false,
+					"compact": false,
+					"presets": [
+						[null,
+						{
+							"modules": false
+						}]
+					],
+					"cacheDirectory": true,
+					"highlightCode": true
+				}
+			}]
+		},
+		{
+			"test":
+			{},
+			"include": "/Users/arnold/Projects/seven_wonders/frontend/src",
+			"exclude": [
+			{},
+			{}],
+			"use": [
+			{
+				"loader": "/usr/local/share/.config/yarn/global/node_modules/elm-hot-webpack-loader/src/index.js"
+			},
+			{
+				"loader": "/usr/local/share/.config/yarn/global/node_modules/string-replace-loader/index.js",
+				"query":
+				{
+					"search": "%PUBLIC_URL%",
+					"replace": "",
+					"flags": "g"
+				}
+			},
+			{
+				"loader": "/usr/local/share/.config/yarn/global/node_modules/elm-asset-webpack-loader/src/index.js"
+			},
+			{
+				"loader": "/usr/local/share/.config/yarn/global/node_modules/elm-webpack-loader/index.js",
+				"options":
+				{
+					"verbose": true,
+					"debug": true,
+					"pathToElm": "/usr/local/share/.config/yarn/global/node_modules/elm/bin/elm",
+					"forceWatch": true
+				}
+			}]
+		},
+		{
+			"test":
+			{},
+			"use": ["/usr/local/share/.config/yarn/global/node_modules/style-loader/index.js",
+			{
+				"loader": "/usr/local/share/.config/yarn/global/node_modules/css-loader/dist/cjs.js",
+				"options":
+				{
+					"importLoaders": 1
+				}
+			},
+			{
+				"loader": "/usr/local/share/.config/yarn/global/node_modules/postcss-loader/lib/index.js",
+				"options":
+				{
+					"ident": "postcss"
+				}
+			}]
+		},
+		{
+			"exclude": [
+			{},
+			{},
+			{},
+			{},
+			{},
+			{},
+			{},
+			{}],
+			"loader": "/usr/local/share/.config/yarn/global/node_modules/url-loader/dist/cjs.js",
+			"options":
+			{
+				"limit": 10000,
+				"name": "static/media/[name].[hash:8].[ext]"
+			}
+		},
+		{
+			"test":
+			{},
+			"loader": "/usr/local/share/.config/yarn/global/node_modules/file-loader/dist/cjs.js",
+			"options":
+			{
+				"name": "static/media/[name].[hash:8].[ext]"
+			}
+		}]
+	},
+	"plugins": [
+	{
+		"options":
+		{
+			"template": "/Users/arnold/Projects/seven_wonders/frontend/public/index.html",
+			"templateContent": false,
+			"filename": "index.html",
+			"hash": false,
+			"inject": true,
+			"scriptLoading": "blocking",
+			"compile": true,
+			"favicon": false,
+			"minify": "auto",
+			"cache": true,
+			"showErrors": true,
+			"chunks": "all",
+			"excludeChunks": [],
+			"chunksSortMode": "auto",
+			"meta":
+			{},
+			"base": false,
+			"title": "Webpack App",
+			"xhtml": false
+		},
+		"version": 4
+	},
+	{
+		"replacements":
+		{
+			"NODE_ENV": "development",
+			"PUBLIC_URL": ""
+		}
+	},
+	{
+		"definitions":
+		{
+			"process.env":
+			{
+				"NODE_ENV": "\"development\"",
+				"PUBLIC_URL": "\"\""
+			}
+		}
+	},
+	{
+		"options":
+		{},
+		"fullBuildTimeout": 200,
+		"requestTimeout": 10000
+	},
+	{
+		"options":
+		{},
+		"logger":
+		{},
+		"pathCache":
+		{},
+		"fsOperations": 0,
+		"primed": false
+	}],
+	"node":
+	{
+		"dgram": "empty",
+		"fs": "empty",
+		"net": "empty",
+		"tls": "empty",
+		"child_process": "empty"
+	},
+	"performance": false
+}
+```
+
 Mutate the configuration directly or use [webpack-merge](https://www.npmjs.com/package/webpack-merge) to override the config.
 
 `env` variable will help you distinguish `"development"` from `"production"` for environment-specific overrides.

@@ -3,6 +3,7 @@ module Main exposing (main)
 import Browser exposing (UrlRequest, application)
 import Browser.Navigation exposing (Key)
 import Html exposing (button, div, text)
+import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Http
 import Url exposing (Url)
@@ -68,8 +69,8 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "7 Wonders"
     , body =
-        [ div []
-            [ button [ onClick Ping ] [ text "PING" ]
+        [ div [class "mt-3"]
+            [ button [ onClick Ping, class "btn btn-primary" ] [ text "PING" ]
             , div [] [ text model ]
             ]
         ]
