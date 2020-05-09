@@ -5,12 +5,13 @@ import Domain.Structure
 import Domain.Player
 import Domain.Resource
 
+import Data.Set (Set)
 import Data.Map (Map, fromList, lookup, empty)
 import Data.Maybe (fromJust)
 import Data.List.Index
 
 import Control.Monad.Trans.State.Lazy
-import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Reader (Reader, runReader)
 
 type Target = Domain.Structure.Name
 type Env = (GameState, Target)
@@ -27,25 +28,30 @@ data GameState = GameState {
 }
 
 data PlayerState = PlayerState {
-     coins ::                        Int
-,    militarySymbols ::              Int
-,    battleTokens ::                 [Int]
-,    scientificSymbols ::            Map ScientificSymbol Int
-,    builtStructures ::              [Domain.Structure.Name]
-,    resourceActions ::              [Action ([ResourceType] -> [ResourceType])]
-,    pointActions ::                 [Action (Int -> Int)]
-,    tradeActions ::                 [Action (Domain.Player.Name -> Int)]
-,    constructFreeAction ::          Action (Domain.Structure.Name -> Bool)
-,    constructLastStructureAction :: Action Bool
-,    copyGuildAction ::              Action Bool
+    coins ::                        Int
+,   militarySymbols ::              Int
+,   battleTokens ::                 [Int]
+,   scientificSymbols ::            Map ScientificSymbol Int
+,   builtStructures ::              Map Category (Set Domain.Structure.Name)
+,   resourceActions ::              [Action ([ResourceType] -> [ResourceType])]
+,   pointActions ::                 [Action (Map PointCategory Int -> Map PointCategory Int)]
+,   tradeActions ::                 [Action (Domain.Player.Name -> Int)]
+,   constructFreeAction ::          [Action (Domain.Structure.Name -> Bool)]
+,   constructLastStructureAction :: Action Bool
+,   copyGuildAction ::              Action Bool
+,   scientificActions ::            [Action (Map ScientificSymbol Int -> Map ScientificSymbol Int)]
 }
 
 type Point = Int
 type Deck = ([Card], [Card], [Card])
 
+data ScientificSymbol = Tablet | Compass | Gears deriving (Enum, Show, Ord, Eq)
+data EffectDirection = East | West | Self deriving (Enum, Show)
 newtype Card = Card {
     structure :: Structure Effect
 } deriving (Show)
+
+data PointCategory = MilitaryP | TreasuryP | WonderP | CivilianP | ScientificP | CommercialP | GuildsP deriving (Enum, Show, Ord, Eq)
 
 initGameState :: Deck -> [Player] -> GameState
 initGameState deck players = GameState deck (toMapByName players) (initPlayerStates playerNames) (initNeighbours playerNames) [] empty
@@ -64,19 +70,19 @@ initialPlayerState =
         militarySymbols = 0,
         battleTokens = [],
         scientificSymbols = fromList [(Compass, 0), (Gears, 0), (Tablet, 0)],
-        builtStructures = [],
+        builtStructures = fromList [],
         resourceActions = [],
         pointActions = [],
         tradeActions = [defaultTradeAction],
-        constructFreeAction = defaultConstructFreeAction,
+        constructFreeAction = [],
         constructLastStructureAction = defaultConstructLastStructureAction,
-        copyGuildAction = defaultCopyGuildAction
+        copyGuildAction = defaultCopyGuildAction,
+        scientificActions = []
     }
-    where
-        defaultTradeAction = (return $ const 2) :: Action (Domain.Player.Name -> Int)
-        defaultConstructFreeAction = (return $ const False) :: Action (Domain.Structure.Name -> Bool)
-        defaultConstructLastStructureAction = return False :: Action Bool
-        defaultCopyGuildAction = return False :: Action Bool
+
+defaultTradeAction = (return $ const 2) :: Action (Domain.Player.Name -> Int)
+defaultConstructLastStructureAction = return False :: Action Bool
+defaultCopyGuildAction = return False :: Action Bool
 
 initNeighbours :: [Domain.Player.Name] -> Map Domain.Player.Name (Domain.Player.Name, Domain.Player.Name)
 initNeighbours playerNames = fromList $ mapper <$> indexed playerNames
@@ -136,6 +142,9 @@ constructLastStructureEffect = undefined
 
 copyGuildEffect :: Effect
 copyGuildEffect = undefined
+
+combineFunctionActions :: GameState -> [Action (a -> a)] -> (a -> a)
+combineFunctionActions gameState actions = foldl (.) id $ flip runReader gameState <$> actions
 
 structures :: [Structure Effect]
 structures =

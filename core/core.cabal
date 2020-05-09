@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3acb7568ee25e47c7000f2b8846a8eb041e1eb12b6f750ed2326f5681cddbe46
+-- hash: 01479beff7f178e49dd2be4dd78bb72ae1505c5b755ece1aa585d62a657ec077
 
 name:           core
-version:        0.1.0.0
+version:        0.0.1
 homepage:       https://github.com/Szetty/seven_wonders#readme
 bug-reports:    https://github.com/Szetty/seven_wonders/issues
 author:         Arnold & Andra Szederjesi-Dragomir
@@ -23,6 +23,7 @@ source-repository head
 library
   exposed-modules:
       Core.GameInit
+      Core.Points
       Domain.GameState
       Domain.Player
       Domain.Resource
