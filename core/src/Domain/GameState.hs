@@ -33,7 +33,7 @@ data PlayerState = PlayerState {
 ,   battleTokens ::                 [Int]
 ,   scientificSymbols ::            Map ScientificSymbol Int
 ,   builtStructures ::              Map Category (Set Domain.Structure.Name)
-,   resourceActions ::              [Action ([ResourceType] -> [ResourceType])]
+,   resourcesProduced ::            [ResourceProduced]
 ,   pointActions ::                 [Action (Map PointCategory Int -> Map PointCategory Int)]
 ,   tradeActions ::                 [Action (Domain.Player.Name -> Int)]
 ,   constructFreeAction ::          [Action (Domain.Structure.Name -> Bool)]
@@ -71,7 +71,7 @@ initialPlayerState =
         battleTokens = [],
         scientificSymbols = fromList [(Compass, 0), (Gears, 0), (Tablet, 0)],
         builtStructures = fromList [],
-        resourceActions = [],
+        resourcesProduced = [],
         pointActions = [],
         tradeActions = [defaultTradeAction],
         constructFreeAction = [],

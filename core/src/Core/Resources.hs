@@ -1,17 +1,16 @@
 module Core.Resources where
 
 import Domain.Resource
-import Data.List (permutations)
+import Data.List (permutations, nub)
 import Data.Maybe (isNothing)
 
-satisfyResources :: [ResourceCost] -> [ResourceProduced] -> Bool
-satisfyResources [] _ = True
-satisfyResources costs produced = do
+coverResourceCosts :: [ResourceCost] -> [ResourceProduced] -> Maybe [[ResourceCost]]
+coverResourceCosts [] _ = Nothing
+coverResourceCosts costs produced = do
     let singleProduced = filter isSingleResourceProduced produced
     let anyProduced = filter isAnyResourceProduced produced
     let costsRemaining = matchSingleProduced costs singleProduced []
-    let costCombinationsRemaining = tryAllAnyProducedCombinations costsRemaining anyProduced
-    isNothing costCombinationsRemaining
+    tryAllAnyProducedCombinations costsRemaining anyProduced
     
 matchSingleProduced :: [ResourceCost] -> [ResourceProduced] -> [ResourceCost] -> [ResourceCost]
 matchSingleProduced costs [] unmatchedCosts = unmatchedCosts ++ costs
@@ -41,11 +40,12 @@ tryAllAnyProducedCombinations :: [ResourceCost] -> [ResourceProduced] -> Maybe [
 tryAllAnyProducedCombinations [] _ = Nothing
 tryAllAnyProducedCombinations costs [] = Just [costs]
 tryAllAnyProducedCombinations costs produced =
-    doTryAllAnyProducedCombinations (permutations produced) []
+    doTryAllAnyProducedCombinations combinations []
     where
-        doTryAllAnyProducedCombinations :: [[ResourceProduced]] -> [[ResourceCost]] -> Maybe [[ResourceCost]]
-        doTryAllAnyProducedCombinations [] acc = Just acc
-        doTryAllAnyProducedCombinations (produced:ps) acc =
+        combinations = [(produced, costs) | produced <- permutations produced, costs <- permutations costs]
+        doTryAllAnyProducedCombinations :: [([ResourceProduced], [ResourceCost])] -> [[ResourceCost]] -> Maybe [[ResourceCost]]
+        doTryAllAnyProducedCombinations [] acc = Just $ nub acc
+        doTryAllAnyProducedCombinations ((produced, costs):ps) acc =
             case matchAnyProduced costs produced of
                 [] -> 
                     Nothing
