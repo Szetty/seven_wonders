@@ -1,11 +1,14 @@
 import Test.Hspec
+import TestFixtures.Points
 
 import Core.GameInit
 import Core.Points
+import Core.Resources
 
 import Domain.GameState
+import Domain.Resource
 
-import Data.Map (fromList, adjust)
+import Data.Map (fromList)
 
 main = hspec $ do
     describe "GameState.initNeighbours" $
@@ -19,11 +22,69 @@ main = hspec $ do
         context "with 7 players generates valid deck" $ validateDeck 7 $ runIO $ generateDeck 7
     describe "Points.calculatePoints" $
         it "with 3 players" $
-            calculatePoints gameStateForPoints `shouldBe` fromList [
-                ("a", fromList [(MilitaryP, -6), (TreasuryP, 0), (WonderP, 3), (CivilianP, 6), (ScientificP, 10), (CommercialP, 0), (GuildsP, 0)]),
-                ("b", fromList [(MilitaryP, 13), (TreasuryP, 3), (WonderP, 0), (CivilianP, 0), (ScientificP, 94), (CommercialP, 0), (GuildsP, 0)]),
-                ("c", fromList [(MilitaryP, 18), (TreasuryP, 1), (WonderP, 0), (CivilianP, 0), (ScientificP, 1), (CommercialP, 0), (GuildsP, 20)])
-            ]
+            calculatePoints gameStateForPoints `shouldBe` pointsExpected
+    describe "Resources.satisfyResources" $ do
+        context "one single resource produced" $ do
+            it "1" $ satisfyResources []            []              `shouldBe` True
+            it "2" $ satisfyResources []            [Single Wood 1] `shouldBe` True
+            it "3" $ satisfyResources [Cost Wood 1] []              `shouldBe` False
+            it "4" $ satisfyResources [Cost Wood 1] [Single Loom 1] `shouldBe` False
+            it "5" $ satisfyResources [Cost Wood 1] [Single Wood 1] `shouldBe` True
+            it "6" $ satisfyResources [Cost Wood 2] [Single Wood 1] `shouldBe` False
+            it "7" $ satisfyResources [Cost Wood 1] [Single Wood 2] `shouldBe` True
+            it "8" $ satisfyResources [Cost Wood 2] [Single Wood 2] `shouldBe` True
+        context "multiple single resources produced" $ do
+            it "1" $ satisfyResources [Cost Wood 1, Cost Loom 1] [Single Wood 1]                `shouldBe` False
+            it "2" $ satisfyResources [Cost Wood 1, Cost Loom 1] [Single Wood 1, Single Loom 1] `shouldBe` True
+            it "3" $ satisfyResources [Cost Wood 1, Cost Loom 3] [Single Wood 1, Single Loom 2] `shouldBe` False
+            it "4" $ satisfyResources [Cost Wood 1, Cost Loom 1] [Single Wood 2, Single Loom 2] `shouldBe` True
+            it "5" $ satisfyResources [Cost Loom 1, Cost Wood 1] [Single Wood 1, Single Loom 1] `shouldBe` True
+        context "one 'any' resource produced" $ do
+            it "1" $ satisfyResources []            [Any [Wood, Loom]] `shouldBe` True
+            it "2" $ satisfyResources [Cost Wood 1] [Any [Wood, Loom]] `shouldBe` True
+            it "3" $ satisfyResources [Cost Wood 2] [Any [Wood, Loom]] `shouldBe` False
+            it "4" $ satisfyResources [Cost Loom 1] [Any [Wood, Loom]] `shouldBe` True
+            it "5" $ satisfyResources [Cost Clay 1] [Any [Wood, Loom]] `shouldBe` False
+        context "one 'any' and one single resource produced" $ do
+            it "1" $ satisfyResources [Cost Wood 2]                [Single Clay 1, Any [Wood, Loom]] `shouldBe` False
+            it "2" $ satisfyResources [Cost Clay 1]                [Single Clay 1, Any [Wood, Loom]] `shouldBe` True
+            it "3" $ satisfyResources [Cost Wood 1, Cost Clay 1]   [Single Clay 1, Any [Wood, Loom]] `shouldBe` True
+            it "4" $ satisfyResources [Cost Loom 1, Cost Clay 1]   [Single Clay 1, Any [Wood, Loom]] `shouldBe` True
+            it "5" $ satisfyResources [Cost Wood 1, Cost Loom 1]   [Single Clay 1, Any [Wood, Loom]] `shouldBe` False
+            it "6" $ satisfyResources [Cost Stone 1]               [Single Clay 1, Any [Wood, Loom]] `shouldBe` False
+            it "7" $ satisfyResources [Cost Wood 2]                [Single Wood 1, Any [Wood, Loom]] `shouldBe` True
+            it "8" $ satisfyResources [Cost Clay 1]                [Single Wood 1, Any [Wood, Loom]] `shouldBe` False
+            it "9" $ satisfyResources [Cost Wood 1, Cost Loom 1]   [Single Wood 1, Any [Wood, Loom]] `shouldBe` True
+            it "10" $ satisfyResources [Cost Wood 1, Cost Stone 1] [Single Wood 1, Any [Wood, Loom]] `shouldBe` False
+            it "11" $ satisfyResources [Cost Wood 2, Cost Loom 1]  [Single Wood 1, Any [Wood, Loom]] `shouldBe` False
+            it "12" $ satisfyResources [Cost Loom 1, Cost Wood 1]  [Single Wood 1, Any [Wood, Loom]] `shouldBe` True
+        context "one 'any' with 3 resources produced" $ do
+            it "1" $ satisfyResources [Cost Wood 1] [Any [Wood, Loom, Clay]] `shouldBe` True
+            it "2" $ satisfyResources [Cost Loom 1] [Any [Wood, Loom, Clay]] `shouldBe` True
+            it "3" $ satisfyResources [Cost Clay 1] [Any [Wood, Loom, Clay]] `shouldBe` True
+            it "4" $ satisfyResources [Cost Ore 1]  [Any [Wood, Loom, Clay]] `shouldBe` False
+        context "multiple 'any' resources produced" $ do
+            it "1" $ satisfyResources [Cost Wood 1]               [Any [Wood, Loom], Any [Clay, Ore]] `shouldBe` True
+            it "2" $ satisfyResources [Cost Wood 2]               [Any [Wood, Loom], Any [Clay, Ore]] `shouldBe` False
+            it "3" $ satisfyResources [Cost Wood 1, Cost Clay 1]  [Any [Wood, Loom], Any [Clay, Ore]] `shouldBe` True
+            it "4" $ satisfyResources [Cost Ore 1, Cost Clay 1]   [Any [Wood, Loom], Any [Clay, Ore]] `shouldBe` False
+            it "5" $ satisfyResources [Cost Stone 1]              [Any [Wood, Loom], Any [Clay, Ore]] `shouldBe` False
+            it "6" $ satisfyResources [Cost Wood 1]               [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` True
+            it "7" $ satisfyResources [Cost Wood 2]               [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` True
+            it "8" $ satisfyResources [Cost Wood 1, Cost Ore 1]   [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` True
+            it "9" $ satisfyResources [Cost Loom 1, Cost Ore 1]   [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` True
+            it "10" $ satisfyResources [Cost Wood 2, Cost Loom 1] [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` False
+            it "11" $ satisfyResources [Cost Wood 2, Cost Ore 1]  [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` False
+            it "12" $ satisfyResources [Cost Wood 1, Cost Loom 1] [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` True
+            it "13" $ satisfyResources [Cost Clay 1]              [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` False
+            it "14" $ satisfyResources [Cost Wood 3]              [Any [Wood, Loom], Any [Wood, Ore]] `shouldBe` False
+            it "15" $ satisfyResources [Cost Wood 1]              [Any [Wood, Loom], Any [Wood, Loom]] `shouldBe` True
+            it "16" $ satisfyResources [Cost Loom 1]              [Any [Wood, Loom], Any [Wood, Loom]] `shouldBe` True
+            it "17" $ satisfyResources [Cost Wood 2]              [Any [Wood, Loom], Any [Wood, Loom]] `shouldBe` True
+            it "18" $ satisfyResources [Cost Loom 2]              [Any [Wood, Loom], Any [Wood, Loom]] `shouldBe` True
+            it "19" $ satisfyResources [Cost Wood 1, Cost Loom 1] [Any [Wood, Loom], Any [Wood, Loom]] `shouldBe` True
+            it "20" $ satisfyResources [Cost Ore 1]               [Any [Wood, Loom], Any [Wood, Loom]] `shouldBe` False
+            it "21" $ satisfyResources [Cost Wood 3]              [Any [Wood, Loom], Any [Wood, Loom]] `shouldBe` False
 
 
 validateDeck playerNo deck = do
@@ -31,75 +92,3 @@ validateDeck playerNo deck = do
     it "age1" $ length age1 `shouldBe` (7 * playerNo)
     it "age2" $ length age2 `shouldBe` (7 * playerNo)
     it "age3" $ length age3 `shouldBe` (7 * playerNo)
-
-gameStateForPoints =
-    GameState{
-        deck = ([], [], []),
-        players = fromList [],
-        playerStates = fromList [
-            ("a", PlayerState {
-                militarySymbols = 0,
-                resourceActions = [],
-                tradeActions = [],
-                constructFreeAction = [],
-                constructLastStructureAction = defaultConstructLastStructureAction,
-                copyGuildAction = defaultCopyGuildAction,
-                builtStructures = fromList [],
-                coins = 0,
-                battleTokens = [-1, -1, -1, -1, -1, -1],
-                pointActions = [
-                    return (adjust (3+) WonderP),
-                    return (adjust (6+) CivilianP)
-                ],
-                scientificSymbols = fromList [
-                    (Compass, 1),
-                    (Gears, 1),
-                    (Tablet, 1)
-                ],
-                scientificActions = []
-            }),
-            ("b", PlayerState {
-                militarySymbols = 0,
-                resourceActions = [],
-                tradeActions = [],
-                constructFreeAction = [],
-                constructLastStructureAction = defaultConstructLastStructureAction,
-                copyGuildAction = defaultCopyGuildAction,
-                builtStructures = fromList [],
-                coins = 9,
-                battleTokens = [0, 1, -1, 3, 5, 5],
-                pointActions = [],
-                scientificSymbols = fromList [
-                    (Compass, 4),
-                    (Gears, 4),
-                    (Tablet, 4)
-                ],
-                scientificActions = [
-                    return (adjust (1+) Compass),
-                    return (adjust (1+) Gears)
-                ]
-            }),
-            ("c", PlayerState {
-                militarySymbols = 0,
-                resourceActions = [],
-                tradeActions = [],
-                constructFreeAction = [],
-                constructLastStructureAction = defaultConstructLastStructureAction,
-                copyGuildAction = defaultCopyGuildAction,
-                builtStructures = fromList [],
-                coins = 4,
-                battleTokens = [1, 1, 3, 3, 5, 5],
-                pointActions = [
-                    return (adjust (10+) GuildsP),
-                    return (adjust (10+) GuildsP)
-                ],
-                scientificSymbols = fromList [(Compass, 0), (Gears, 0), (Tablet, 0)],
-                scientificActions = [
-                    return (adjust (1+) Compass)
-                ]
-            })
-        ],
-        neighbours = initNeighbours ["a", "b", "c"],
-        cardsDismissed = [],
-        currentAgeCards = fromList []
-    }

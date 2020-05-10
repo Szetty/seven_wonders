@@ -1,0 +1,2 @@
+module TestFixtures.Resources where
+

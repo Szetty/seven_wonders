@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 01479beff7f178e49dd2be4dd78bb72ae1505c5b755ece1aa585d62a657ec077
+-- hash: c6138f968fcefc136f164e608dad43c1c87674ef63baa5c435895c23c019000b
 
 name:           core
 version:        0.0.1
@@ -24,6 +24,7 @@ library
   exposed-modules:
       Core.GameInit
       Core.Points
+      Core.Resources
       Domain.GameState
       Domain.Player
       Domain.Resource
@@ -64,6 +65,8 @@ test-suite core-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      TestFixtures.Points
+      TestFixtures.Resources
       Paths_core
   hs-source-dirs:
       test
