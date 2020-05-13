@@ -13,7 +13,7 @@ gameStateForPoints =
         playerStates = fromList [
             ("a", PlayerState {
                 militarySymbols = 0,
-                resourceActions = [],
+                resourcesProduced = [],
                 tradeActions = [],
                 constructFreeAction = [],
                 constructLastStructureAction = defaultConstructLastStructureAction,
@@ -34,7 +34,7 @@ gameStateForPoints =
             }),
             ("b", PlayerState {
                 militarySymbols = 0,
-                resourceActions = [],
+                resourcesProduced = [],
                 tradeActions = [],
                 constructFreeAction = [],
                 constructLastStructureAction = defaultConstructLastStructureAction,
@@ -55,7 +55,7 @@ gameStateForPoints =
             }),
             ("c", PlayerState {
                 militarySymbols = 0,
-                resourceActions = [],
+                resourcesProduced = [],
                 tradeActions = [],
                 constructFreeAction = [],
                 constructLastStructureAction = defaultConstructLastStructureAction,
