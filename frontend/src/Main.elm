@@ -10,8 +10,7 @@ import Url exposing (Url)
 
 
 type Msg
-    = Init
-    | Ping
+    = Ping
     | GotPong (Result Http.Error String)
 
 
@@ -26,14 +25,14 @@ main =
         , update = update
         , view = view
         , subscriptions = subscriptions
-        , onUrlChange = onUrlChange
-        , onUrlRequest = onUrlRequest
+        , onUrlChange = NavigationMsg << UrlChanged
+        , onUrlRequest = NavigationMsg << LinkClicked
         }
 
 
-init : flags -> Url -> Key -> ( Model, Cmd Msg )
-init _ _ _ =
-    initialValue
+init : flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
+    initialValue url key
 
 
 initialValue : ( Model, Cmd Msg )
@@ -46,9 +45,6 @@ update msg model =
     case msg of
         Ping ->
             ( model, ping )
-
-        Init ->
-            initialValue
 
         GotPong result ->
             case result of
@@ -80,16 +76,6 @@ view model =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
-
-
-onUrlChange : Url -> Msg
-onUrlChange _ =
-    Init
-
-
-onUrlRequest : UrlRequest -> Msg
-onUrlRequest _ =
-    Init
 
 
 ping : Cmd Msg
