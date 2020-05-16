@@ -1,24 +1,23 @@
 module TestFixtures.Points where
+import Test.Hspec
+import TestFixtures.GameState
 
 import Domain.GameState
 import Domain.Structure
 import Domain.Player
+import Core.Points
 
 import Data.Map (Map, fromList, adjust)
 
+testPoints =
+    describe "Points.calculatePoints" $
+        it "with 3 players" $
+            calculatePoints gameStateForPoints `shouldBe` pointsExpected
+
 gameStateForPoints =
-    GameState{
-        deck = ([], [], []),
-        players = fromList [],
+    defaultGameState {
         playerStates = fromList [
-            ("a", PlayerState {
-                militarySymbols = 0,
-                resourcesProduced = [],
-                tradeActions = [],
-                constructFreeAction = [],
-                constructLastStructureAction = defaultConstructLastStructureAction,
-                copyGuildAction = defaultCopyGuildAction,
-                builtStructures = fromList [],
+            ("a", defaultPlayerState {
                 coins = 0,
                 battleTokens = [-1, -1, -1, -1, -1, -1],
                 pointActions = [
@@ -32,14 +31,7 @@ gameStateForPoints =
                 ],
                 scientificActions = []
             }),
-            ("b", PlayerState {
-                militarySymbols = 0,
-                resourcesProduced = [],
-                tradeActions = [],
-                constructFreeAction = [],
-                constructLastStructureAction = defaultConstructLastStructureAction,
-                copyGuildAction = defaultCopyGuildAction,
-                builtStructures = fromList [],
+            ("b", defaultPlayerState {
                 coins = 9,
                 battleTokens = [0, 1, -1, 3, 5, 5],
                 pointActions = [],
@@ -53,14 +45,7 @@ gameStateForPoints =
                     return (adjust (1+) Gears)
                 ]
             }),
-            ("c", PlayerState {
-                militarySymbols = 0,
-                resourcesProduced = [],
-                tradeActions = [],
-                constructFreeAction = [],
-                constructLastStructureAction = defaultConstructLastStructureAction,
-                copyGuildAction = defaultCopyGuildAction,
-                builtStructures = fromList [],
+            ("c", defaultPlayerState {
                 coins = 4,
                 battleTokens = [1, 1, 3, 3, 5, 5],
                 pointActions = [
@@ -72,10 +57,7 @@ gameStateForPoints =
                     return (adjust (1+) Compass)
                 ]
             })
-        ],
-        neighbours = initNeighbours ["a", "b", "c"],
-        cardsDismissed = [],
-        currentAgeCards = fromList []
+        ]
     }
 
 pointsExpected :: Map Domain.Player.Name (Map PointCategory Int)
