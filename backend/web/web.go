@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/json-iterator/go"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
@@ -10,11 +11,27 @@ import (
 	"time"
 )
 
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
 func StartWebServer() {
 	router := mux.NewRouter()
+	router.Use(loggingMiddleware)
 
-	router.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+	api := router.PathPrefix("/api").Subrouter()
+
+	api.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprintf(w, "Hello, you've requested: %s\n", r.URL.Path)
+	})
+	api.HandleFunc("/login", login)
+
+	secured := api.PathPrefix("/secured").Subrouter()
+	secured.Use(jwtAuthorizationMiddleware)
+	secured.HandleFunc("/gameLobby", gameLobby)
+
+	api.PathPrefix("/").Handler(ErrorHandler{
+		statusCode: 404,
+		message: "Endpoint does not exist",
+		errorType: InvalidEndpoint,
 	})
 
 	spa := SPAHandler{StaticPath: "build", IndexPath: "index.html"}

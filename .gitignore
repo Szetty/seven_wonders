@@ -274,5 +274,6 @@ temp/
 backend/backend
 frontend/build
 frontend/src/style/*.css
+**/.env
 
 # End of https://www.gitignore.io/api/go,git,elm,node,haskell,intellij,visualstudiocode
