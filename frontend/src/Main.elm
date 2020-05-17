@@ -95,6 +95,6 @@ onUrlRequest _ =
 ping : Cmd Msg
 ping =
     Http.get
-        { url = "/ping"
+        { url = "/api/ping"
         , expect = Http.expectString GotPong
         }

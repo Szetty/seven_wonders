@@ -1,7 +1,6 @@
 package web
 
 import (
-	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -29,18 +28,18 @@ type ErrorResponse struct {
 }
 
 func (h ErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.Warn(h.message)
+	logger.Warn(h.message)
 	response := ErrorResponse{ErrorMessage: h.message, ErrorType: h.errorType}
 	respBytes, err := json.Marshal(&response)
 	if err != nil {
-		logrus.Errorf("Could not decode to json: %v", err)
+		logger.Errorf("Could not decode to json: %v", err)
 		w.WriteHeader(500)
 		return
 	}
 	w.WriteHeader(h.statusCode)
 	_, err = w.Write(respBytes)
 	if err != nil {
-		logrus.Errorf("Could not write error message: %v", err)
+		logger.Errorf("Could not write error message: %v", err)
 		return
 	}
 }

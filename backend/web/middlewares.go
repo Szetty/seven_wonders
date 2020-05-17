@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/common"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 )
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logrus.Infof("accessed: %s", r.RequestURI)
+		logger.Infof("accessed: %s", r.RequestURI)
 		next.ServeHTTP(w, r)
 	})
 }

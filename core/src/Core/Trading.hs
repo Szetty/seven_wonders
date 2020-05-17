@@ -37,22 +37,24 @@ computeTradingOptions tradeSetups resourceCostCombinations =
                 order2 = (tradeSetupEast, tradeSetupWest)
             in
                 nub $ applyTradeSetups order1 resourceCosts ++ applyTradeSetups order2 resourceCosts
-        applyTradeSetups ((name1, resources1, trade1), (name2, resources2, trade2)) resourceCosts =
-            case coverResourceCosts resourceCosts resources1 of
-                Nothing -> 
-                    [computeTradeCost name1 trade1 resourceCosts]
-                Just resourceCostCombinationsAfterTrade ->
-                    resourceCostCombinationsAfterTrade >>= applySecondTradeSetup
-                    where 
-                        applySecondTradeSetup remainingResourceCosts = 
-                            let
-                                currentCost = computeTradeCost name1 trade1 (resourceCosts `diffResourceCosts` remainingResourceCosts)
-                            in
-                                case coverResourceCosts remainingResourceCosts resources2 of
-                                    Nothing ->
-                                        [sort $ currentCost ++ computeTradeCost name2 trade2 remainingResourceCosts]
-                                    Just _ ->
-                                        []
+
+applyTradeSetups :: (TradeSetup, TradeSetup) -> [ResourceCost] -> [TradingOption]
+applyTradeSetups ((name1, resources1, trade1), (name2, resources2, trade2)) resourceCosts =
+    case coverResourceCosts resourceCosts resources1 of
+        Nothing -> 
+            [computeTradeCost name1 trade1 resourceCosts]
+        Just resourceCostCombinationsAfterTrade ->
+            resourceCostCombinationsAfterTrade >>= applySecondTradeSetup
+            where 
+                applySecondTradeSetup remainingResourceCosts = 
+                    let
+                        currentCost = computeTradeCost name1 trade1 (resourceCosts `diffResourceCosts` remainingResourceCosts)
+                    in
+                        case coverResourceCosts remainingResourceCosts resources2 of
+                            Nothing ->
+                                [sort $ currentCost ++ computeTradeCost name2 trade2 remainingResourceCosts]
+                            Just _ ->
+                                []
         
 computeTradeCost :: Domain.Player.Name -> [ResourceType -> Int] -> [ResourceCost] -> TradingOption
 computeTradeCost name tradeFunctions resourceCosts =
