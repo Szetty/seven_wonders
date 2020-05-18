@@ -2,19 +2,54 @@ package web
 
 import (
 	"fmt"
+	"github.com/Szetty/seven_wonders/backend/common"
+	"github.com/Szetty/seven_wonders/backend/core"
 	"github.com/gorilla/mux"
-	"github.com/sirupsen/logrus"
+	"github.com/json-iterator/go"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 )
 
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
+var logger = common.NewLogger("Web")
+var coreServer *core.Server
+
 func StartWebServer() {
 	router := mux.NewRouter()
+	router.Use(loggingMiddleware)
 
-	router.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprintf(w, "Hello, you've requested: %s\n", r.URL.Path)
+	api := router.PathPrefix("/api").Subrouter()
+
+	api.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		var err error
+		if coreServer == nil {
+			coreServer, err = core.StartCoreServer()
+		}
+		if err != nil {
+			logger.Errorf("Starting core server failed: %v", err)
+			_, _ = fmt.Fprint(w, "Could not start core server")
+			return
+		}
+		pong, err := core.Ping(*coreServer)
+		if err != nil {
+			logger.Errorf("Ping to core server failed: %v", err)
+			_, _ = fmt.Fprint(w, "Pong Backend -> Frontend (ping Backend -> Core failed)")
+			return
+		}
+		_, _ = fmt.Fprint(w, pong)
+	})
+	api.HandleFunc("/login", login)
+
+	secured := api.PathPrefix("/secured").Subrouter()
+	secured.Use(jwtAuthorizationMiddleware)
+	secured.HandleFunc("/gameLobby", gameLobby)
+
+	api.PathPrefix("/").Handler(ErrorHandler{
+		statusCode: 404,
+		message: "Endpoint does not exist",
+		errorType: InvalidEndpoint,
 	})
 
 	spa := SPAHandler{StaticPath: "build", IndexPath: "index.html"}
@@ -22,7 +57,7 @@ func StartWebServer() {
 
 	port, err := strconv.Atoi(os.Getenv("PORT"))
 	if err != nil {
-		logrus.Warn("Could not get port from env variables, falling back to 8080")
+		logger.Warn("Could not get port from env variables, falling back to 8080")
 		port = 8080
 	}
 
@@ -34,6 +69,6 @@ func StartWebServer() {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	logrus.Info("Listening on port " + strconv.Itoa(port))
-	logrus.Fatal(srv.ListenAndServe())
+	logger.Info("Listening on port " + strconv.Itoa(port))
+	logger.Fatal(srv.ListenAndServe())
 }

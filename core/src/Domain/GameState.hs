@@ -35,7 +35,7 @@ data PlayerState = PlayerState {
 ,   builtStructures ::              Map Category (Set Domain.Structure.Name)
 ,   resourcesProduced ::            [ResourceProduced]
 ,   pointActions ::                 [Action (Map PointCategory Int -> Map PointCategory Int)]
-,   tradeActions ::                 [Action (Domain.Player.Name -> Int)]
+,   tradeActions ::                 [Action (Domain.Player.Name -> ResourceType -> Int)]
 ,   constructFreeAction ::          [Action (Domain.Structure.Name -> Bool)]
 ,   constructLastStructureAction :: Action Bool
 ,   copyGuildAction ::              Action Bool
@@ -80,7 +80,7 @@ initialPlayerState =
         scientificActions = []
     }
 
-defaultTradeAction = (return $ const 2) :: Action (Domain.Player.Name -> Int)
+defaultTradeAction = (return $ const $ const 2) :: Action (Domain.Player.Name -> ResourceType -> Int)
 defaultConstructLastStructureAction = return False :: Action Bool
 defaultCopyGuildAction = return False :: Action Bool
 
@@ -94,6 +94,10 @@ initNeighbours playerNames = fromList $ mapper <$> indexed playerNames
 lookupNeighbours :: GameState -> Domain.Player.Name -> (Domain.Player.Name, Domain.Player.Name)
 lookupNeighbours GameState{neighbours = neighbours} playerName =
     fromJust $ Data.Map.lookup playerName neighbours
+
+lookupPlayerState :: GameState -> Domain.Player.Name -> PlayerState
+lookupPlayerState GameState{playerStates = playerStates} playerName =
+    fromJust $ Data.Map.lookup playerName playerStates
 
 anyResourceEffect :: [ResourceType] -> Effect
 anyResourceEffect _ = undefined
@@ -142,6 +146,9 @@ constructLastStructureEffect = undefined
 
 copyGuildEffect :: Effect
 copyGuildEffect = undefined
+
+extractActions :: GameState -> [Action a] -> [a]
+extractActions gameState = (flip runReader gameState <$>)
 
 combineFunctionActions :: GameState -> [Action (a -> a)] -> (a -> a)
 combineFunctionActions gameState actions = foldl (.) id $ flip runReader gameState <$> actions

@@ -1,11 +1,9 @@
 package main
 
 import (
-	"github.com/Szetty/seven_wonder/backend/web"
-	"github.com/sirupsen/logrus"
+	"github.com/Szetty/seven_wonders/backend/web"
 )
 
 func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
 	web.StartWebServer()
 }

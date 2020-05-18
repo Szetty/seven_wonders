@@ -1,1 +1,1 @@
-docker run -it -p 8080:8080 "seven_wonders:$(cat VERSION)"
+docker run -it -p 8080:8080 --env-file $1 "seven_wonders:$(cat VERSION)"

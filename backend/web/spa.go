@@ -1,8 +1,6 @@
 package web
 
 import (
-	"fmt"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,7 +20,7 @@ type SPAHandler struct {
 // file located at the index path on the SPA handler will be served. This
 // is suitable behavior for serving an SPA (single page application).
 func (h SPAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.WithFields(logrus.Fields{"path": r.URL.Path}).Info("Accessing static asset")
+	logger.WithFields(map[string]interface{}{"path": r.URL.Path}).Info("Accessing static asset")
 	// get the absolute path to prevent directory traversal
 	path, err := filepath.Abs(r.URL.Path)
 	if err != nil {
@@ -39,7 +37,7 @@ func (h SPAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, err = os.Stat(path)
 	if os.IsNotExist(err) {
 		// file does not exist, serve index.html
-		fmt.Printf(filepath.Join(h.StaticPath, h.IndexPath) + "\n")
+		logger.Info(filepath.Join(h.StaticPath, h.IndexPath) + "\n")
 		http.ServeFile(w, r, filepath.Join(h.StaticPath, h.IndexPath))
 		return
 	} else if err != nil {
