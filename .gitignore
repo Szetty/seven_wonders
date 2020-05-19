@@ -277,4 +277,5 @@ frontend/src/style/*.css
 **/.env
 core.cabal
 
+*.iml
 # End of https://www.gitignore.io/api/go,git,elm,node,haskell,intellij,visualstudiocode

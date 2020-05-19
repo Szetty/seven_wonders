@@ -1,22 +1,28 @@
 module Main exposing (main)
 
 import Browser exposing (UrlRequest, application)
-import Browser.Navigation exposing (Key)
-import Html exposing (button, div, text)
-import Html.Attributes exposing (class)
+import Browser.Navigation as Nav
+import Html exposing (button, div, img, text)
+import Html.Attributes exposing (class, src)
 import Html.Events exposing (onClick)
 import Http
+import Image exposing (Image)
+import Navigation exposing (Msg(..), Navigation)
 import Url exposing (Url)
 
 
 type Msg
-    = Init
-    | Ping
+    = Ping
     | GotPong (Result Http.Error String)
+    | GotImage (Result Http.Error (Maybe Image))
+    | NavigationMsg Navigation.Msg
 
 
 type alias Model =
-    String
+    { text : String
+    , image : Maybe Image
+    , navigation : Navigation
+    }
 
 
 main : Program () Model Msg
@@ -26,19 +32,23 @@ main =
         , update = update
         , view = view
         , subscriptions = subscriptions
-        , onUrlChange = onUrlChange
-        , onUrlRequest = onUrlRequest
+        , onUrlChange = NavigationMsg << UrlChanged
+        , onUrlRequest = NavigationMsg << LinkClicked
         }
 
 
-init : flags -> Url -> Key -> ( Model, Cmd Msg )
-init _ _ _ =
-    initialValue
+init : flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
+    initialValue url key
 
 
-initialValue : ( Model, Cmd Msg )
-initialValue =
-    ( "", Cmd.none )
+initialValue : Url -> Nav.Key -> ( Model, Cmd Msg )
+initialValue url key =
+    let
+        navigation =
+            Navigation.init key url
+    in
+    ( Model "" Nothing navigation, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -47,31 +57,45 @@ update msg model =
         Ping ->
             ( model, ping )
 
-        Init ->
-            initialValue
-
         GotPong result ->
             case result of
                 Ok response ->
-                    ( response, Cmd.none )
+                    ( { model | text = response }, Cmd.none )
 
                 Err Http.Timeout ->
-                    ( "TIMEOUT", Cmd.none )
+                    ( { model | text = "TIMEOUT" }, Cmd.none )
 
                 Err Http.NetworkError ->
-                    ( "NETWORK ERROR", Cmd.none )
+                    ( { model | text = "NETWORK ERROR" }, Cmd.none )
 
                 Err _ ->
-                    ( "FAIL", Cmd.none )
+                    ( { model | text = "FAIL PONG" }, Cmd.none )
+
+        GotImage result ->
+            case result of
+                Ok response ->
+                    ( { model | image = response }, Cmd.none )
+
+                Err _ ->
+                    ( { model | text = "FAIL" }, Cmd.none )
+
+        NavigationMsg navigationMsg ->
+            let
+                ( navigation, navigationCmd ) =
+                    Navigation.update navigationMsg model.navigation
+            in
+            ( { model | navigation = navigation }, Cmd.map NavigationMsg navigationCmd )
 
 
 view : Model -> Browser.Document Msg
 view model =
     { title = "7 Wonders"
     , body =
-        [ div [class "mt-3"]
+        [ div [ class "mt-3" ]
             [ button [ onClick Ping, class "btn btn-primary" ] [ text "PING" ]
-            , div [] [ text model ]
+            , div [] [ text model.text ]
+            , div [] []
+            , img [ src "%PUBLIC_URL%/wonders/alexandriaA.png" ] []
             ]
         ]
     }
@@ -80,16 +104,6 @@ view model =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
-
-
-onUrlChange : Url -> Msg
-onUrlChange _ =
-    Init
-
-
-onUrlRequest : UrlRequest -> Msg
-onUrlRequest _ =
-    Init
 
 
 ping : Cmd Msg
