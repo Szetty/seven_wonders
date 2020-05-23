@@ -1,11 +1,12 @@
 module Pages.Login exposing (..)
 
-import Common.Session exposing (Session)
+import Common.Route as Route exposing (Route(..))
+import Common.Session exposing (Session, getNavKey, setUserToken)
+import Common.WebStorage as WebStorage
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
-import Http exposing (..)
-import Server.Login as Login
+import Server.LoginService as LoginService
 import Validate exposing (Valid, Validator, fromValid, ifBlank, validate)
 
 
@@ -26,7 +27,7 @@ type Msg
     = Submit
     | GotName String
     | GotAccessToken String
-    | CompletedLogin Login.Msg
+    | CompletedLogin LoginService.Msg
 
 
 init : Session -> ( Model, Cmd Msg )
@@ -69,10 +70,10 @@ update msg model =
             ( { model | form = { form | accessToken = accessToken } }, Cmd.none )
 
         Submit ->
-            case validate modelValidator model.form of
+            case validate formValidator model.form of
                 Ok validForm ->
                     ( { model | errors = [] }
-                    , Cmd.map CompletedLogin (Login.login (fromValid validForm))
+                    , Cmd.map CompletedLogin (LoginService.login (fromValid validForm))
                     )
 
                 Err errors ->
@@ -81,13 +82,22 @@ update msg model =
                     )
 
         CompletedLogin loginResponse ->
-            case Login.extractResponse loginResponse of
+            case LoginService.extractResponse loginResponse of
                 Just response ->
                     let
                         _ =
                             Debug.log "RESPONSE: " response
+
+                        session =
+                            setUserToken model.session response
+
+                        cmd =
+                            Cmd.batch
+                                [ WebStorage.saveUserInfo response
+                                , Route.replaceUrl (getNavKey session) Game
+                                ]
                     in
-                    ( { model | form = initForm }, Cmd.none )
+                    ( { model | form = initForm, session = session }, cmd )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -100,11 +110,14 @@ view model =
         , input [ placeholder "Name", value model.form.name, onInput GotName ] []
         , button [ onClick Submit, class "btn btn-primary" ] [ text "Submit" ]
         ]
+    , div []
+        [ text (String.join "" model.errors)
+        ]
     ]
 
 
-modelValidator : Validator String Form
-modelValidator =
+formValidator : Validator String Form
+formValidator =
     Validate.all
         [ ifBlank .name "Name can't be blank."
         , ifBlank .accessToken "Access token can't be blank."

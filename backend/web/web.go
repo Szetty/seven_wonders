@@ -21,36 +21,7 @@ func StartWebServer() {
 	router.Use(loggingMiddleware)
 
 	api := router.PathPrefix("/api").Subrouter()
-
-	api.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		var err error
-		if coreServer == nil {
-			coreServer, err = core.StartCoreServer()
-		}
-		if err != nil {
-			logger.Errorf("Starting core server failed: %v", err)
-			_, _ = fmt.Fprint(w, "Could not start core server")
-			return
-		}
-		pong, err := core.Ping(*coreServer)
-		if err != nil {
-			logger.Errorf("Ping to core server failed: %v", err)
-			_, _ = fmt.Fprint(w, "Pong Backend -> Frontend (ping Backend -> Core failed)")
-			return
-		}
-		_, _ = fmt.Fprint(w, pong)
-	})
-	api.HandleFunc("/login", login)
-
-	secured := api.PathPrefix("/secured").Subrouter()
-	secured.Use(jwtAuthorizationMiddleware)
-	secured.HandleFunc("/gameLobby", gameLobby)
-
-	api.PathPrefix("/").Handler(ErrorHandler{
-		statusCode: 404,
-		message: "Endpoint does not exist",
-		errorType: InvalidEndpoint,
-	})
+	defineAPI(api)
 
 	spa := SPAHandler{StaticPath: "build", IndexPath: "index.html"}
 	router.PathPrefix("/").Handler(spa)
@@ -71,4 +42,42 @@ func StartWebServer() {
 
 	logger.Info("Listening on port " + strconv.Itoa(port))
 	logger.Fatal(srv.ListenAndServe())
+}
+
+func defineAPI(api *mux.Router) {
+	api.HandleFunc("/ping", ping)
+	api.HandleFunc("/login", login)
+
+	secured := api.PathPrefix("/secured").Subrouter()
+	defineSecured(secured)
+
+	api.PathPrefix("/").Handler(ErrorHandler{
+		statusCode: 404,
+		message: "Endpoint does not exist",
+		errorType: InvalidEndpoint,
+	})
+}
+
+func defineSecured(secured *mux.Router) {
+	secured.Use(jwtAuthorizationMiddleware)
+	secured.HandleFunc("/gameLobby", gameLobby)
+}
+
+func ping(w http.ResponseWriter, r *http.Request) {
+	var err error
+	if coreServer == nil {
+		coreServer, err = core.StartCoreServer()
+	}
+	if err != nil {
+		logger.Errorf("Starting core server failed: %v", err)
+		_, _ = fmt.Fprint(w, "Could not start core server")
+		return
+	}
+	pong, err := core.Ping(*coreServer)
+	if err != nil {
+		logger.Errorf("Ping to core server failed: %v", err)
+		_, _ = fmt.Fprint(w, "Pong Backend -> Frontend (ping Backend -> Core failed)")
+		return
+	}
+	_, _ = fmt.Fprint(w, pong)
 }

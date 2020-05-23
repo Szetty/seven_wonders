@@ -3,7 +3,7 @@ module Main exposing (..)
 import Browser exposing (Document)
 import Browser.Navigation as Nav
 import Common.Route as Route exposing (Route)
-import Common.Session exposing (Session(..), getNavKey)
+import Common.Session exposing (Session(..), UserInfo, getNavKey, initSession)
 import Html exposing (div, text)
 import Pages.Game as Game
 import Pages.Login as Login
@@ -16,9 +16,13 @@ type Model
     | Login Login.Model
 
 
-init : flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
-init _ url navKey =
-    changeRouteTo (Route.fromUrl url) (Guest navKey)
+type alias Flags =
+    { userInfo : Maybe UserInfo }
+
+
+init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init flags url navKey =
+    changeRouteTo (Route.fromUrl url) (initSession navKey flags.userInfo)
 
 
 changeRouteTo : Maybe Route -> Session -> ( Model, Cmd Msg )
@@ -26,6 +30,16 @@ changeRouteTo maybeRoute session =
     case maybeRoute of
         Nothing ->
             ( NotFound session, Cmd.none )
+
+        Just Route.Root ->
+            case session of
+                Guest _ ->
+                    Login.init session
+                        |> updateWith Login GotLoginMsg
+
+                LoggedIn _ _ ->
+                    Game.init session
+                        |> updateWith Game GotGameMsg
 
         Just Route.Game ->
             Game.init session
@@ -121,7 +135,7 @@ notFoundView =
     [ div [] [ text "Page was not found" ] ]
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.application
         { init = init

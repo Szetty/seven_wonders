@@ -8,14 +8,15 @@ import Url.Parser as Parser exposing (Parser, oneOf, s)
 
 
 type Route
-    = Game
+    = Root
+    | Game
     | Login
 
 
 parser : Parser (Route -> a) a
 parser =
     oneOf
-        [ Parser.map Login Parser.top
+        [ Parser.map Root Parser.top
         , Parser.map Login (s "login")
         , Parser.map Game (s "game")
         ]
@@ -52,8 +53,11 @@ routeToString page =
 routeToPieces : Route -> List String
 routeToPieces page =
     case page of
-        Game ->
+        Root ->
             []
+
+        Game ->
+            [ "game" ]
 
         Login ->
             [ "login" ]

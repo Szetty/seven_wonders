@@ -1,14 +1,14 @@
-module Server.Login exposing (..)
+module Server.LoginService exposing (..)
 
 import Http exposing (jsonBody)
 import Json.Decode as Decoder
 import Json.Encode as Encoder
-import Server.Common as Common
+import Server.Common as Common exposing (FailedRequest)
 import Server.Endpoints as Endpoints
 
 
 type Msg
-    = GotResponse (Result Http.Error Response)
+    = GotResponse (Result FailedRequest Response)
 
 
 type alias Body =
@@ -18,7 +18,10 @@ type alias Body =
 
 
 type alias Response =
-    { user_token : String }
+    { userToken : String
+    , name : String
+    , gameID : String
+    }
 
 
 login : Body -> Cmd Msg
@@ -29,13 +32,15 @@ login body =
                 [ ( "name", Encoder.string body.name ), ( "access_token", Encoder.string body.accessToken ) ]
 
         loginResponseDecoder =
-            Decoder.map Response
+            Decoder.map3 Response
                 (Decoder.field "user_token" Decoder.string)
+                (Decoder.field "name" Decoder.string)
+                (Decoder.field "game_id" Decoder.string)
     in
     Http.post
         { url = Endpoints.login
         , body = jsonBody encodedBody
-        , expect = Http.expectJson GotResponse loginResponseDecoder
+        , expect = Common.expectJson GotResponse loginResponseDecoder
         }
 
 
