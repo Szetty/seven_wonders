@@ -1,5 +1,5 @@
 module.exports = {
-    proxy: "http://localhost:8080",
+    proxy: "http://192.168.1.64:8080",
     configureWebpack: (config, _env) => {
         config.module.rules.push({
             test:/\.(s*)css$/,
