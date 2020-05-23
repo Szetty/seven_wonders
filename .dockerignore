@@ -1,0 +1,8 @@
+.git
+**/node_modules
+**/elm-stuff
+**/.stack-work
+**/build
+.DS_Store
+.idea
+**/.env
