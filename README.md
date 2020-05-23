@@ -7,7 +7,9 @@
 - [Install Go 1.14.2](https://golang.org/doc/install)
 - [Install Elm 0.19.1](https://guide.elm-lang.org/install/elm.html)
 
-## Core
+## Development
+
+### Core
 
 In core folder:
 ```shell script
@@ -16,17 +18,24 @@ stack test
 stack run
 ```
 
-## Backend
+### Backend
 
 In backend folder:
 ```shell script
-go build github.com/Szetty/seven_wonder/backend
-./backend
+go run main.go
 ```
 
-## Frontend
+### Frontend
 
 In frontend folder:
 ```shell script
-elm reactor
+npm install
+elm make
+elm-app start
+```
+
+## Deployment
+```shell script
+bin/build.sh
+bin/run.sh
 ```
