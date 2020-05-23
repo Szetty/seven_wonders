@@ -1,104 +1,96 @@
-module Main exposing (main)
+module Main exposing (..)
 
-import Browser exposing (UrlRequest, application)
+import Browser exposing (Document)
 import Browser.Navigation as Nav
-import Html exposing (button, div, img, text)
-import Html.Attributes exposing (class, src)
-import Html.Events exposing (onClick)
-import Http
-import Image exposing (Image)
-import Navigation exposing (Msg(..), Navigation)
+import Common.Route as Route exposing (Route)
+import Common.Session exposing (Session(..), getNavKey)
+import Html exposing (div, text)
+import Pages.Game as Game
+import Pages.Login as Login
 import Url exposing (Url)
 
 
-type Msg
-    = Ping
-    | GotPong (Result Http.Error String)
-    | GotImage (Result Http.Error (Maybe Image))
-    | NavigationMsg Navigation.Msg
-
-
-type alias Model =
-    { text : String
-    , image : Maybe Image
-    , navigation : Navigation
-    }
-
-
-main : Program () Model Msg
-main =
-    application
-        { init = init
-        , update = update
-        , view = view
-        , subscriptions = subscriptions
-        , onUrlChange = NavigationMsg << UrlChanged
-        , onUrlRequest = NavigationMsg << LinkClicked
-        }
+type Model
+    = NotFound Session
+    | Game Game.Model
+    | Login Login.Model
 
 
 init : flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
-init _ url key =
-    initialValue url key
+init _ url navKey =
+    changeRouteTo (Route.fromUrl url) (Guest navKey)
 
 
-initialValue : Url -> Nav.Key -> ( Model, Cmd Msg )
-initialValue url key =
-    let
-        navigation =
-            Navigation.init key url
-    in
-    ( Model "" Nothing navigation, Cmd.none )
+changeRouteTo : Maybe Route -> Session -> ( Model, Cmd Msg )
+changeRouteTo maybeRoute session =
+    case maybeRoute of
+        Nothing ->
+            ( NotFound session, Cmd.none )
+
+        Just Route.Game ->
+            Game.init session
+                |> updateWith Game GotGameMsg
+
+        Just Route.Login ->
+            Login.init session
+                |> updateWith Login GotLoginMsg
+
+
+type Msg
+    = ChangedUrl Url
+    | ClickedLink Browser.UrlRequest
+    | GotGameMsg Game.Msg
+    | GotLoginMsg Login.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Ping ->
-            ( model, ping )
+    case ( msg, model ) of
+        ( ClickedLink urlRequest, _ ) ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ( model
+                    , Nav.pushUrl (getNavKey (toSession model)) (Url.toString url)
+                    )
 
-        GotPong result ->
-            case result of
-                Ok response ->
-                    ( { model | text = response }, Cmd.none )
+                Browser.External href ->
+                    ( model
+                    , Nav.load href
+                    )
 
-                Err Http.Timeout ->
-                    ( { model | text = "TIMEOUT" }, Cmd.none )
+        ( ChangedUrl url, _ ) ->
+            changeRouteTo (Route.fromUrl url) (toSession model)
 
-                Err Http.NetworkError ->
-                    ( { model | text = "NETWORK ERROR" }, Cmd.none )
+        ( GotLoginMsg subMsg, Login login ) ->
+            Login.update subMsg login
+                |> updateWith Login GotLoginMsg
 
-                Err _ ->
-                    ( { model | text = "FAIL PONG" }, Cmd.none )
+        ( GotGameMsg subMsg, Game game ) ->
+            Game.update subMsg game
+                |> updateWith Game GotGameMsg
 
-        GotImage result ->
-            case result of
-                Ok response ->
-                    ( { model | image = response }, Cmd.none )
-
-                Err _ ->
-                    ( { model | text = "FAIL" }, Cmd.none )
-
-        NavigationMsg navigationMsg ->
-            let
-                ( navigation, navigationCmd ) =
-                    Navigation.update navigationMsg model.navigation
-            in
-            ( { model | navigation = navigation }, Cmd.map NavigationMsg navigationCmd )
+        ( _, _ ) ->
+            ( model, Cmd.none )
 
 
-view : Model -> Browser.Document Msg
-view model =
-    { title = "7 Wonders"
-    , body =
-        [ div [ class "mt-3" ]
-            [ button [ onClick Ping, class "btn btn-primary" ] [ text "PING" ]
-            , div [] [ text model.text ]
-            , div [] []
-            , img [ src "%PUBLIC_URL%/wonders/alexandriaA.png" ] []
-            ]
-        ]
-    }
+updateWith : (subModel -> Model) -> (subMsg -> Msg) -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
+updateWith toModel toMsg ( subModel, subCmd ) =
+    ( toModel subModel
+    , Cmd.map toMsg subCmd
+    )
+
+
+toSession : Model -> Session
+toSession page =
+    case page of
+        NotFound session ->
+            session
+
+        Game game ->
+            Game.toSession game
+
+        Login login ->
+            Login.toSession login
 
 
 subscriptions : Model -> Sub Msg
@@ -106,9 +98,36 @@ subscriptions _ =
     Sub.none
 
 
-ping : Cmd Msg
-ping =
-    Http.get
-        { url = "/api/ping"
-        , expect = Http.expectString GotPong
+view : Model -> Document Msg
+view model =
+    let
+        viewPage body toMsg =
+            { title = "7 Wonders"
+            , body = List.map (Html.map toMsg) body
+            }
+    in
+    case model of
+        NotFound _ ->
+            viewPage notFoundView identity
+
+        Game game ->
+            viewPage (Game.view game) GotGameMsg
+
+        Login login ->
+            viewPage (Login.view login) GotLoginMsg
+
+
+notFoundView =
+    [ div [] [ text "Page was not found" ] ]
+
+
+main : Program () Model Msg
+main =
+    Browser.application
+        { init = init
+        , onUrlChange = ChangedUrl
+        , onUrlRequest = ClickedLink
+        , subscriptions = subscriptions
+        , update = update
+        , view = view
         }
