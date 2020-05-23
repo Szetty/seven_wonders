@@ -86,8 +86,9 @@ update msg model =
                 Just response ->
                     let
                         _ =
-                            Debug.log "RESPONSE: " response
+                            ""
 
+                        -- Debug.log "RESPONSE: " response
                         session =
                             setUserToken model.session response
 

@@ -37,7 +37,9 @@ extractResponse result =
         Err error ->
             let
                 _ =
-                    Debug.log "HTTP request failed" error
+                    ""
+
+                -- Debug.log "HTTP request failed" error
             in
             Nothing
 
