@@ -9,6 +9,7 @@ matrix:
   include:
     - language: elm
       before_install:
+        - cd frontend/
         - npm install
         - npm install -g elm-github-install create-elm-app@4.2.16 --unsafe-perm=true
       install:
