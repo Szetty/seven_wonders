@@ -7,6 +7,14 @@ cache:
 
 matrix:
   include:
+    - language: elm
+      before_install:
+        - npm install
+        - npm install -g elm-github-install create-elm-app@4.2.16 --unsafe-perm=true
+      install:
+        - elm-app build
+      script:
+        - elm-app test
     - language: haskell
       before_install:
         - cd core/
