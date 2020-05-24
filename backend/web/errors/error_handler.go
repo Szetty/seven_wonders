@@ -1,6 +1,8 @@
-package web
+package errors
 
 import (
+	"encoding/json"
+	"github.com/Szetty/seven_wonders/backend/common"
 	"net/http"
 )
 
@@ -14,12 +16,15 @@ const(
 	ServerError = "SERVER_ERROR"
 	Unauthorized = "UNAUTHORIZED"
 	InvalidEndpoint = "INVALID_ENDPOINT"
+	InvalidGameID = "INVALID_GAME_ID"
 )
 
+var logger = common.NewLogger("Web")
+
 type ErrorHandler struct {
-	message string
-	statusCode int
-	errorType ErrorType
+	Message    string
+	StatusCode int
+	ErrorType  ErrorType
 }
 
 type ErrorResponse struct {
@@ -28,18 +33,18 @@ type ErrorResponse struct {
 }
 
 func (h ErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger.Warn(h.message)
-	response := ErrorResponse{ErrorMessage: h.message, ErrorType: h.errorType}
+	logger.Warn(h.Message)
+	response := ErrorResponse{ErrorMessage: h.Message, ErrorType: h.ErrorType}
 	respBytes, err := json.Marshal(&response)
 	if err != nil {
 		logger.Errorf("Could not decode to json: %v", err)
 		w.WriteHeader(500)
 		return
 	}
-	w.WriteHeader(h.statusCode)
+	w.WriteHeader(h.StatusCode)
 	_, err = w.Write(respBytes)
 	if err != nil {
-		logger.Errorf("Could not write error message: %v", err)
+		logger.Errorf("Could not write error Message: %v", err)
 		return
 	}
 }

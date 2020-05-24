@@ -1,5 +1,10 @@
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
 module.exports = {
-    proxy: "http://192.168.1.64:8080",
+    setupProxy: function(app) {
+        app.use(createProxyMiddleware('/api', { target: 'http://192.168.1.64:8080' }));
+        app.use(createProxyMiddleware('/api/secured/game/*', { target: 'http://192.168.1.64:8080', ws: true }));
+    },
     configureWebpack: (config, _env) => {
         // Object.defineProperty(RegExp.prototype, "toJSON", {
         //     value: RegExp.prototype.toString

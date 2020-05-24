@@ -2,8 +2,16 @@ module Server.Endpoints exposing (..)
 
 
 login =
-    prefix ++ "/login"
+    apiPrefix ++ "/login"
 
 
-prefix =
+game =
+    apiPrefix ++ securedPrefix ++ "/game"
+
+
+apiPrefix =
     "/api"
+
+
+securedPrefix =
+    "/secured"

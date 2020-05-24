@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/common"
 	"github.com/Szetty/seven_wonders/backend/core"
+	"github.com/Szetty/seven_wonders/backend/web/errors"
+	"github.com/Szetty/seven_wonders/backend/web/websocket"
 	"github.com/gorilla/mux"
 	"github.com/json-iterator/go"
 	"net/http"
@@ -51,15 +53,16 @@ func defineAPI(api *mux.Router) {
 	secured := api.PathPrefix("/secured").Subrouter()
 	defineSecured(secured)
 
-	api.PathPrefix("/").Handler(ErrorHandler{
-		statusCode: 404,
-		message: "Endpoint does not exist",
-		errorType: InvalidEndpoint,
+	api.PathPrefix("/").Handler(errors.ErrorHandler{
+		StatusCode: 404,
+		Message:    "Endpoint does not exist",
+		ErrorType:  errors.InvalidEndpoint,
 	})
 }
 
 func defineSecured(secured *mux.Router) {
 	secured.Use(jwtAuthorizationMiddleware)
+	secured.HandleFunc("/game/{game}", websocket.UpgradeToWS)
 	secured.HandleFunc("/gameLobby", gameLobby)
 }
 

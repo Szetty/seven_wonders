@@ -109,7 +109,7 @@ toSession page =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    Sub.map GotGameMsg Game.subscriptions
 
 
 view : Model -> Document Msg

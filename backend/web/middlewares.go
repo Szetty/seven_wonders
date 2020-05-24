@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/common"
+	"github.com/Szetty/seven_wonders/backend/web/errors"
 	"github.com/dgrijalva/jwt-go"
 	"net/http"
 	"strings"
@@ -19,16 +20,22 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func jwtAuthorizationMiddleware(next http.Handler) http.Handler {
 	const prefix = "Bearer "
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authorization := r.Header.Get("Authorization")
-		if !strings.HasPrefix(authorization, prefix) {
-			ErrorHandler{
-				message: fmt.Sprintf("Invalid authorization header: %s", authorization),
-				statusCode: 401,
-				errorType: Unauthorized,
+		authorizationHeader := r.Header.Get("authorization")
+		authorizationQueryValue := r.URL.Query().Get("authorization")
+		if !strings.HasPrefix(authorizationHeader, prefix) && authorizationQueryValue == "" {
+			errors.ErrorHandler{
+				Message:    fmt.Sprintf("Invalid authorization header or query value"),
+				StatusCode: 401,
+				ErrorType:  errors.Unauthorized,
 			}.ServeHTTP(w, r)
 			return
 		}
-		jwtToken := strings.TrimPrefix(authorization, prefix)
+		var jwtToken string
+		if authorizationQueryValue != "" {
+			jwtToken = authorizationQueryValue
+		} else {
+			jwtToken = strings.TrimPrefix(authorizationHeader, prefix)
+		}
 		token, err := jwt.ParseWithClaims(
 			jwtToken,
 			&jwt.StandardClaims{},
@@ -37,10 +44,10 @@ func jwtAuthorizationMiddleware(next http.Handler) http.Handler {
 			},
 		)
 		if err != nil {
-			ErrorHandler{
-				message: fmt.Sprintf("Unauthorized: %v", err),
-				statusCode: 401,
-				errorType: Unauthorized,
+			errors.ErrorHandler{
+				Message:    fmt.Sprintf("Unauthorized: %v", err),
+				StatusCode: 401,
+				ErrorType:  errors.Unauthorized,
 			}.ServeHTTP(w, r)
 			return
 		}

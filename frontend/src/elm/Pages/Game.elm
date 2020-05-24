@@ -6,12 +6,15 @@ import Html.Attributes exposing (class, src)
 import Html.Events exposing (onClick)
 import Http
 import Image exposing (Image)
+import Server.WebSocket as WebSocket
 
 
 type Msg
     = Ping
     | GotPong (Result Http.Error String)
     | GotImage (Result Http.Error (Maybe Image))
+    | InitWebSocket
+    | GotWS String
 
 
 type alias Model =
@@ -27,7 +30,7 @@ init session =
       , text = ""
       , image = Nothing
       }
-    , Cmd.none
+    , WebSocket.startWebSocket session
     )
 
 
@@ -39,6 +42,20 @@ toSession { session } =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        InitWebSocket ->
+            if model.text == "INIT_WS" then
+                let
+                    cmd =
+                        Cmd.batch
+                            [ WebSocket.initWebSocket ""
+                            , WebSocket.sendWSMessage ""
+                            ]
+                in
+                ( model, cmd )
+
+            else
+                ( model, Cmd.none )
+
         Ping ->
             ( model, ping )
 
@@ -64,6 +81,13 @@ update msg model =
                 Err _ ->
                     ( { model | text = "FAIL" }, Cmd.none )
 
+        GotWS r ->
+            let
+                _ =
+                    Debug.log "WS" r
+            in
+            ( model, Cmd.none )
+
 
 view : Model -> List (Html Msg)
 view model =
@@ -82,3 +106,18 @@ ping =
         { url = "/api/ping"
         , expect = Http.expectString GotPong
         }
+
+
+subscriptions : Sub Msg
+subscriptions =
+    let
+        event name payload =
+            GotWS (name ++ payload)
+    in
+    Sub.batch
+        [ WebSocket.incomingWSMessage GotWS
+        , WebSocket.onWSOffline (event "Offline")
+        , WebSocket.onWSOnline (event "Online")
+        , WebSocket.onWSSync (event "Sync")
+        , WebSocket.replyWSMessage GotWS
+        ]
