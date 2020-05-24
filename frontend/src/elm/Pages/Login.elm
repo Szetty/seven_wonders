@@ -83,7 +83,7 @@ update msg model =
 
         CompletedLogin loginResponse ->
             case LoginService.extractResponse loginResponse of
-                Just response ->
+                Ok response ->
                     let
                         _ =
                             ""
@@ -100,8 +100,12 @@ update msg model =
                     in
                     ( { model | form = initForm, session = session }, cmd )
 
-                Nothing ->
-                    ( model, Cmd.none )
+                Err errorBody ->
+                    let
+                        errors =
+                            errorBody.errorMessage :: model.errors
+                    in
+                    ( { model | errors = errors }, Cmd.none )
 
 
 view : Model -> List (Html Msg)

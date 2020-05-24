@@ -3,7 +3,7 @@ module Server.LoginService exposing (..)
 import Http exposing (jsonBody)
 import Json.Decode as Decoder
 import Json.Encode as Encoder
-import Server.Common as Common exposing (FailedRequest)
+import Server.Common as Common exposing (ErrorBody, FailedRequest)
 import Server.Endpoints as Endpoints
 
 
@@ -44,6 +44,6 @@ login body =
         }
 
 
-extractResponse : Msg -> Maybe Response
+extractResponse : Msg -> Result ErrorBody Response
 extractResponse (GotResponse response) =
     Common.extractResponse response

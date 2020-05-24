@@ -21,18 +21,40 @@ type alias ErrorBody =
 
 type ErrorType
     = InvalidName
-    | InvalidBody
-    | CannotParsePayload
     | InvalidAccessToken
     | Unauthorized
-    | InvalidEndpoint
+    | Unknown
 
 
-extractResponse : Result FailedRequest a -> Maybe a
+extractResponse : Result FailedRequest a -> Result ErrorBody a
 extractResponse result =
+    let
+        defaultErrorBody =
+            { errorMessage = "Something went wrong", errorType = Unknown }
+    in
     case result of
         Ok response ->
-            Just response
+            Ok response
+
+        Err (BadRequest metadata errorBody) ->
+            case errorBody.errorType of
+                InvalidName ->
+                    Err errorBody
+
+                InvalidAccessToken ->
+                    Err errorBody
+
+                Unauthorized ->
+                    Err errorBody
+
+                Unknown ->
+                    let
+                        _ =
+                            ""
+
+                        -- Debug.log "HTTP request failed" error =
+                    in
+                    Err defaultErrorBody
 
         Err error ->
             let
@@ -41,7 +63,7 @@ extractResponse result =
 
                 -- Debug.log "HTTP request failed" error
             in
-            Nothing
+            Err defaultErrorBody
 
 
 expectJson : (Result FailedRequest a -> msg) -> D.Decoder a -> Expect msg
@@ -94,21 +116,12 @@ errorTypeDecoder =
                     "INVALID_NAME" ->
                         D.succeed InvalidName
 
-                    "INVALID_BODY" ->
-                        D.succeed InvalidBody
-
-                    "CANNOT_PARSE_PAYLOAD" ->
-                        D.succeed CannotParsePayload
-
                     "INVALID_ACCESS_TOKEN" ->
                         D.succeed InvalidAccessToken
 
                     "UNAUTHORIZED" ->
                         D.succeed Unauthorized
 
-                    "INVALID_ENDPOINT" ->
-                        D.succeed InvalidEndpoint
-
-                    somethingElse ->
-                        D.fail <| "Unknown error type: " ++ somethingElse
+                    _ ->
+                        D.succeed Unknown
             )

@@ -11,9 +11,9 @@ export interface UserInfo {
 type StoreKey = 'userInfo';
 
 export function init_flags(): Flags {
-    let userInfo = get('userInfo');
+    let userInfo: UserInfo = JSON.parse(get('userInfo'));
     return {
-        userInfo: JSON.parse(userInfo)
+        userInfo
     }
 }
 
