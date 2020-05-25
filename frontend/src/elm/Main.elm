@@ -11,13 +11,21 @@ import Url exposing (Url)
 
 
 type Model
-    = NotFound Session
-    | Game Game.Model
+    = Game Game.Model
     | Login Login.Model
+    | NotFound Session
+    | Redirect Session
 
 
 type alias Flags =
     { userInfo : Maybe UserInfo }
+
+
+type Msg
+    = ChangedUrl Url
+    | ClickedLink Browser.UrlRequest
+    | GotGameMsg Game.Msg
+    | GotLoginMsg Login.Msg
 
 
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -34,27 +42,28 @@ changeRouteTo maybeRoute session =
         Just Route.Root ->
             case session of
                 Guest _ ->
-                    Login.init session
-                        |> updateWith Login GotLoginMsg
+                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Login )
+
+                LoggedIn _ _ ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Game )
+
+        Just Route.Game ->
+            case session of
+                Guest _ ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Login )
 
                 LoggedIn _ _ ->
                     Game.init session
                         |> updateWith Game GotGameMsg
 
-        Just Route.Game ->
-            Game.init session
-                |> updateWith Game GotGameMsg
-
         Just Route.Login ->
-            Login.init session
-                |> updateWith Login GotLoginMsg
+            case session of
+                Guest _ ->
+                    Login.init session
+                        |> updateWith Login GotLoginMsg
 
-
-type Msg
-    = ChangedUrl Url
-    | ClickedLink Browser.UrlRequest
-    | GotGameMsg Game.Msg
-    | GotLoginMsg Login.Msg
+                LoggedIn _ _ ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Game )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -106,6 +115,9 @@ toSession page =
         Login login ->
             Login.toSession login
 
+        Redirect session ->
+            session
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -129,6 +141,9 @@ view model =
 
         Login login ->
             viewPage (Login.view login) GotLoginMsg
+
+        Redirect _ ->
+            viewPage notFoundView identity
 
 
 notFoundView =

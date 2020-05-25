@@ -9,12 +9,7 @@ body {
   font-family: 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', 'Helvetica Neue', sans-serif;
   margin: 0;
   text-align: center;
-  color: #293c4b;
-  background-color: $background-color;
-}
-
-h1 {
-  font-size: 30px;
+  background-color: $light-gray;
 }
 
 img {
@@ -25,4 +20,20 @@ img {
   height: 100px;
   margin-top: -250px;
   margin-left: -250px;
+}
+
+.card-login {
+  width: 40vw;
+  position: fixed;
+  top: 25%;
+  left: 30%;
+  background-color: $antique-white;
+}
+
+.page-holder {
+  min-height: 100vh;
+}
+
+.bg-cover {
+  background-size: cover !important;
 }
