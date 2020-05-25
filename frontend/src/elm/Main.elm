@@ -21,6 +21,13 @@ type alias Flags =
     { userInfo : Maybe UserInfo }
 
 
+type Msg
+    = ChangedUrl Url
+    | ClickedLink Browser.UrlRequest
+    | GotGameMsg Game.Msg
+    | GotLoginMsg Login.Msg
+
+
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url navKey =
     changeRouteTo (Route.fromUrl url) (initSession navKey flags.userInfo)
@@ -41,19 +48,22 @@ changeRouteTo maybeRoute session =
                     ( Redirect session, Route.replaceUrl (getNavKey session) Route.Game )
 
         Just Route.Game ->
-            Game.init session
-                |> updateWith Game GotGameMsg
+            case session of
+                Guest _ ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Login )
+
+                LoggedIn _ _ ->
+                    Game.init session
+                        |> updateWith Game GotGameMsg
 
         Just Route.Login ->
-            Login.init session
-                |> updateWith Login GotLoginMsg
+            case session of
+                Guest _ ->
+                    Login.init session
+                        |> updateWith Login GotLoginMsg
 
-
-type Msg
-    = ChangedUrl Url
-    | ClickedLink Browser.UrlRequest
-    | GotGameMsg Game.Msg
-    | GotLoginMsg Login.Msg
+                LoggedIn _ _ ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Game )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
