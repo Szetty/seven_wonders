@@ -9,14 +9,14 @@ import (
 type ErrorType string
 
 const(
-	InvalidBody ErrorType = "INVALID_BODY"
+	ServerError ErrorType = "SERVER_ERROR"
+	InvalidBody = "INVALID_BODY"
 	CannotParsePayload = "CANNOT_PARSE_PAYLOAD"
+	InvalidEndpoint = "INVALID_ENDPOINT"
 	InvalidAccessToken = "INVALID_ACCESS_TOKEN"
 	InvalidName = "INVALID_NAME"
-	ServerError = "SERVER_ERROR"
-	Unauthorized = "UNAUTHORIZED"
-	InvalidEndpoint = "INVALID_ENDPOINT"
 	InvalidGameID = "INVALID_GAME_ID"
+	Unauthorized = "UNAUTHORIZED"
 )
 
 var logger = common.NewLogger("Web")

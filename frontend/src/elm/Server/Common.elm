@@ -1,7 +1,9 @@
 module Server.Common exposing (..)
 
+import Common.Logger as Logger
 import Http exposing (Error(..), Expect, expectStringResponse)
 import Json.Decode as D
+import Json.Encode as E
 
 
 type FailedRequest
@@ -14,56 +16,65 @@ type FailedRequest
 
 
 type alias ErrorBody =
-    { errorType : ErrorType
-    , errorMessage : String
+    { kind : ErrorType
+    , message : String
     }
 
 
 type ErrorType
     = InvalidName
     | InvalidAccessToken
+    | InvalidGameId
     | Unauthorized
     | Unknown
 
 
-extractResponse : Result FailedRequest a -> Result ErrorBody a
-extractResponse result =
+{-| Tries to extract response, if successful it returns the response
+if not successful it logs the error and returns client errors
+-}
+tryExtractResponse : Result FailedRequest a -> ( Result ErrorBody a, Cmd msg )
+tryExtractResponse result =
     let
         defaultErrorBody =
-            { errorMessage = "Something went wrong", errorType = Unknown }
+            ErrorBody Unknown "Something went wrong"
     in
     case result of
         Ok response ->
-            Ok response
-
-        Err (BadRequest metadata errorBody) ->
-            case errorBody.errorType of
-                InvalidName ->
-                    Err errorBody
-
-                InvalidAccessToken ->
-                    Err errorBody
-
-                Unauthorized ->
-                    Err errorBody
-
-                Unknown ->
-                    let
-                        _ =
-                            ""
-
-                        -- Debug.log "HTTP request failed" error =
-                    in
-                    Err defaultErrorBody
+            ( Ok response, Cmd.none )
 
         Err error ->
-            let
-                _ =
-                    ""
+            case error of
+                BadUrl msg ->
+                    ( Err defaultErrorBody, Logger.log "Bad url" msg )
 
-                -- Debug.log "HTTP request failed" error
-            in
-            Err defaultErrorBody
+                Timeout ->
+                    ( Err defaultErrorBody, Logger.log "Request Timeout" "" )
+
+                NetworkError ->
+                    ( Err defaultErrorBody, Logger.log "Network Error" "" )
+
+                BadRequest metadata errorBody ->
+                    case errorBody.kind of
+                        InvalidName ->
+                            ( Err errorBody, Logger.log ("Invalid name: " ++ errorBody.message) (encodeMetadata metadata) )
+
+                        InvalidAccessToken ->
+                            ( Err errorBody, Logger.log ("Invalid access token: " ++ errorBody.message) (encodeMetadata metadata) )
+
+                        InvalidGameId ->
+                            ( Err errorBody, Logger.log ("Invalid game id: " ++ errorBody.message) (encodeMetadata metadata) )
+
+                        Unauthorized ->
+                            ( Err errorBody, Logger.log ("Unauthorized: " ++ errorBody.message) (encodeMetadata metadata) )
+
+                        Unknown ->
+                            ( Err defaultErrorBody, Logger.log ("Unknown bad request: " ++ errorBody.message) (encodeMetadata metadata) )
+
+                ServerError metadata msg ->
+                    ( Err defaultErrorBody, Logger.log ("Server Error: " ++ msg) (encodeMetadata metadata) )
+
+                BadBody metadata msg bodyToParse ->
+                    ( Err defaultErrorBody, Logger.log ("Could not parse response body: " ++ msg ++ bodyToParse) (encodeMetadata metadata) )
 
 
 expectJson : (Result FailedRequest a -> msg) -> D.Decoder a -> Expect msg
@@ -122,6 +133,23 @@ errorTypeDecoder =
                     "UNAUTHORIZED" ->
                         D.succeed Unauthorized
 
+                    "INVALID_GAME_ID" ->
+                        D.succeed InvalidGameId
+
                     _ ->
                         D.succeed Unknown
             )
+
+
+encodeMetadata : Http.Metadata -> String
+encodeMetadata metadata =
+    let
+        encodedMetadata =
+            E.object
+                [ ( "url", E.string metadata.url )
+                , ( "statusCode", E.int metadata.statusCode )
+                , ( "statusText", E.string metadata.statusText )
+                , ( "headers", E.dict identity E.string metadata.headers )
+                ]
+    in
+    E.encode 0 encodedMetadata

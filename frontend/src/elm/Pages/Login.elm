@@ -82,30 +82,27 @@ update msg model =
                     )
 
         CompletedLogin loginResponse ->
-            case LoginService.extractResponse loginResponse of
-                Ok response ->
+            case LoginService.tryExtractResponse loginResponse of
+                ( Ok response, cmd ) ->
                     let
-                        _ =
-                            ""
-
-                        -- Debug.log "RESPONSE: " response
                         session =
                             setUserToken model.session response
 
-                        cmd =
+                        cmdBatch =
                             Cmd.batch
-                                [ WebStorage.saveUserInfo response
+                                [ Cmd.map CompletedLogin cmd
+                                , WebStorage.saveUserInfo response
                                 , Route.replaceUrl (getNavKey session) Game
                                 ]
                     in
-                    ( { model | form = initForm, session = session }, cmd )
+                    ( { model | form = initForm, session = session }, cmdBatch )
 
-                Err errorBody ->
+                ( Err errorBody, cmd ) ->
                     let
                         errors =
-                            errorBody.errorMessage :: model.errors
+                            errorBody.message :: model.errors
                     in
-                    ( { model | errors = errors }, Cmd.none )
+                    ( { model | errors = errors }, Cmd.map CompletedLogin cmd )
 
 
 view : Model -> List (Html Msg)

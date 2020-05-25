@@ -1,5 +1,6 @@
 module Pages.Game exposing (..)
 
+import Common.Logger as Logger
 import Common.Session exposing (Session)
 import Html exposing (Html, button, div, img, text)
 import Html.Attributes exposing (class, src)
@@ -82,11 +83,7 @@ update msg model =
                     ( { model | text = "FAIL" }, Cmd.none )
 
         GotWS r ->
-            let
-                _ =
-                    Debug.log "WS" r
-            in
-            ( model, Cmd.none )
+            ( model, Logger.log "WS" r )
 
 
 view : Model -> List (Html Msg)

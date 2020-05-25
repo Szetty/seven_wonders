@@ -30,6 +30,15 @@ app.ports.sendWSMessage.subscribe((message) => {
   )
 });
 
+app.ports.doLog.subscribe(([prefix, toLog]) => {
+  if (toLog !== "") {
+    try { toLog = JSON.parse(toLog); } catch (e) {}
+    console.log(`${prefix};`, toLog)
+  } else {
+    console.log(prefix)
+  }
+});
+
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.
 // Learn more about service workers: https://bit.ly/CRA-PWA

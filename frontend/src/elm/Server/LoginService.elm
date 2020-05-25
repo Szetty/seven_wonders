@@ -44,6 +44,6 @@ login body =
         }
 
 
-extractResponse : Msg -> Result ErrorBody Response
-extractResponse (GotResponse response) =
-    Common.extractResponse response
+tryExtractResponse : Msg -> ( Result ErrorBody Response, Cmd Msg )
+tryExtractResponse (GotResponse response) =
+    Common.tryExtractResponse response
