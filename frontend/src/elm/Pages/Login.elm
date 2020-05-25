@@ -5,7 +5,8 @@ import Common.Session exposing (Session, getNavKey, setUserToken)
 import Common.WebStorage as WebStorage
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (..)
+import Json.Decode as Decode
 import Server.LoginService as LoginService
 import Validate exposing (Valid, Validator, fromValid, ifBlank, validate)
 
@@ -110,13 +111,23 @@ update msg model =
 
 view : Model -> List (Html Msg)
 view model =
-    [ div []
-        [ input [ placeholder "Access Token", value model.form.accessToken, onInput GotAccessToken ] []
-        , input [ placeholder "Name", value model.form.name, onInput GotName ] []
-        , button [ onClick Submit, class "btn btn-primary" ] [ text "Submit" ]
-        ]
-    , div []
-        [ text (String.join "" model.errors)
+    [ div [ class "page-holder bg-cover", style "background-image" "url('%PUBLIC_URL%/7_wonders.jpg')" ]
+        [ h1 [ class "p-5" ] [ text "7 WONDERS" ]
+        , div [ class "card card-login mt-6 border rounded" ]
+            [ div [ class "card-body row justify-content-center" ]
+                [ div [ onEnter Submit ]
+                    [ div [ class "md-form md-2" ]
+                        [ input [ class "form-control", placeholder "Access Token", value model.form.accessToken, onInput GotAccessToken ] []
+                        ]
+                    , div [ class "md-form mt-2" ]
+                        [ input [ class "form-control", placeholder "Name", value model.form.name, onInput GotName ] []
+                        ]
+                    , div [ class "text-center mt-2" ]
+                        [ button [ onClick Submit, class "btn btn-outline-dark" ] [ text "Submit" ] ]
+                    ]
+                ]
+            , p [ class "mt-2", style "color" "red" ] (List.map (\e -> div [] [ text e ]) model.errors)
+            ]
         ]
     ]
 
@@ -124,6 +135,20 @@ view model =
 formValidator : Validator String Form
 formValidator =
     Validate.all
-        [ ifBlank .name "Name can't be blank."
-        , ifBlank .accessToken "Access token can't be blank."
+        [ ifBlank .accessToken "Access token can't be empty!"
+        , ifBlank .name "Name can't be empty!"
         ]
+
+
+onEnter : msg -> Attribute msg
+onEnter msg =
+    keyCode
+        |> Decode.andThen
+            (\key ->
+                if key == 13 then
+                    Decode.succeed msg
+
+                else
+                    Decode.fail "Not enter"
+            )
+        |> on "keyup"

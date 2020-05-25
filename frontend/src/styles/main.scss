@@ -10,11 +10,7 @@ body {
   margin: 0;
   text-align: center;
   color: #293c4b;
-  background-color: $background-color;
-}
-
-h1 {
-  font-size: 30px;
+  background-color: $gray-200;
 }
 
 img {
@@ -25,4 +21,20 @@ img {
   height: 100px;
   margin-top: -250px;
   margin-left: -250px;
+}
+
+.card-login {
+  width: 40vw;
+  position: fixed;
+  top: 25%;
+  left: 30%;
+  background-color: antiquewhite;
+}
+
+.page-holder {
+  min-height: 100vh;
+}
+
+.bg-cover {
+  background-size: cover !important;
 }
