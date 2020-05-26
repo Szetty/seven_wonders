@@ -57,3 +57,17 @@ func jwtAuthorizationMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func nameVerificationMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !userNameExists(r) {
+			errors.ErrorHandler{
+				Message:    "User not found",
+				StatusCode: 401,
+				ErrorType:  errors.InvalidUser,
+			}.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

@@ -1,4 +1,4 @@
-package websocket
+package game
 
 type EnveloperBuilder struct {
 	data interface{}

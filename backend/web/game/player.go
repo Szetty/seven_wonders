@@ -1,4 +1,4 @@
-package websocket
+package game
 
 import (
 	"github.com/gorilla/websocket"

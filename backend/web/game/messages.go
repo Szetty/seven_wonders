@@ -1,4 +1,4 @@
-package websocket
+package game
 
 type Bundle = []Envelope
 type Envelope struct {

@@ -1,4 +1,4 @@
-package websocket
+package game
 
 import "sync"
 

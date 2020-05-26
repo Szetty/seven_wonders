@@ -17,6 +17,7 @@ const(
 	InvalidName = "INVALID_NAME"
 	InvalidGameID = "INVALID_GAME_ID"
 	Unauthorized = "UNAUTHORIZED"
+	InvalidUser = "INVALID_USER"
 )
 
 var logger = common.NewLogger("Web")

@@ -18,3 +18,7 @@ func sendResponse(w http.ResponseWriter, statusCode int, response interface{}) {
 		return
 	}
 }
+
+func sendStatus(w http.ResponseWriter, statusCode int) {
+	w.WriteHeader(statusCode)
+}

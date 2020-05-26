@@ -8,10 +8,11 @@ import (
 	"github.com/google/uuid"
 	"io/ioutil"
 	"net/http"
+	"sync"
 	"time"
 )
 
-var users = make(map[string]User)
+var users = sync.Map{}
 
 type LoginRequest struct {
 	Token string `json:"access_token"`
@@ -64,7 +65,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	if _, exists := users[loginRequest.Name]; loginRequest.Name == "" || exists {
+	if _, exists := users.Load(loginRequest.Name); loginRequest.Name == "" || exists {
 		errors.ErrorHandler{
 			Message:    fmt.Sprintf("Name was not specified or already taken: %s", loginRequest.Name),
 			StatusCode: 400,
@@ -82,12 +83,24 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	users[loginRequest.Name] = User{
+	users.Store(loginRequest.Name, User{
 		name:   loginRequest.Name,
 		gameID: id,
-	}
+	})
 	response := LoginResponse{UserToken: jwtToken, GameID: id, Name: loginRequest.Name}
 	sendResponse(w, 200, response)
+}
+
+func logout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		errors.ErrorHandler{
+			StatusCode: 405,
+		}.ServeHTTP(w, r)
+		return
+	}
+	name := r.Context().Value("name").(string)
+	users.Delete(name)
+	sendStatus(w, http.StatusNoContent)
 }
 
 func createJWTToken(id, name string) (string, error) {
@@ -97,4 +110,10 @@ func createJWTToken(id, name string) (string, error) {
 		Id:        id,
 	})
 	return token.SignedString([]byte(common.JWT_SECRET))
+}
+
+func userNameExists(r *http.Request) bool {
+	name := r.Context().Value("name").(string)
+	_, exists := users.Load(name)
+	return exists
 }

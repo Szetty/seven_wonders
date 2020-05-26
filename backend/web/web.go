@@ -5,7 +5,7 @@ import (
 	"github.com/Szetty/seven_wonders/backend/common"
 	"github.com/Szetty/seven_wonders/backend/core"
 	"github.com/Szetty/seven_wonders/backend/web/errors"
-	"github.com/Szetty/seven_wonders/backend/web/websocket"
+	"github.com/Szetty/seven_wonders/backend/web/game"
 	"github.com/gorilla/mux"
 	"github.com/json-iterator/go"
 	"net/http"
@@ -62,7 +62,9 @@ func defineAPI(api *mux.Router) {
 
 func defineSecured(secured *mux.Router) {
 	secured.Use(jwtAuthorizationMiddleware)
-	secured.HandleFunc("/game/{game}", websocket.UpgradeToWS)
+	secured.Use(nameVerificationMiddleware)
+	secured.HandleFunc("/logout", logout)
+	secured.HandleFunc("/game/{game}", game.UpgradeToWS)
 	secured.HandleFunc("/gameLobby", gameLobby)
 }
 
