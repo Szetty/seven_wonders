@@ -1,12 +1,15 @@
 module Pages.Game exposing (..)
 
 import Common.Logger as Logger
-import Common.Session exposing (Session)
-import Html exposing (Html, button, div, img, text)
-import Html.Attributes exposing (class, src)
+import Common.Route as Route exposing (Route(..))
+import Common.Session as Session exposing (Session(..), UserInfo, getNavKey)
+import Common.WebStorage as WebStorage
+import Html exposing (Html, button, div, text)
+import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
-import Http
+import Http exposing (Body)
 import Image exposing (Image)
+import Server.LogoutService as LogoutService
 import Server.WebSocket as WebSocket
 
 
@@ -16,6 +19,8 @@ type Msg
     | GotImage (Result Http.Error (Maybe Image))
     | InitWebSocket
     | GotWS String
+    | Logout
+    | GotLogout LogoutService.Msg
 
 
 type alias Model =
@@ -85,6 +90,33 @@ update msg model =
         GotWS r ->
             ( model, Logger.log "WS" r )
 
+        Logout ->
+            case Session.getUserInfo model.session of
+                Just userInfo ->
+                    ( model, Cmd.map GotLogout (LogoutService.logout userInfo) )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        GotLogout logoutResponse ->
+            case LogoutService.tryExtractResponse logoutResponse of
+                ( Ok _, cmd ) ->
+                    let
+                        session =
+                            Guest (getNavKey model.session)
+
+                        cmdBatch =
+                            Cmd.batch
+                                [ Cmd.map GotLogout cmd
+                                , WebStorage.deleteItem "userInfo"
+                                , Route.replaceUrl (getNavKey model.session) Login
+                                ]
+                    in
+                    ( { model | session = session }, cmdBatch )
+
+                ( Err _, cmd ) ->
+                    ( model, Cmd.map GotLogout cmd )
+
 
 view : Model -> List (Html Msg)
 view model =
@@ -92,7 +124,9 @@ view model =
         [ button [ onClick Ping, class "btn btn-primary" ] [ text "PING" ]
         , div [] [ text model.text ]
         , div [] []
-        , img [ src "%PUBLIC_URL%/wonders/alexandriaA.png" ] []
+
+        --, img [ src "%PUBLIC_URL%/wonders/alexandriaA.png" ] []
+        , button [ onClick Logout, class "btn btn-outline-dark" ] [ text "Logout" ]
         ]
     ]
 

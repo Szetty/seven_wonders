@@ -13,6 +13,9 @@ type alias UserInfo =
 port storeUserInfo : String -> Cmd msg
 
 
+port deleteItem : String -> Cmd msg
+
+
 saveUserInfo : UserInfo -> Cmd msg
 saveUserInfo userInfo =
     let

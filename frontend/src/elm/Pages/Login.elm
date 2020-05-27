@@ -1,7 +1,7 @@
 module Pages.Login exposing (..)
 
 import Common.Route as Route exposing (Route(..))
-import Common.Session exposing (Session, getNavKey, setUserToken)
+import Common.Session exposing (Session, getNavKey, setUserInfo)
 import Common.WebStorage as WebStorage
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -28,7 +28,7 @@ type Msg
     = Submit
     | GotName String
     | GotAccessToken String
-    | CompletedLogin LoginService.Msg
+    | GotLogin LoginService.Msg
 
 
 init : Session -> ( Model, Cmd Msg )
@@ -74,7 +74,7 @@ update msg model =
             case validate formValidator model.form of
                 Ok validForm ->
                     ( { model | errors = [] }
-                    , Cmd.map CompletedLogin (LoginService.login (fromValid validForm))
+                    , Cmd.map GotLogin (LoginService.login (fromValid validForm))
                     )
 
                 Err errors ->
@@ -82,16 +82,16 @@ update msg model =
                     , Cmd.none
                     )
 
-        CompletedLogin loginResponse ->
+        GotLogin loginResponse ->
             case LoginService.tryExtractResponse loginResponse of
                 ( Ok response, cmd ) ->
                     let
                         session =
-                            setUserToken model.session response
+                            setUserInfo model.session response
 
                         cmdBatch =
                             Cmd.batch
-                                [ Cmd.map CompletedLogin cmd
+                                [ Cmd.map GotLogin cmd
                                 , WebStorage.saveUserInfo response
                                 , Route.replaceUrl (getNavKey session) Game
                                 ]
@@ -103,7 +103,7 @@ update msg model =
                         errors =
                             errorBody.message :: model.errors
                     in
-                    ( { model | errors = errors }, Cmd.map CompletedLogin cmd )
+                    ( { model | errors = errors }, Cmd.map GotLogin cmd )
 
 
 view : Model -> List (Html Msg)
