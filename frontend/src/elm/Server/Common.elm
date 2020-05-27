@@ -77,39 +77,55 @@ tryExtractResponse result =
                     ( Err defaultErrorBody, Logger.log ("Could not parse response body: " ++ msg ++ bodyToParse) (encodeMetadata metadata) )
 
 
+expectWhatever : (Result FailedRequest () -> msg) -> Expect msg
+expectWhatever toMsg =
+    let
+        b _ _ =
+            Ok ()
+    in
+    Http.expectStringResponse toMsg (transformHttpResponseToResult b)
+
+
 expectJson : (Result FailedRequest a -> msg) -> D.Decoder a -> Expect msg
 expectJson toMsg decoder =
-    expectStringResponse toMsg <|
-        \response ->
-            case response of
-                Http.BadUrl_ url ->
-                    Err (BadUrl url)
+    let
+        payloadDecoder body metadata =
+            case D.decodeString decoder body of
+                Ok value ->
+                    Ok value
 
-                Http.Timeout_ ->
-                    Err Timeout
+                Err err ->
+                    Err (BadBody metadata (D.errorToString err) body)
+    in
+    expectStringResponse toMsg (transformHttpResponseToResult payloadDecoder)
 
-                Http.NetworkError_ ->
-                    Err NetworkError
 
-                Http.BadStatus_ metadata body ->
-                    if metadata.statusCode >= 400 && metadata.statusCode < 500 then
-                        case D.decodeString errorDecoder body of
-                            Ok errorBody ->
-                                Err (BadRequest metadata errorBody)
+transformHttpResponseToResult : (String -> Http.Metadata -> Result FailedRequest a) -> Http.Response String -> Result FailedRequest a
+transformHttpResponseToResult payloadDecoder response =
+    case response of
+        Http.BadUrl_ url ->
+            Err (BadUrl url)
 
-                            Err err ->
-                                Err (BadBody metadata (D.errorToString err) body)
+        Http.Timeout_ ->
+            Err Timeout
 
-                    else
-                        Err (ServerError metadata body)
+        Http.NetworkError_ ->
+            Err NetworkError
 
-                Http.GoodStatus_ metadata body ->
-                    case D.decodeString decoder body of
-                        Ok value ->
-                            Ok value
+        Http.BadStatus_ metadata body ->
+            if metadata.statusCode >= 400 && metadata.statusCode < 500 then
+                case D.decodeString errorDecoder body of
+                    Ok errorBody ->
+                        Err (BadRequest metadata errorBody)
 
-                        Err err ->
-                            Err (BadBody metadata (D.errorToString err) body)
+                    Err err ->
+                        Err (BadBody metadata (D.errorToString err) body)
+
+            else
+                Err (ServerError metadata body)
+
+        Http.GoodStatus_ metadata body ->
+            payloadDecoder body metadata
 
 
 errorDecoder =

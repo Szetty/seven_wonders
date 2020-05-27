@@ -38,12 +38,12 @@ getNavKey session =
 getUserInfo : Session -> Maybe UserInfo
 getUserInfo session =
     case session of
-        LoggedIn _ userToken ->
-            Just userToken
+        LoggedIn _ userInfo ->
+            Just userInfo
 
         Guest _ ->
             Nothing
 
 
-setUserToken session userToken =
-    LoggedIn (getNavKey session) userToken
+setUserInfo session userInfo =
+    LoggedIn (getNavKey session) userInfo
