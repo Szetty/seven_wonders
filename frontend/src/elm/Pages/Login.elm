@@ -7,7 +7,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Decode
-import Server.LoginService as LoginService
+import Services.LoginService as LoginService
 import Validate exposing (Valid, Validator, fromValid, ifBlank, validate)
 
 

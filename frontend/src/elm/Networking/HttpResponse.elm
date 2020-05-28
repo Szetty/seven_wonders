@@ -1,4 +1,4 @@
-module Server.Common exposing (..)
+module Networking.HttpResponse exposing (..)
 
 import Common.Logger as Logger
 import Http exposing (Error(..), Expect, expectStringResponse)

@@ -9,8 +9,9 @@ import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Http exposing (Body)
 import Image exposing (Image)
-import Server.LogoutService as LogoutService
-import Server.WebSocket as WebSocket
+import Networking.WebSocket as WebSocket
+import Services.GameService as GameService
+import Services.LogoutService as LogoutService
 
 
 type Msg
@@ -18,7 +19,7 @@ type Msg
     | GotPong (Result Http.Error String)
     | GotImage (Result Http.Error (Maybe Image))
     | InitWebSocket
-    | GotWS String
+    | GotGameEvent String
     | Logout
     | GotLogout LogoutService.Msg
 
@@ -36,7 +37,7 @@ init session =
       , text = ""
       , image = Nothing
       }
-    , WebSocket.startWebSocket session
+    , GameService.startWebSocket session
     )
 
 
@@ -48,13 +49,13 @@ toSession { session } =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        -- TODO needed in order for port to be created, temporary
         InitWebSocket ->
             if model.text == "INIT_WS" then
                 let
                     cmd =
                         Cmd.batch
-                            [ WebSocket.initWebSocket ""
-                            , WebSocket.sendWSMessage ""
+                            [ WebSocket.sendWSMessage ""
                             ]
                 in
                 ( model, cmd )
@@ -87,8 +88,8 @@ update msg model =
                 Err _ ->
                     ( { model | text = "FAIL" }, Cmd.none )
 
-        GotWS r ->
-            ( model, Logger.log "WS" r )
+        GotGameEvent r ->
+            ( model, Logger.log "Game EVENT" r )
 
         Logout ->
             case Session.getUserInfo model.session of
@@ -139,16 +140,5 @@ ping =
         }
 
 
-subscriptions : Sub Msg
 subscriptions =
-    let
-        event name payload =
-            GotWS (name ++ payload)
-    in
-    Sub.batch
-        [ WebSocket.incomingWSMessage GotWS
-        , WebSocket.onWSOffline (event "Offline")
-        , WebSocket.onWSOnline (event "Online")
-        , WebSocket.onWSSync (event "Sync")
-        , WebSocket.replyWSMessage GotWS
-        ]
+    GameService.subscriptions GotGameEvent

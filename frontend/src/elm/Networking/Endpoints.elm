@@ -1,4 +1,4 @@
-module Server.Endpoints exposing (..)
+module Networking.Endpoints exposing (..)
 
 
 login =
