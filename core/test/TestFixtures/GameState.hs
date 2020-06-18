@@ -1,6 +1,7 @@
 module TestFixtures.GameState where
 
 import Domain.GameState
+import Domain.Resource
 
 import Data.Map(fromList)
 
@@ -14,8 +15,9 @@ defaultGameState =
         currentAgeCards = fromList []
     }
 
-defaultPlayerState =
+defaultPlayerState playerName =
     PlayerState {
+        playerName = playerName,
         coins = 0,
         militarySymbols = 0,
         battleTokens = [],
@@ -24,8 +26,9 @@ defaultPlayerState =
         resourcesProduced = [],
         pointActions = [],
         tradeActions = [defaultTradeAction],
-        constructFreeAction = [],
-        constructLastStructureAction = defaultConstructLastStructureAction,
-        copyGuildAction = defaultCopyGuildAction,
-        scientificActions = []
+        constructFreeAction = defaultFalseAction,
+        constructLastStructureAction = defaultFalseAction,
+        copyGuildAction = defaultFalseAction,
+        scientificActions = [],
+        wonderStagesBuilt = 0
     }

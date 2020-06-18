@@ -59,8 +59,8 @@ testTrading = do
             let trade = tryTrading gameStateForTrading3 "b"
             it "1" $ trade [[Cost Wood 1]]               `shouldBe` [[("c", Wood, 2)]]
             it "2" $ trade [[Cost Ore 1]]                `shouldBe` [[("a", Ore, 2)]]
-            it "3" $ trade [[Cost Clay 1]]               `shouldBe` [[("a", Clay, 1)], [("c", Clay, 2)]]
-            it "4" $ trade [[Cost Stone 1]]              `shouldBe` []
+            it "3" $ trade [[Cost Stone 1]]              `shouldBe` []
+            it "4" $ trade [[Cost Clay 1]]               `shouldBe` [[("a", Clay, 1)], [("c", Clay, 2)]]
             it "5" $ trade [[Cost Wood 1], [Cost Ore 1]] `shouldBe` [[("c", Wood, 2)], [("a", Ore, 2)]]
             it "6" $ trade [[Cost Wood 2]]               `shouldBe` []
             it "7" $ trade [[Cost Ore 2]]                `shouldBe` []
@@ -85,13 +85,13 @@ gameStateForTradingEmpty =
     defaultGameState {
         neighbours = initNeighbours ["a", "b", "c"],
         playerStates = fromList [
-            ("a", defaultPlayerState {
+            ("a", (defaultPlayerState "a") {
                 resourcesProduced = []
             }),
-            ("b", defaultPlayerState {
+            ("b", (defaultPlayerState "b") {
                 tradeActions = [defaultTradeAction]
             }),
-            ("c", defaultPlayerState {
+            ("c", (defaultPlayerState "c") {
                 resourcesProduced = []
             })
         ]
@@ -101,13 +101,13 @@ gameStateForTrading0 =
     defaultGameState {
         neighbours = initNeighbours ["a", "b", "c"],
         playerStates = fromList [
-            ("a", defaultPlayerState {
+            ("a", (defaultPlayerState "a") {
                 resourcesProduced = [Single Ore 1, Single Clay 1]
             }),
-            ("b", defaultPlayerState {
+            ("b", (defaultPlayerState "b") {
                 tradeActions = [defaultTradeAction]
             }),
-            ("c", defaultPlayerState {
+            ("c", (defaultPlayerState "c") {
                 resourcesProduced = [Single Clay 1, Single Wood 1]
             })
         ]
@@ -117,16 +117,16 @@ gameStateForTrading1 =
     defaultGameState {
         neighbours = initNeighbours ["a", "b", "c"],
         playerStates = fromList [
-            ("a", defaultPlayerState {
+            ("a", (defaultPlayerState "a") {
                 resourcesProduced = [Single Ore 1, Single Clay 1]
             }),
-            ("b", defaultPlayerState {
+            ("b", (defaultPlayerState "b") {
                 tradeActions = [
                     defaultTradeAction,
                     return tradeAction :: Action (Domain.Player.Name -> ResourceType -> Int)
                 ]
             }),
-            ("c", defaultPlayerState {
+            ("c", (defaultPlayerState "c") {
                 resourcesProduced = [Single Clay 1, Single Wood 1]
             })
         ]
@@ -140,16 +140,16 @@ gameStateForTrading2 =
     defaultGameState {
         neighbours = initNeighbours ["a", "b", "c"],
         playerStates = fromList [
-            ("a", defaultPlayerState {
+            ("a", (defaultPlayerState "a") {
                 resourcesProduced = [Single Ore 1, Single Clay 1]
             }),
-            ("b", defaultPlayerState {
+            ("b", (defaultPlayerState "b") {
                 tradeActions = [
                     defaultTradeAction,
                     return $ const $ const 1 :: Action (Domain.Player.Name -> ResourceType -> Int)
                 ]
             }),
-            ("c", defaultPlayerState {
+            ("c", (defaultPlayerState "c") {
                 resourcesProduced = [Single Clay 1, Single Wood 1]
             })
         ]
@@ -159,16 +159,16 @@ gameStateForTrading3 =
     defaultGameState {
         neighbours = initNeighbours ["a", "b", "c"],
         playerStates = fromList [
-            ("a", defaultPlayerState {
+            ("a", (defaultPlayerState "a") {
                 resourcesProduced = [Single Ore 1, Single Clay 1]
             }),
-            ("b", defaultPlayerState {
+            ("b", (defaultPlayerState "b") {
                 tradeActions = [
                     defaultTradeAction,
                     return tradeAction :: Action (Domain.Player.Name -> ResourceType -> Int)
                 ]
             }),
-            ("c", defaultPlayerState {
+            ("c", (defaultPlayerState "c") {
                 resourcesProduced = [Single Clay 1, Single Wood 1]
             })
         ]
@@ -182,13 +182,13 @@ gameStateForTrading4 =
     defaultGameState {
         neighbours = initNeighbours ["a", "b", "c"],
         playerStates = fromList [
-            ("a", defaultPlayerState {
+            ("a", (defaultPlayerState "a") {
                 resourcesProduced = [Single Ore 1, Single Clay 1]
             }),
-            ("b", defaultPlayerState {
+            ("b", (defaultPlayerState "b") {
                 tradeActions = [defaultTradeAction]
             }),
-            ("c", defaultPlayerState {
+            ("c", (defaultPlayerState "c") {
                 resourcesProduced = [Single Clay 2]
             })
         ]

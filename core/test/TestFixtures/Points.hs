@@ -5,6 +5,8 @@ import TestFixtures.GameState
 import Domain.GameState
 import Domain.Structure
 import Domain.Player
+import Domain.Resource
+
 import Core.Points
 
 import Data.Map (Map, fromList, adjust)
@@ -17,7 +19,7 @@ testPoints =
 gameStateForPoints =
     defaultGameState {
         playerStates = fromList [
-            ("a", defaultPlayerState {
+            ("a", (defaultPlayerState "a") {
                 coins = 0,
                 battleTokens = [-1, -1, -1, -1, -1, -1],
                 pointActions = [
@@ -31,7 +33,7 @@ gameStateForPoints =
                 ],
                 scientificActions = []
             }),
-            ("b", defaultPlayerState {
+            ("b", (defaultPlayerState "b") {
                 coins = 9,
                 battleTokens = [0, 1, -1, 3, 5, 5],
                 pointActions = [],
@@ -45,7 +47,7 @@ gameStateForPoints =
                     return (adjust (1+) Gears)
                 ]
             }),
-            ("c", defaultPlayerState {
+            ("c", (defaultPlayerState "c") {
                 coins = 4,
                 battleTokens = [1, 1, 3, 3, 5, 5],
                 pointActions = [
