@@ -5,20 +5,17 @@ import (
 	"github.com/Szetty/seven_wonders/backend/common"
 	"github.com/Szetty/seven_wonders/backend/core"
 	"github.com/Szetty/seven_wonders/backend/web/errors"
-	"github.com/Szetty/seven_wonders/backend/web/game"
+	"github.com/Szetty/seven_wonders/backend/web/websocket"
 	"github.com/gorilla/mux"
 	"github.com/json-iterator/go"
 	"net/http"
-	"os"
-	"strconv"
-	"time"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 var logger = common.NewLogger("Web")
 var coreServer *core.Server
 
-func StartWebServer() {
+func MainHandler() http.Handler {
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
@@ -28,22 +25,7 @@ func StartWebServer() {
 	spa := SPAHandler{StaticPath: "build", IndexPath: "index.html"}
 	router.PathPrefix("/").Handler(spa)
 
-	port, err := strconv.Atoi(os.Getenv("PORT"))
-	if err != nil {
-		logger.Warn("Could not get port from env variables, falling back to 8080")
-		port = 8080
-	}
-
-	srv := &http.Server{
-		Handler: router,
-		Addr:    "0.0.0.0:" + strconv.Itoa(port),
-		// Good practice: enforce timeouts for servers you create!
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
-
-	logger.Info("Listening on port " + strconv.Itoa(port))
-	logger.Fatal(srv.ListenAndServe())
+	return router
 }
 
 func defineAPI(api *mux.Router) {
@@ -64,7 +46,7 @@ func defineSecured(secured *mux.Router) {
 	secured.Use(jwtAuthorizationMiddleware)
 	secured.Use(nameVerificationMiddleware)
 	secured.HandleFunc("/logout", logout)
-	secured.HandleFunc("/game/{game}", game.UpgradeToWS)
+	secured.HandleFunc("/game/{game}", gameHandler)
 	secured.HandleFunc("/gameLobby", gameLobby)
 }
 
@@ -85,4 +67,21 @@ func ping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = fmt.Fprint(w, pong)
+}
+
+func gameHandler(w http.ResponseWriter, r *http.Request) {
+	gameId := mux.Vars(r)["game"]
+	name := r.Context().Value("name").(string)
+	if gameId == "" {
+		errors.ErrorHandler{
+			Message:    fmt.Sprintf("Could not upgrade to WS: game id is empty"),
+			StatusCode: 400,
+			ErrorType:  errors.InvalidGameID,
+		}.ServeHTTP(w, r)
+		return
+	}
+	session := websocket.CreateWSSession(w, r, name)
+	if session != nil {
+		//game.ConnectPlayer(session, gameId, name)
+	}
 }

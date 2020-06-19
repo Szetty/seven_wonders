@@ -3,16 +3,11 @@ package web
 import (
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/common"
+	"github.com/Szetty/seven_wonders/backend/users"
 	"github.com/Szetty/seven_wonders/backend/web/errors"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"net/http"
-	"sync"
-	"time"
 )
-
-var users = sync.Map{}
 
 type LoginRequest struct {
 	Token string `json:"access_token"`
@@ -23,11 +18,6 @@ type LoginResponse struct {
 	Name      string `json:"name"`
 	UserToken string `json:"user_token"`
 	GameID    string `json:"game_id"`
-}
-
-type User struct {
-	name   string
-	gameID string
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +55,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	if _, exists := users.Load(loginRequest.Name); loginRequest.Name == "" || exists {
+	if loginRequest.Name == "" || users.NameExists(loginRequest.Name) {
 		errors.ErrorHandler{
 			Message:    fmt.Sprintf("Name was not specified or already taken: %s", loginRequest.Name),
 			StatusCode: 400,
@@ -73,21 +63,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	id := uuid.New().String()
-	jwtToken, err := createJWTToken(id, loginRequest.Name)
+	err, jwtToken, gameID := users.CreateUser(loginRequest.Name)
 	if err != nil {
 		errors.ErrorHandler{
 			Message:    fmt.Sprintf("Could not create JWT token: %v", err),
 			StatusCode: 500,
 			ErrorType:  errors.ServerError,
 		}.ServeHTTP(w, r)
-		return
 	}
-	users.Store(loginRequest.Name, User{
-		name:   loginRequest.Name,
-		gameID: id,
-	})
-	response := LoginResponse{UserToken: jwtToken, GameID: id, Name: loginRequest.Name}
+	response := LoginResponse{UserToken: jwtToken, GameID: gameID, Name: loginRequest.Name}
 	sendResponse(w, 200, response)
 }
 
@@ -101,19 +85,4 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	name := r.Context().Value("name").(string)
 	users.Delete(name)
 	sendStatus(w, http.StatusNoContent)
-}
-
-func createJWTToken(id, name string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Subject:   name,
-		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
-		Id:        id,
-	})
-	return token.SignedString([]byte(common.JWT_SECRET))
-}
-
-func userNameExists(r *http.Request) bool {
-	name := r.Context().Value("name").(string)
-	_, exists := users.Load(name)
-	return exists
 }

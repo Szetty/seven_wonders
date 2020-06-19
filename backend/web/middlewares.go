@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/common"
+	"github.com/Szetty/seven_wonders/backend/users"
 	"github.com/Szetty/seven_wonders/backend/web/errors"
 	"github.com/dgrijalva/jwt-go"
 	"net/http"
@@ -39,7 +40,7 @@ func jwtAuthorizationMiddleware(next http.Handler) http.Handler {
 		token, err := jwt.ParseWithClaims(
 			jwtToken,
 			&jwt.StandardClaims{},
-			func (token *jwt.Token) (i interface{}, err error) {
+			func(token *jwt.Token) (i interface{}, err error) {
 				return []byte(common.JWT_SECRET), nil
 			},
 		)
@@ -60,7 +61,8 @@ func jwtAuthorizationMiddleware(next http.Handler) http.Handler {
 
 func nameVerificationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !userNameExists(r) {
+		name := r.Context().Value("name").(string)
+		if !users.NameExists(name) {
 			errors.ErrorHandler{
 				Message:    "User not found",
 				StatusCode: 401,

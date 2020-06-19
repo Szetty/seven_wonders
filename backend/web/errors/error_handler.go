@@ -8,16 +8,16 @@ import (
 
 type ErrorType string
 
-const(
-	ServerError ErrorType = "SERVER_ERROR"
-	InvalidBody = "INVALID_BODY"
-	CannotParsePayload = "CANNOT_PARSE_PAYLOAD"
-	InvalidEndpoint = "INVALID_ENDPOINT"
-	InvalidAccessToken = "INVALID_ACCESS_TOKEN"
-	InvalidName = "INVALID_NAME"
-	InvalidGameID = "INVALID_GAME_ID"
-	Unauthorized = "UNAUTHORIZED"
-	InvalidUser = "INVALID_USER"
+const (
+	ServerError        ErrorType = "SERVER_ERROR"
+	InvalidBody                  = "INVALID_BODY"
+	CannotParsePayload           = "CANNOT_PARSE_PAYLOAD"
+	InvalidEndpoint              = "INVALID_ENDPOINT"
+	InvalidAccessToken           = "INVALID_ACCESS_TOKEN"
+	InvalidName                  = "INVALID_NAME"
+	InvalidGameID                = "INVALID_GAME_ID"
+	Unauthorized                 = "UNAUTHORIZED"
+	InvalidUser                  = "INVALID_USER"
 )
 
 var logger = common.NewLogger("Web")
@@ -29,8 +29,8 @@ type ErrorHandler struct {
 }
 
 type ErrorResponse struct {
-	ErrorMessage string `json:"error_message"`
-	ErrorType ErrorType `json:"error_type"`
+	ErrorMessage string    `json:"error_message"`
+	ErrorType    ErrorType `json:"error_type"`
 }
 
 func (h ErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

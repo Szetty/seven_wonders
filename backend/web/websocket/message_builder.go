@@ -1,8 +1,8 @@
-package game
+package websocket
 
 type EnveloperBuilder struct {
-	data interface{}
-	uuid string
+	data     interface{}
+	uuid     string
 	ackUUIDs []string
 }
 
@@ -37,7 +37,7 @@ func (b EnveloperBuilder) Build() Envelope {
 
 type MessageBuilder struct {
 	messageType string
-	body interface{}
+	body        interface{}
 }
 
 func (b MessageBuilder) MessageType(messageType string) MessageBuilder {

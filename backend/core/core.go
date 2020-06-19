@@ -13,6 +13,7 @@ import (
 )
 
 const coreAddressPrefix = "127.0.0.1:"
+
 var logger = common.NewLogger("Core")
 
 type Server struct {
