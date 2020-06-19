@@ -27,3 +27,4 @@ matrix:
         - travis_wait stack --no-terminal --skip-ghc-check setup
       script:
         - travis_wait stack --no-terminal --skip-ghc-check test
+    - language: go
