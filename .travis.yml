@@ -28,3 +28,7 @@ matrix:
       script:
         - travis_wait stack --no-terminal --skip-ghc-check test
     - language: go
+      env:
+        - ACCESS_TOKEN="TEST" JWT_SECRET="test"
+      script:
+        - go test -race ./...
