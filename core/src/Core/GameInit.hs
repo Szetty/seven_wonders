@@ -18,7 +18,7 @@ initWithRandomWonders :: [Player] -> IO GameState
 initWithRandomWonders players = do
     let playersNo = length players
     wonders <- take playersNo <$> shuffleM wonders
-    sides <- traverse (const $ randomRIO (0,1)) [1..playersNo]
+    sides <- sequenceA $ replicate playersNo $ randomRIO (0,1)
     doInit $ (\(player, wonder, side) -> (player, toWonderSide wonder side)) <$> zip3 players wonders sides
 
 doInit :: [(Player, WonderSide Effect)] -> IO GameState
