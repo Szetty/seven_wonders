@@ -9,9 +9,13 @@ data Wonder a = Wonder {
 }
 
 data WonderSide a = WonderSide {
+    name :: String,
     resourceEffects :: [a],
     stages :: [WonderStage a]
 }
+
+instance Show (WonderSide a) where
+    show WonderSide {name = name} = show name
 
 data WonderStage a = WonderStage {
     cost :: [ResourceCost],

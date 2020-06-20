@@ -1,8 +1,7 @@
 module Domain.Player where
 
-data Player = Player {
-    name :: Name,
-    sth :: Int
-}
+newtype Player = Player {
+    name :: Name
+} deriving Show
 
 type Name = String

@@ -9,7 +9,7 @@ import Data.Set (Set, size)
 import Data.Map (Map, fromList, lookup, empty, adjust)
 import Data.Maybe (fromJust)
 import Data.Function (on)
-import Data.List (maximumBy, elem)
+import Data.List (maximumBy, elem, length)
 import Data.List.Index
 
 import Control.Monad.Trans.State.Lazy
@@ -27,7 +27,7 @@ data GameState = GameState {
 ,   neighbours :: Map Domain.Player.Name (Domain.Player.Name, Domain.Player.Name)
 ,   cardsDismissed :: [Card]
 ,   currentAgeCards :: Map Domain.Player.Name [Card]
-}
+} deriving (Show)
 
 data PlayerState = PlayerState {
     playerName ::                   Domain.Player.Name
@@ -39,12 +39,47 @@ data PlayerState = PlayerState {
 ,   resourcesProduced ::            [ResourceProduced]
 ,   pointActions ::                 [Action (Map PointCategory Int -> Map PointCategory Int)]
 ,   tradeActions ::                 [Action (Domain.Player.Name -> ResourceType -> Int)]
-,   constructFreeAction ::          Action Bool
-,   constructLastStructureAction :: Action Bool
-,   copyGuildAction ::              Action Bool
+,   constructFreeAction ::          Bool
+,   constructLastStructureAction :: Bool
+,   copyGuildAction ::              Bool
 ,   scientificActions ::            [Action (Map ScientificSymbol Int -> Map ScientificSymbol Int)]
 ,   wonderStagesBuilt ::            Int
+,   wonder ::                       WonderSide Effect
 }
+
+instance Show PlayerState where
+    show PlayerState { playerName = playerName
+                     , coins = coins
+                     , militarySymbols = militarySymbols
+                     , battleTokens = battleTokens
+                     , scientificSymbols = scientificSymbols
+                     , builtStructures = builtStructures
+                     , resourcesProduced = resourcesProduced
+                     , pointActions = pointActions
+                     , tradeActions = tradeActions
+                     , constructFreeAction = constructFreeAction
+                     , constructLastStructureAction = constructLastStructureAction
+                     , copyGuildAction = copyGuildAction
+                     , scientificActions = scientificActions
+                     , wonderStagesBuilt = wonderStagesBuilt
+                     , wonder = wonder
+                     } = 
+        "PlayerState {playerName = " ++ show playerName
+        ++ ", coins = " ++ show coins
+        ++ ", militarySymbols = " ++ show militarySymbols
+        ++ ", battleTokens = " ++ show battleTokens
+        ++ ", scientificSymbols = " ++ show scientificSymbols
+        ++ ", builtStructures = " ++ show builtStructures
+        ++ ", resourcesProduced = " ++ show resourcesProduced
+        ++ ", pointActions = " ++ show (length pointActions)
+        ++ ", tradeActions = " ++ show (length tradeActions)
+        ++ ", constructFreeAction = " ++ show constructFreeAction
+        ++ ", constructLastStructureAction = " ++ show constructLastStructureAction
+        ++ ", copyGuildAction = " ++ show copyGuildAction
+        ++ ", scientificActions = " ++ show (length scientificActions)
+        ++ ", wonderStagesBuilt = " ++ show wonderStagesBuilt
+        ++ ", wonder = " ++ show wonder
+        ++ "}"
 
 type Point = Int
 type Deck = ([Card], [Card], [Card])
@@ -56,18 +91,19 @@ newtype Card = Card {
 
 data PointCategory = MilitaryP | TreasuryP | WonderP | CivilianP | ScientificP | CommercialP | GuildsP deriving (Enum, Show, Ord, Eq)
 
-initGameState :: Deck -> [Player] -> GameState
-initGameState deck players = GameState deck (toMapByName players) (initPlayerStates playerNames) (initNeighbours playerNames) [] empty
-    where playerNames = fmap Domain.Player.name players
+initGameState :: Deck -> [(Player, WonderSide Effect)] -> GameState
+initGameState deck players = GameState deck (toMapByName players) (initPlayerStates playerNamesAndWonders) (initNeighbours playerNames) [] empty
+    where playerNamesAndWonders = fmap (\(Player {name = name}, wonder) -> (name, wonder)) players
+          playerNames = fmap (\(Player {name = name}, _) -> name) players
           toMapByName = fromList . fmap mapper
-          mapper player@Player {name = name} = (name, player)
+          mapper (player@Player {name = name}, _) = (name, player)
 
-initPlayerStates :: [Domain.Player.Name] -> Map Domain.Player.Name PlayerState
+initPlayerStates :: [(Domain.Player.Name, WonderSide Effect)] -> Map Domain.Player.Name PlayerState
 initPlayerStates = fromList . fmap mapper
-    where mapper name = (name, initialPlayerState name)
+    where mapper (name, wonder) = (name, initialPlayerState name wonder)
 
-initialPlayerState :: Domain.Player.Name -> PlayerState
-initialPlayerState playerName =
+initialPlayerState :: Domain.Player.Name -> WonderSide Effect -> PlayerState
+initialPlayerState playerName wonder =
     PlayerState {
         playerName = playerName,
         coins = 3,
@@ -78,15 +114,15 @@ initialPlayerState playerName =
         resourcesProduced = [],
         pointActions = [],
         tradeActions = [defaultTradeAction],
-        constructFreeAction = defaultFalseAction,
-        constructLastStructureAction = defaultFalseAction,
-        copyGuildAction = defaultFalseAction,
+        constructFreeAction = False,
+        constructLastStructureAction = False,
+        copyGuildAction = False,
         scientificActions = [],
-        wonderStagesBuilt = 0
+        wonderStagesBuilt = 0,
+        wonder = wonder
     }
 
 defaultTradeAction = (return $ const $ const 2) :: Action (Domain.Player.Name -> ResourceType -> Int)
-defaultFalseAction = return False :: Action Bool
 
 initNeighbours :: [Domain.Player.Name] -> Map Domain.Player.Name (Domain.Player.Name, Domain.Player.Name)
 initNeighbours playerNames = fromList $ mapper <$> indexed playerNames
@@ -102,6 +138,12 @@ lookupNeighbours GameState{neighbours = neighbours} playerName =
 lookupPlayerState :: GameState -> Domain.Player.Name -> PlayerState
 lookupPlayerState GameState{playerStates = playerStates} playerName =
     fromJust $ Data.Map.lookup playerName playerStates
+
+toWonderSide :: Wonder Effect -> Int -> WonderSide Effect
+toWonderSide Wonder{sideA = sideA, sideB = sideB} side =
+    case side of
+        0 -> sideA
+        1 -> sideB
 
 anyResourceEffect :: [ResourceType] -> Effect
 anyResourceEffect resources = 
@@ -226,19 +268,19 @@ buildFreeFromDiscardedEffect =
 constructFreeEffect :: Effect
 constructFreeEffect = 
     applyEffect (\playerState ->
-        playerState{constructFreeAction = return True}
+        playerState{constructFreeAction = True}
     )
 
 constructLastStructureEffect :: Effect
 constructLastStructureEffect =
     applyEffect (\playerState ->
-        playerState{constructLastStructureAction = return True}
+        playerState{constructLastStructureAction = True}
     )
 
 copyGuildEffect :: Effect
 copyGuildEffect =
     applyEffect (\playerState ->
-        playerState{copyGuildAction = return True}
+        playerState{copyGuildAction = True}
     )
 
 applyEffectWithDirections :: [EffectDirection] -> ([PlayerState] -> PlayerState -> PlayerState) -> Effect
@@ -282,6 +324,14 @@ countStructures structureCategories PlayerState{builtStructures = builtStructure
 
 countWonderStages :: PlayerState -> Int
 countWonderStages PlayerState{wonderStagesBuilt = wonderStagesBuilt} = wonderStagesBuilt
+
+getStructureByName :: String -> Structure Effect
+getStructureByName =
+    fromJust . (`Data.Map.lookup` structuresByName)
+
+structuresByName :: Map String (Structure Effect)
+structuresByName =
+    fromList $ (\structure@(Structure name _ _ _ _ _ _ _) -> (name, structure)) <$> structures
 
 structures :: [Structure Effect]
 structures =
@@ -385,10 +435,19 @@ structures =
     ,   Structure "Builders Guild"     Guild III [dynamicWonderPointEffect GuildsP [East, West, Self] 1]  [] [] (0, [Cost Stone 2, Cost Clay 2, Cost Glass 1])            []
     ]
 
+getWonderByName :: String -> Wonder Effect
+getWonderByName =
+    fromJust . (`Data.Map.lookup` wondersByName)
+
+wondersByName :: Map String (Wonder Effect)
+wondersByName =
+    fromList $ (\wonder@(Wonder name _ _) -> (name, wonder)) <$> wonders
+
 wonders :: [Wonder Effect]
 wonders =
     [
-        Wonder "Rhódos"        (WonderSide 
+        Wonder "Rhódos"        (WonderSide
+                                "Rhódos - A"
                                 [allResourceEffect [Ore]]
                                 [
                                     WonderStage [Cost Wood 2] [pointEffect WonderP 3],
@@ -396,14 +455,16 @@ wonders =
                                     WonderStage [Cost Ore 4] [pointEffect WonderP 7]
                                 ]
                                )
-                               (WonderSide 
+                               (WonderSide
+                                "Rhódos - B"
                                 [allResourceEffect [Ore]]
                                 [
                                     WonderStage [Cost Stone 3] [militaryEffect 1, pointEffect WonderP 3, coinEffect 3],
                                     WonderStage [Cost Ore 4] [militaryEffect 1, pointEffect WonderP 4, coinEffect 4]
                                 ]
                                )
-    ,   Wonder "Alexandria"    (WonderSide 
+    ,   Wonder "Alexandria"    (WonderSide
+                                "Alexandria - A"
                                 [allResourceEffect [Glass]]   
                                 [
                                     WonderStage [Cost Stone 2] [pointEffect WonderP 3],
@@ -411,7 +472,8 @@ wonders =
                                     WonderStage [Cost Glass 2] [pointEffect WonderP 7]
                                 ]
                                ) 
-                               (WonderSide 
+                               (WonderSide
+                                "Alexandria - B"
                                 [allResourceEffect [Glass]]   
                                 [
                                     WonderStage [Cost Clay 2] [anyResourceEffect [Wood, Stone, Ore, Clay]],
@@ -419,7 +481,8 @@ wonders =
                                     WonderStage [Cost Stone 3] [pointEffect WonderP 7]
                                 ]
                                )
-    ,   Wonder "Éphesos"       (WonderSide 
+    ,   Wonder "Éphesos"       (WonderSide
+                                "Éphesos - A"
                                 [allResourceEffect [Papyrus]] 
                                 [
                                     WonderStage [Cost Stone 2] [pointEffect WonderP 3],
@@ -427,7 +490,8 @@ wonders =
                                     WonderStage [Cost Papyrus 2] [pointEffect WonderP 7]
                                 ]
                                ) 
-                               (WonderSide 
+                               (WonderSide
+                                "Éphesos - B"
                                 [allResourceEffect [Papyrus]] 
                                 [
                                     WonderStage [Cost Stone 2] [pointEffect WonderP 2, coinEffect 4],
@@ -435,7 +499,8 @@ wonders =
                                     WonderStage [Cost Papyrus 1, Cost Glass 1, Cost Loom 1] [pointEffect WonderP 5, coinEffect 4]
                                 ]
                                )
-    ,   Wonder "Babylon"       (WonderSide 
+    ,   Wonder "Babylon"       (WonderSide
+                                "Babylon - A"
                                 [allResourceEffect [Clay]]   
                                 [
                                     WonderStage [Cost Clay 2] [pointEffect WonderP 3],
@@ -443,7 +508,8 @@ wonders =
                                     WonderStage [Cost Clay 4] [pointEffect WonderP 7]
                                 ]
                                ) 
-                               (WonderSide 
+                               (WonderSide
+                                "Babylon - B"
                                 [allResourceEffect [Clay]]    
                                 [
                                     WonderStage [Cost Loom 1, Cost Clay 1] [pointEffect WonderP 3],
@@ -451,7 +517,8 @@ wonders =
                                     WonderStage [Cost Papyrus 1, Cost Clay 3] [anyScientificEffect [Compass, Gears, Tablet]]
                                 ]
                                )
-    ,   Wonder "Olympía"       (WonderSide 
+    ,   Wonder "Olympía"       (WonderSide
+                                "Olympia - A"
                                 [allResourceEffect [Wood]]    
                                 [
                                     WonderStage [Cost Wood 2] [pointEffect WonderP 3],
@@ -459,7 +526,8 @@ wonders =
                                     WonderStage [Cost Ore 2] [pointEffect WonderP 7]
                                 ]
                                ) 
-                               (WonderSide 
+                               (WonderSide
+                                "Olympia - B"
                                 [allResourceEffect [Wood]]    
                                 [
                                     WonderStage [Cost Wood 2] [tradeEffect [East, West] [Wood, Stone, Ore, Clay]],
@@ -467,7 +535,8 @@ wonders =
                                     WonderStage [Cost Loom 1, Cost Ore 2] [copyGuildEffect]
                                 ]
                                )
-    ,   Wonder "Halikarnassós" (WonderSide 
+    ,   Wonder "Halikarnassós" (WonderSide
+                                "Halikarnassós - A"
                                 [allResourceEffect [Loom]]    
                                 [
                                     WonderStage [Cost Clay 2] [pointEffect WonderP 3],
@@ -475,7 +544,8 @@ wonders =
                                     WonderStage [Cost Loom 2] [pointEffect WonderP 7]
                                 ]
                                ) 
-                               (WonderSide 
+                               (WonderSide
+                                "Halikarnassós - B"
                                 [allResourceEffect [Loom]]    
                                 [
                                     WonderStage [Cost Ore 2] [pointEffect WonderP 2, buildFreeFromDiscardedEffect],
@@ -483,7 +553,8 @@ wonders =
                                     WonderStage [Cost Papyrus 1, Cost Glass 1, Cost Loom 1] [buildFreeFromDiscardedEffect]
                                 ]
                                )
-    ,   Wonder "Gizah"         (WonderSide 
+    ,   Wonder "Gizah"         (WonderSide
+                                "Gizah - A"
                                 [allResourceEffect [Stone]]   
                                 [
                                     WonderStage [Cost Stone 2] [pointEffect WonderP 3],
@@ -491,7 +562,8 @@ wonders =
                                     WonderStage [Cost Stone 4] [pointEffect WonderP 7]
                                 ]
                                ) 
-                               (WonderSide 
+                               (WonderSide
+                                "Gizah - B"
                                 [allResourceEffect [Stone]]   
                                 [
                                     WonderStage [Cost Wood 2] [pointEffect WonderP 3],

@@ -13,11 +13,13 @@ dependencies:
   - text
   - random-shuffle
   - warp
+  - random
 
 default-extensions:
   - NamedFieldPuns
   - OverloadedStrings
   - DuplicateRecordFields
+  - TupleSections
 
 library:
   source-dirs: src

@@ -26,9 +26,10 @@ defaultPlayerState playerName =
         resourcesProduced = [],
         pointActions = [],
         tradeActions = [defaultTradeAction],
-        constructFreeAction = defaultFalseAction,
-        constructLastStructureAction = defaultFalseAction,
-        copyGuildAction = defaultFalseAction,
+        constructFreeAction = False,
+        constructLastStructureAction = False,
+        copyGuildAction = False,
         scientificActions = [],
-        wonderStagesBuilt = 0
+        wonderStagesBuilt = 0,
+        wonder = toWonderSide (head wonders) 0
     }
