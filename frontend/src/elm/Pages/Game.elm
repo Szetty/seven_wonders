@@ -1,27 +1,24 @@
 module Pages.Game exposing (..)
 
 import Common.Logger as Logger
-import Common.Route as Route exposing (Route(..))
-import Common.Session as Session exposing (Session(..), UserInfo, getNavKey)
-import Common.WebStorage as WebStorage
+import Common.Session exposing (Session(..), UserInfo)
 import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick)
 import Http exposing (Body)
 import Image exposing (Image)
 import Networking.WebSocket as WebSocket
+import Pages.Header as Header
 import Services.GameService as GameService
-import Services.LogoutService as LogoutService
 
 
 type Msg
-    = Ping
+    = HeaderEvent Header.Msg
+    | Ping
     | GotPong (Result Http.Error String)
     | GotImage (Result Http.Error (Maybe Image))
     | InitWebSocket
     | GotGameEvent String
-    | Logout
-    | GotLogout LogoutService.Msg
 
 
 type alias Model =
@@ -91,43 +88,21 @@ update msg model =
         GotGameEvent r ->
             ( model, Logger.log "Game EVENT" r )
 
-        Logout ->
-            case Session.getUserInfo model.session of
-                Just userInfo ->
-                    ( model, Cmd.map GotLogout (LogoutService.logout userInfo) )
-
-                Nothing ->
-                    ( model, Cmd.none )
-
-        GotLogout logoutResponse ->
-            case LogoutService.tryExtractResponse logoutResponse of
-                ( Ok _, cmd ) ->
-                    let
-                        session =
-                            Guest (getNavKey model.session)
-
-                        cmdBatch =
-                            Cmd.batch
-                                [ Cmd.map GotLogout cmd
-                                , WebStorage.deleteItem "userInfo"
-                                , Route.replaceUrl (getNavKey model.session) Login
-                                ]
-                    in
-                    ( { model | session = session }, cmdBatch )
-
-                ( Err _, cmd ) ->
-                    ( model, Cmd.map GotLogout cmd )
+        HeaderEvent headerMsg ->
+            let
+                ( session, cmd ) =
+                    Header.update headerMsg model.session
+            in
+            ( { model | session = session }, Cmd.map HeaderEvent cmd )
 
 
 view : Model -> List (Html Msg)
 view model =
-    [ div [ class "mt-3" ]
-        [ button [ onClick Ping, class "btn btn-primary" ] [ text "PING" ]
+    [ div [ class "page-holder bg-cove", style "background-image" "url('%PUBLIC_URL%/paper.jpg')" ]
+        [ Html.map HeaderEvent <| Header.view model.session
+        , button [ onClick Ping, class "btn btn-primary" ] [ text "PING" ]
         , div [] [ text model.text ]
         , div [] []
-
-        --, img [ src "%PUBLIC_URL%/wonders/alexandriaA.png" ] []
-        , button [ onClick Logout, class "btn btn-outline-dark" ] [ text "Logout" ]
         ]
     ]
 

@@ -45,5 +45,10 @@ getUserInfo session =
             Nothing
 
 
+getName : Session -> Maybe String
+getName session =
+    Maybe.map .name (getUserInfo session)
+
+
 setUserInfo session userInfo =
     LoggedIn (getNavKey session) userInfo
