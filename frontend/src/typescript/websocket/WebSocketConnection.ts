@@ -38,6 +38,10 @@ export class WebSocketConnection {
         return new Date().getTime() - this.createdTs;
     }
 
+    public close() {
+        this.shutdown();
+    }
+
     openws = () => {
         if (!this._webSocketClass) {
             return;

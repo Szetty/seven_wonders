@@ -6,7 +6,7 @@ login =
 
 
 logout =
-    apiPrefix ++ securedPrefix ++ "/logout"
+    apiPrefix ++ "/logout"
 
 
 game =

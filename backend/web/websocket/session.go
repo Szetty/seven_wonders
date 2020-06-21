@@ -61,13 +61,21 @@ func (s *Session) readChannel() {
 	conn.SetReadLimit(maxMessageSize)
 	_ = conn.SetReadDeadline(time.Now().Add(pongWait))
 	conn.SetPongHandler(func(string) error { _ = conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	conn.SetCloseHandler(func(code int, text string) error {
+		conn = nil
+		if code == 1000 {
+			return nil
+		}
+		logger.Warnf("Unexpected close %d $s", code, text)
+		return nil
+	})
 	for {
 		err, envelopes := ReceiveEnvelopes(conn)
 		if err != nil {
-			if websocket.IsCloseError(errors.Cause(err), websocket.CloseNormalClosure) {
+			if websocket.IsCloseError(errors.Cause(err), websocket.CloseNormalClosure) || conn == nil {
 				return
 			}
-			logger.Warnf("Fail to read WS message: %v", err)
+			logger.Warnf("Fail to read WS message: %+v", errors.Cause(err))
 			time.Sleep(time.Second)
 			if websocket.IsUnexpectedCloseError(errors.Cause(err)) {
 				return

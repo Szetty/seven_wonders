@@ -8,7 +8,7 @@ import Html.Events exposing (onClick)
 import Http exposing (Body)
 import Image exposing (Image)
 import Networking.WebSocket as WebSocket
-import Pages.Header as Header
+import Pages.Header as Header exposing (Msg(..))
 import Services.GameService as GameService
 
 
@@ -34,7 +34,7 @@ init session =
       , text = ""
       , image = Nothing
       }
-    , GameService.startWebSocket session
+    , Cmd.batch [ Cmd.map HeaderEvent <| Header.init session, GameService.startWebSocket session ]
     )
 
 
@@ -86,7 +86,12 @@ update msg model =
                     ( { model | text = "FAIL" }, Cmd.none )
 
         GotGameEvent r ->
-            ( model, Logger.log "Game EVENT" r )
+            case r of
+                "Error" ->
+                    ( model, Cmd.map HeaderEvent <| Header.checkTokenExpiration (toSession model) )
+
+                _ ->
+                    ( model, Logger.log "Game EVENT" r )
 
         HeaderEvent headerMsg ->
             let

@@ -35,6 +35,10 @@ func defineAPI(api *mux.Router) {
 	secured := api.PathPrefix("/secured").Subrouter()
 	defineSecured(secured)
 
+	logoutRouter := api.PathPrefix("/logout").Subrouter()
+	logoutRouter.Use(jwtWithoutClaimsAuthorizationMiddleware)
+	logoutRouter.HandleFunc("", logout)
+
 	api.PathPrefix("/").Handler(errors.ErrorHandler{
 		StatusCode: 404,
 		Message:    "Endpoint does not exist",
@@ -45,7 +49,6 @@ func defineAPI(api *mux.Router) {
 func defineSecured(secured *mux.Router) {
 	secured.Use(jwtAuthorizationMiddleware)
 	secured.Use(nameVerificationMiddleware)
-	secured.HandleFunc("/logout", logout)
 	secured.HandleFunc("/game/{game}", gameHandler)
 	secured.HandleFunc("/gameLobby", gameLobby)
 }

@@ -26,5 +26,6 @@ subscriptions toMsg =
         , WebSocket.onWSOffline (event "Offline")
         , WebSocket.onWSOnline (event "Online")
         , WebSocket.onWSSync (event "Sync")
+        , WebSocket.onWSError (event "Error")
         , WebSocket.replyWSMessage toMsg
         ]

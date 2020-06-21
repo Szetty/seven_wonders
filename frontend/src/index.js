@@ -4,6 +4,7 @@ import { init_flags, storeUserInfo, deleteItem } from "./typescript/WebStorage.t
 import { initWebSocket } from "./typescript/websocket";
 import * as serviceWorker from './serviceWorker';
 import 'bootstrap';
+import {DataError} from "./typescript/websocket/interfaces";
 
 let app = Elm.Main.init({
   node: document.getElementById('root'),
@@ -19,6 +20,7 @@ let webSocketService = null;
 app.ports.initWebSocket.subscribe((wsUrl) => {
   console.log("Opening ws connection to: ", wsUrl);
   webSocketService = initWebSocket(wsUrl, {
+    onError(_error) { app.ports.onWSError.send("") },
     onSync(data) { app.ports.onWSSync.send(JSON.stringify(data)) },
     onOffline() { app.ports.onWSOffline.send("") },
     onOnline() { app.ports.onWSOnline.send("") },
@@ -30,6 +32,11 @@ app.ports.sendWSMessage.subscribe((message) => {
   webSocketService.sendMessage(message).then(
       (reply) => app.ports.replyWSMessage.send(JSON.stringify({message, reply}))
   )
+});
+
+app.ports.closeWebSocket.subscribe((_) => {
+  webSocketService.close();
+  webSocketService = null;
 });
 
 app.ports.doLog.subscribe(([prefix, toLog]) => {

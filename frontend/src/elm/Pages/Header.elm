@@ -6,17 +6,45 @@ import Common.WebStorage as WebStorage
 import Html exposing (Html, button, div, p, text)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
+import Jwt exposing (JwtError)
+import Networking.WebSocket as WebSocket
 import Services.LogoutService as LogoutService
+import Task
 
 
 type Msg
-    = Logout
+    = OnTokenExpiryCheck (Result JwtError Bool)
+    | Logout
     | GotLogout LogoutService.Msg
+
+
+init : Session -> Cmd Msg
+init =
+    checkTokenExpiration
+
+
+checkTokenExpiration : Session -> Cmd Msg
+checkTokenExpiration session =
+    case getUserInfo session of
+        Just userInfo ->
+            Jwt.checkTokenExpiry userInfo.userToken
+                |> Task.attempt OnTokenExpiryCheck
+
+        Nothing ->
+            Cmd.none
 
 
 update : Msg -> Session -> ( Session, Cmd Msg )
 update msg session =
     case msg of
+        OnTokenExpiryCheck res ->
+            case res of
+                Ok False ->
+                    ( session, Cmd.none )
+
+                _ ->
+                    update Logout session
+
         Logout ->
             case getUserInfo session of
                 Just userInfo ->
@@ -36,6 +64,7 @@ update msg session =
                             Cmd.batch
                                 [ Cmd.map GotLogout cmd
                                 , WebStorage.deleteItem "userInfo"
+                                , WebSocket.closeWebSocket ""
                                 , Route.replaceUrl (getNavKey session) Login
                                 ]
                     in
