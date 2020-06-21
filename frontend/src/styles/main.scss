@@ -37,3 +37,14 @@ img {
 .bg-cover {
   background-size: cover !important;
 }
+
+.header {
+  background: linear-gradient(to bottom, $header-color-start 0%, $header-color-end 100%);
+  border-radius: 15px;
+}
+
+.btn-like-text {
+  color: #fff;
+  font-weight: 400;
+  padding: 0.375rem 0.75rem;
+}
