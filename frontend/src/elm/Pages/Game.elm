@@ -2,11 +2,8 @@ module Pages.Game exposing (..)
 
 import Common.Logger as Logger
 import Common.Session exposing (Session(..), UserInfo)
-import Html exposing (Html, button, div, text)
+import Html exposing (Html, div)
 import Html.Attributes exposing (class, style)
-import Html.Events exposing (onClick)
-import Http exposing (Body)
-import Image exposing (Image)
 import Pages.Header as Header
 import Services.GameService as GameService
 

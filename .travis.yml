@@ -5,9 +5,10 @@ cache:
   directories:
     - $HOME/.stack
 
-matrix:
+jobs:
   include:
     - language: elm
+      stage: test
       before_install:
         - cd frontend/
       install:
@@ -17,6 +18,7 @@ matrix:
       script:
         - elm-app test
     - language: haskell
+      stage: test
       before_install:
         - cd core/
         # Download and unpack the stack executable
@@ -28,6 +30,7 @@ matrix:
       script:
         - travis_wait stack --no-terminal --skip-ghc-check test
     - language: go
+      stage: test
       env:
         - ACCESS_TOKEN="TEST" JWT_SECRET="test"
       script:
