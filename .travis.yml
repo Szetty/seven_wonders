@@ -35,3 +35,9 @@ jobs:
         - ACCESS_TOKEN="TEST" JWT_SECRET="test"
       script:
         - go test -v -race ./...
+    - stage: deploy
+      before_install:
+        - wget -qO- https://toolbelt.heroku.com/install.sh | sh
+        - heroku container:login
+        - heroku container:push web -a seven-wonders-szetty
+        - heroku container:release web -a seven-wonders-szetty
