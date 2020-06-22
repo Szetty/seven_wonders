@@ -38,7 +38,6 @@ jobs:
     - stage: deploy
       before_install:
         - wget -qO- https://toolbelt.heroku.com/install.sh | sh
-        - heroku auth:login
         - heroku container:login
         - heroku container:push web -a seven-wonders-szetty
         - heroku container:release web -a seven-wonders-szetty
