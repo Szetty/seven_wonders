@@ -7,12 +7,14 @@ import Common.Session exposing (Session(..), UserInfo, getNavKey, initSession)
 import Html exposing (div, text)
 import Pages.Game as Game
 import Pages.Login as Login
+import Pages.Ping as Ping
 import Url exposing (Url)
 
 
 type Model
     = Game Game.Model
     | Login Login.Model
+    | Ping Ping.Model
     | NotFound Session
     | Redirect Session
 
@@ -26,6 +28,7 @@ type Msg
     | ClickedLink Browser.UrlRequest
     | GotGameMsg Game.Msg
     | GotLoginMsg Login.Msg
+    | GotPingMsg Ping.Msg
 
 
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -65,6 +68,16 @@ changeRouteTo maybeRoute session =
                 LoggedIn _ _ ->
                     ( Redirect session, Route.replaceUrl (getNavKey session) Route.Game )
 
+        Just Route.Ping ->
+            case session of
+                Guest _ ->
+                    Login.init session
+                        |> updateWith Login GotLoginMsg
+
+                LoggedIn _ _ ->
+                    Ping.init session
+                        |> updateWith Ping GotPingMsg
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -92,6 +105,10 @@ update msg model =
             Game.update subMsg game
                 |> updateWith Game GotGameMsg
 
+        ( GotPingMsg subMsg, Ping ping ) ->
+            Ping.update subMsg ping
+                |> updateWith Ping GotPingMsg
+
         ( _, _ ) ->
             ( model, Cmd.none )
 
@@ -117,6 +134,9 @@ toSession page =
 
         Redirect session ->
             session
+
+        Ping ping ->
+            Ping.toSession ping
 
 
 subscriptions : Model -> Sub Msg
@@ -144,6 +164,9 @@ view model =
 
         Redirect _ ->
             viewPage notFoundView identity
+
+        Ping ping ->
+            viewPage (Ping.view ping) GotPingMsg
 
 
 notFoundView =

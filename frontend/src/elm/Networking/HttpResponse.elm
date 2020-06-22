@@ -1,5 +1,6 @@
 module Networking.HttpResponse exposing (..)
 
+import Common.Error exposing (ErrorBody, ErrorType(..))
 import Common.Logger as Logger
 import Http exposing (Error(..), Expect, expectStringResponse)
 import Json.Decode as D
@@ -13,20 +14,6 @@ type FailedRequest
     | BadRequest Http.Metadata ErrorBody
     | ServerError Http.Metadata String
     | BadBody Http.Metadata String String
-
-
-type alias ErrorBody =
-    { kind : ErrorType
-    , message : String
-    }
-
-
-type ErrorType
-    = InvalidName
-    | InvalidAccessToken
-    | InvalidGameId
-    | Unauthorized
-    | Unknown
 
 
 {-| Tries to extract response, if successful it returns the response
@@ -66,6 +53,9 @@ tryExtractResponse result =
 
                         Unauthorized ->
                             ( Err errorBody, Logger.log ("Unauthorized: " ++ errorBody.message) (encodeMetadata metadata) )
+
+                        InvalidUser ->
+                            ( Err errorBody, Logger.log ("Invalid user: " ++ errorBody.message) (encodeMetadata metadata) )
 
                         Unknown ->
                             ( Err defaultErrorBody, Logger.log ("Unknown bad request: " ++ errorBody.message) (encodeMetadata metadata) )
@@ -148,6 +138,9 @@ errorTypeDecoder =
 
                     "UNAUTHORIZED" ->
                         D.succeed Unauthorized
+
+                    "INVALID_USER" ->
+                        D.succeed InvalidUser
 
                     "INVALID_GAME_ID" ->
                         D.succeed InvalidGameId

@@ -86,3 +86,13 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	users.Delete(name)
 	sendStatus(w, http.StatusNoContent)
 }
+
+func checkToken(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		errors.ErrorHandler{
+			StatusCode: 405,
+		}.ServeHTTP(w, r)
+		return
+	}
+	sendStatus(w, http.StatusNoContent)
+}

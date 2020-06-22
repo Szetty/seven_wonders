@@ -32,6 +32,11 @@ app.ports.sendWSMessage.subscribe((message) => {
   )
 });
 
+app.ports.closeWS.subscribe((message) => {
+  webSocketService.close();
+  webSocketService = null;
+});
+
 app.ports.doLog.subscribe(([prefix, toLog]) => {
   if (toLog !== "") {
     try { toLog = JSON.parse(toLog); } catch (e) {}

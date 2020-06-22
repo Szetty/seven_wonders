@@ -5,7 +5,6 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"sync"
-	"time"
 )
 
 var users = sync.Map{}
@@ -40,7 +39,6 @@ func Delete(name string) {
 func createJWTToken(id, name string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
 		Subject:   name,
-		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 		Id:        id,
 	})
 	return token.SignedString([]byte(common.JWT_SECRET))

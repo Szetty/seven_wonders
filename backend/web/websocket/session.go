@@ -42,12 +42,27 @@ func newSession(name string, conn *websocket.Conn) *Session {
 }
 
 func (s *Session) refreshSession(conn *websocket.Conn) {
-	closeWebsocket(conn, "Refreshing session")
-	close(s.fromClientCh)
-	close(s.toClientCh)
+	if s.conn != nil {
+		closeWebsocket(s.conn, "Refreshing session")
+		s.invalidateSessionChannels()
+	}
 	s.conn = conn
 	s.fromClientCh = make(chan Envelope)
 	s.toClientCh = make(chan Envelope)
+}
+
+func (s *Session) restartSession() {
+	s.conn.SetReadLimit(maxMessageSize)
+	_ = s.conn.SetReadDeadline(time.Now().Add(pongWait))
+	s.conn.SetPongHandler(func(string) error { _ = s.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	go s.readChannel()
+	go s.writeChannel()
+	s.sendWelcomeMessage()
+}
+
+func (s *Session) invalidateSessionChannels() {
+	close(s.fromClientCh)
+	close(s.toClientCh)
 }
 
 // readChannel sends messages from the websocket connection to the game hub.
@@ -58,9 +73,6 @@ func (s *Session) refreshSession(conn *websocket.Conn) {
 func (s *Session) readChannel() {
 	conn := s.conn
 	logger.Infof("Starting read channel for %s", s.id)
-	conn.SetReadLimit(maxMessageSize)
-	_ = conn.SetReadDeadline(time.Now().Add(pongWait))
-	conn.SetPongHandler(func(string) error { _ = conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		err, envelopes := ReceiveEnvelopes(conn)
 		if err != nil {

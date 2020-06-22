@@ -9,6 +9,10 @@ logout =
     apiPrefix ++ securedPrefix ++ "/logout"
 
 
+checkToken =
+    apiPrefix ++ securedPrefix ++ "/checkToken"
+
+
 game =
     apiPrefix ++ securedPrefix ++ "/game"
 

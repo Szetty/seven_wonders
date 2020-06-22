@@ -28,6 +28,7 @@ export class WebSocketService implements interfaces.WebSocketService {
     private reconnectCounter = 0;
     private isOffline = true;
     private lastIncomingMessageTimestamp: number;
+    private pulseInterval;
 
     // Session (user)-specific structures. These need to be reset when token changes.
     private inFlightList: InFlight[] = [];
@@ -43,72 +44,7 @@ export class WebSocketService implements interfaces.WebSocketService {
     constructor(wsUrl: string, private _proxy: interfaces.WebSocketProxy) {
         const protocol = process.env["NODE_ENV"] == "production" ? "wss://" : "ws://";
         this.wsUrl = `${protocol}${window.location.host}${wsUrl}`;
-        setInterval(this.pulse, this.pulseMs);
-    }
-
-    // Below we handle responses to our messages and new events
-
-    private static isAckEnvelope(raw: data.EnvelopeFromServer): raw is data.EnvelopeAckFromServer {
-        return !!(raw as data.EnvelopeAckFromServer).ack_uuids;
-    }
-
-    private onWsMessage(payload: data.BundleFromServer) {
-        this.lastIncomingMessageTimestamp = new Date().getTime();
-        let ackUuids: string[] = [];
-
-        _.each(payload, raw => {
-            if (WebSocketService.isAckEnvelope(raw)) {
-                const { data, ack_uuids: ackUuids } = raw;
-                // Responses to (some) in-flight messages
-                const [confirmations, newInFlightList] = _.partition(this.inFlightList, item => {
-                    return ackUuids.indexOf(item.uuid) !== -1;
-                });
-                this.inFlightList = newInFlightList;
-                confirmations.map(item => {
-                    const { resolve, reject } = item;
-                    if (typeof data === "object" && data.type === "error") {
-                        this.collectDiagnostics(item, raw, data as data.ErrorFromServer);
-                        reject(data);
-                    } else {
-                        this.collectDiagnostics(item, raw);
-                        resolve(data);
-                    }
-                });
-            } else {
-                const { uuid, data } = raw;
-                // brand new message, not a response
-                this.onIncomingMessage(data);
-                if (uuid) {
-                    ackUuids.push(uuid);
-                } else {
-                    this.reportError("incoming_message_uuid_missing", new Error(), raw);
-                }
-            }
-        });
-
-        if (ackUuids.length > 0) {
-            this.sendAck(ackUuids);
-        }
-    }
-
-    // handle new event (not a response)
-    private onIncomingMessage(data: data.MessageReqFromServer) {
-        if (typeof data !== "object") {
-            return;
-        }
-        if (data.type === "welcome") {
-            this.onSync(data as data.WelcomeFromServer);
-        } else {
-            this._proxy.onIncomingMessage(data as data.MessageFromServer);
-        }
-    }
-
-    private reportError(type: interfaces.ErrorType, error: Error, info?: any) {
-        if (this._proxy.onError) {
-            this._proxy.onError({ type, error, info });
-        } else {
-            console.error(type, error, info);
-        }
+        this.pulseInterval = setInterval(this.pulse, this.pulseMs);
     }
 
     // PUBLIC API
@@ -184,6 +120,79 @@ export class WebSocketService implements interfaces.WebSocketService {
 
     public sendMessage(message: data.MessageReqToServer) {
         return this.sendOne<data.MessageFromServer>(message)
+    }
+
+    public close() {
+        console.log("Shutting down WebSocket");
+        clearInterval(this.pulseInterval);
+        if (this.wsConnection) {
+            this.wsConnection.shutdown(1000);
+        }
+    }
+
+    // Below we handle responses to our messages and new events
+
+    private static isAckEnvelope(raw: data.EnvelopeFromServer): raw is data.EnvelopeAckFromServer {
+        return !!(raw as data.EnvelopeAckFromServer).ack_uuids;
+    }
+
+    private onWsMessage(payload: data.BundleFromServer) {
+        this.lastIncomingMessageTimestamp = new Date().getTime();
+        let ackUuids: string[] = [];
+
+        _.each(payload, raw => {
+            if (WebSocketService.isAckEnvelope(raw)) {
+                const { data, ack_uuids: ackUuids } = raw;
+                // Responses to (some) in-flight messages
+                const [confirmations, newInFlightList] = _.partition(this.inFlightList, item => {
+                    return ackUuids.indexOf(item.uuid) !== -1;
+                });
+                this.inFlightList = newInFlightList;
+                confirmations.map(item => {
+                    const { resolve, reject } = item;
+                    if (typeof data === "object" && data.type === "error") {
+                        this.collectDiagnostics(item, raw, data as data.ErrorFromServer);
+                        reject(data);
+                    } else {
+                        this.collectDiagnostics(item, raw);
+                        resolve(data);
+                    }
+                });
+            } else {
+                const { uuid, data } = raw;
+                // brand new message, not a response
+                this.onIncomingMessage(data);
+                if (uuid) {
+                    ackUuids.push(uuid);
+                } else {
+                    this.reportError("incoming_message_uuid_missing", new Error(), raw);
+                }
+            }
+        });
+
+        if (ackUuids.length > 0) {
+            this.sendAck(ackUuids);
+        }
+    }
+
+    // handle new event (not a response)
+    private onIncomingMessage(data: data.MessageReqFromServer) {
+        if (typeof data !== "object") {
+            return;
+        }
+        if (data.type === "welcome") {
+            this.onSync(data as data.WelcomeFromServer);
+        } else {
+            this._proxy.onIncomingMessage(data as data.MessageFromServer);
+        }
+    }
+
+    private reportError(type: interfaces.ErrorType, error: Error, info?: any) {
+        if (this._proxy.onError) {
+            this._proxy.onError({ type, error, info });
+        } else {
+            console.error(type, error, info);
+        }
     }
 
     // HELPERS
@@ -330,8 +339,6 @@ export class WebSocketService implements interfaces.WebSocketService {
 
     private pulse = () => {
         this.reconcileInFlight(false);
-        let now = new Date().getTime();
-
         if (this.isOffline) {
             this.offlinePulse();
         }
@@ -418,6 +425,8 @@ export class WebSocketService implements interfaces.WebSocketService {
             if (this.wsConnection) {
                 this.wsConnection.shutdown();
             }
+            console.log("Reconnecting");
+            this._proxy.onOffline();
             this.wsConnection = this.createWsConnection(this.wsUrl);
         } else if (this.reconnecting) {
             // let's see if reconnect takes too long

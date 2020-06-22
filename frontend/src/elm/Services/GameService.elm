@@ -1,30 +1,20 @@
 module Services.GameService exposing (..)
 
-import Common.Session exposing (Session(..))
+import Common.Session exposing (Session)
 import Networking.Endpoints as Endpoints
-import Networking.WebSocket as WebSocket
+import Services.WebSocketService as WebSocketService
 
 
-startWebSocket : Session -> Cmd msg
-startWebSocket session =
-    case session of
-        Guest _ ->
-            Cmd.none
+initGame : Session -> Cmd msg
+initGame session =
+    -- TODO temporary needed in order for port to be created
+    if 1 == 2 then
+        WebSocketService.sendMessage ""
 
-        LoggedIn _ userInfo ->
-            WebSocket.initWebSocket (Endpoints.game ++ "/" ++ userInfo.gameID ++ "?authorization=" ++ userInfo.userToken)
+    else
+        WebSocketService.init session Endpoints.game
 
 
 subscriptions : (String -> msg) -> Sub msg
-subscriptions toMsg =
-    let
-        event name payload =
-            toMsg (name ++ payload)
-    in
-    Sub.batch
-        [ WebSocket.incomingWSMessage toMsg
-        , WebSocket.onWSOffline (event "Offline")
-        , WebSocket.onWSOnline (event "Online")
-        , WebSocket.onWSSync (event "Sync")
-        , WebSocket.replyWSMessage toMsg
-        ]
+subscriptions =
+    WebSocketService.subscriptions

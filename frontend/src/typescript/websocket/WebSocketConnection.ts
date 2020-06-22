@@ -57,11 +57,11 @@ export class WebSocketConnection {
         this.ws.addEventListener("close", this.handleClose);
         this.ws.addEventListener("message", this.handleMessage);
     };
-    shutdown = () => {
+    shutdown = (code?: number) => {
         this._handlers = null;
         this.status = WebSocketServiceStatus.ShuttingDown;
         if (this.ws) {
-            this.ws.close();
+            this.ws.close(code);
         }
     };
     handleOpen = () => {

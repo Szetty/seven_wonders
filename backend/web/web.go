@@ -46,6 +46,7 @@ func defineSecured(secured *mux.Router) {
 	secured.Use(jwtAuthorizationMiddleware)
 	secured.Use(nameVerificationMiddleware)
 	secured.HandleFunc("/logout", logout)
+	secured.HandleFunc("/checkToken", checkToken)
 	secured.HandleFunc("/game/{game}", gameHandler)
 	secured.HandleFunc("/gameLobby", gameLobby)
 }

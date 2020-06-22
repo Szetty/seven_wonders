@@ -1,5 +1,6 @@
 module Services.LoginService exposing (..)
 
+import Common.Error exposing (ErrorBody)
 import Http as Http
 import Json.Decode as Decoder
 import Json.Encode as Encoder
@@ -45,6 +46,6 @@ login body =
     post Endpoints.login httpBody expect
 
 
-tryExtractResponse : Msg -> ( Result HttpResponse.ErrorBody Response, Cmd Msg )
+tryExtractResponse : Msg -> ( Result ErrorBody Response, Cmd Msg )
 tryExtractResponse (GotResponse response) =
     HttpResponse.tryExtractResponse response

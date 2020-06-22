@@ -1,5 +1,6 @@
 module Services.LogoutService exposing (..)
 
+import Common.Error exposing (ErrorBody)
 import Common.Session exposing (UserInfo)
 import Http exposing (emptyBody, header)
 import Networking.Endpoints as Endpoints
@@ -23,6 +24,6 @@ logout userInfo =
     postWithHeaders Endpoints.logout emptyBody expect headers
 
 
-tryExtractResponse : Msg -> ( Result HttpResponse.ErrorBody (), Cmd Msg )
+tryExtractResponse : Msg -> ( Result ErrorBody (), Cmd Msg )
 tryExtractResponse (GotLogoutResponse response) =
     HttpResponse.tryExtractResponse response

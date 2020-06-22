@@ -7,6 +7,9 @@ port initWebSocket : String -> Cmd msg
 port sendWSMessage : String -> Cmd msg
 
 
+port closeWS : String -> Cmd msg
+
+
 port onWSSync : (String -> msg) -> Sub msg
 
 

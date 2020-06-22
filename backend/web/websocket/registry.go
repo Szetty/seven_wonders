@@ -13,8 +13,6 @@ func findOrCreateSession(name string, conn *websocket.Conn) *Session {
 	if exists {
 		s.refreshSession(conn)
 	}
-	go s.readChannel()
-	go s.writeChannel()
-	s.sendWelcomeMessage()
+	s.restartSession()
 	return s
 }

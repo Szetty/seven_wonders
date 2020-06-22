@@ -11,6 +11,7 @@ type Route
     = Root
     | Game
     | Login
+    | Ping
 
 
 parser : Parser (Route -> a) a
@@ -19,6 +20,7 @@ parser =
         [ Parser.map Root Parser.top
         , Parser.map Login (s "login")
         , Parser.map Game (s "game")
+        , Parser.map Ping (s "ping")
         ]
 
 
@@ -61,3 +63,6 @@ routeToPieces page =
 
         Login ->
             [ "login" ]
+
+        Ping ->
+            [ "ping" ]

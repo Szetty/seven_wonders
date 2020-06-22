@@ -57,6 +57,7 @@ export interface WebSocketService {
     setDebugOptions(options: DebugOptions): void;
     bundle<T>(fn: () => T): void;
     sendMessage(message: data.MessageReqToServer): Promise<data.MessageFromServer>;
+    close(): void;
 }
 
 export interface WebSocketProxy {

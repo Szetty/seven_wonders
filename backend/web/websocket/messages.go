@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -34,7 +33,7 @@ func ReceiveEnvelopes(conn *websocket.Conn) (error, []Envelope) {
 		var msg Message
 		err := mapstructure.Decode(envelope.Data, &msg)
 		if err != nil {
-			return errors.New(fmt.Sprintf("could not decode data from envelope: %v", err)), envelopes
+			return nil, envelopes
 		}
 		newEnvelopes = append(newEnvelopes, Envelope{
 			Data:     msg,
