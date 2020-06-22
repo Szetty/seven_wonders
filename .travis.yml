@@ -41,5 +41,4 @@ jobs:
         - heroku container:login
       script:
         - heroku container:push web -a seven-wonders-szetty
-      deploy:
         - heroku container:release web -a seven-wonders-szetty
