@@ -1,4 +1,4 @@
-package errors
+package errorHandling
 
 import (
 	"encoding/json"

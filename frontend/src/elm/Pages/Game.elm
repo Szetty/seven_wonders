@@ -10,7 +10,7 @@ import Services.GameService as GameService
 
 type Msg
     = HeaderEvent Header.Msg
-    | GotGameEvent String
+    | GotGameEvent GameService.Message
 
 
 type alias Model =
@@ -36,11 +36,28 @@ update msg model =
     case msg of
         GotGameEvent r ->
             case r of
-                "Offline" ->
-                    ( model, Cmd.map HeaderEvent <| Header.checkToken <| toSession model )
+                GameService.Offline ->
+                    ( model
+                    , Cmd.batch
+                        [ Cmd.map HeaderEvent <| Header.checkToken <| toSession model
+                        , Logger.log "Game EVENT" "Offline"
+                        ]
+                    )
 
-                _ ->
-                    ( model, Logger.log "Game EVENT" r )
+                GameService.Online ->
+                    ( model, Logger.log "Game EVENT" "Online" )
+
+                GameService.Sync ->
+                    ( model, Logger.log "Game EVENT" "Sync" )
+
+                GameService.Error error ->
+                    ( model, Logger.log "Game EVENT" ("Error" ++ error) )
+
+                GameService.Incoming body ->
+                    ( model, Logger.log "Game EVENT" ("Incoming" ++ body) )
+
+                GameService.Reply body ->
+                    ( model, Logger.log "Game EVENT" ("Reply" ++ body) )
 
         HeaderEvent headerMsg ->
             let

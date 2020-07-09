@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
+	github.com/inancgumus/learngo v0.0.0-20200616194200-6bab6e476b6b
 	github.com/joho/godotenv v1.3.0
 	github.com/json-iterator/go v1.1.9
 	github.com/mitchellh/mapstructure v1.3.2

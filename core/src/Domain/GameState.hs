@@ -430,7 +430,7 @@ structures =
     ,   Structure "Spies Guild"        Guild III [dynamicPointEffect GuildsP [East, West] [Military] 1]   [] [] (0, [Cost Clay 3, Cost Glass 1])                          []
     ,   Structure "Strategists Guild"  Guild III [dynamicBattleLostPointEffect GuildsP [East, West] 1]    [] [] (0, [Cost Ore 2, Cost Stone 1, Cost Loom 1])              []
     ,   Structure "Shipowners Guild"   Guild III [dynamicPointEffect GuildsP [Self] [RM, MG, Guild] 1]    [] [] (0, [Cost Wood 3, Cost Papyrus 1, Cost Glass 1])          []
-    ,   Structure "Scientists Guild"   Guild III [anyScientificEffect [Compass, Gears, Tablet]]             [] [] (0, [Cost Wood 2, Cost Ore 2, Cost Papyrus 1])            []
+    ,   Structure "Scientists Guild"   Guild III [anyScientificEffect [Compass, Gears, Tablet]]           [] [] (0, [Cost Wood 2, Cost Ore 2, Cost Papyrus 1])            []
     ,   Structure "Magistrates Guild"  Guild III [dynamicPointEffect GuildsP [East, West] [Civilian] 2]   [] [] (0, [Cost Wood 3, Cost Stone 1, Cost Loom 1])             []
     ,   Structure "Builders Guild"     Guild III [dynamicWonderPointEffect GuildsP [East, West, Self] 1]  [] [] (0, [Cost Stone 2, Cost Clay 2, Cost Glass 1])            []
     ]

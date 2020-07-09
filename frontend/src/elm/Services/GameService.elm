@@ -1,20 +1,60 @@
 module Services.GameService exposing (..)
 
-import Common.Session exposing (Session)
+import Common.Session exposing (Session(..))
+import Json.Decode exposing (string)
 import Networking.Endpoints as Endpoints
 import Services.WebSocketService as WebSocketService
 
 
+type Message
+    = Offline
+    | Online
+    | Sync
+    | Error String
+    | Incoming String
+    | Reply String
+
+
 initGame : Session -> Cmd msg
 initGame session =
-    -- TODO temporary needed in order for port to be created
-    if 1 == 2 then
-        WebSocketService.sendMessage ""
+    case session of
+        Guest _ ->
+            Cmd.none
 
-    else
-        WebSocketService.init session Endpoints.game
+        LoggedIn _ userInfo ->
+            let
+                url =
+                    String.replace ":gameID" userInfo.gameID Endpoints.game
+            in
+            WebSocketService.init userInfo.userToken url
 
 
-subscriptions : (String -> msg) -> Sub msg
-subscriptions =
-    WebSocketService.subscriptions
+subscriptions : (Message -> msg) -> Sub msg
+subscriptions toMsg =
+    let
+        mapper wsEventType =
+            toMsg (wsEventToMessage wsEventType)
+    in
+    WebSocketService.subscriptions (\_ -> string) mapper
+
+
+wsEventToMessage : WebSocketService.WSEventType String -> Message
+wsEventToMessage wsEventType =
+    case wsEventType of
+        WebSocketService.Offline ->
+            Offline
+
+        WebSocketService.Online ->
+            Online
+
+        WebSocketService.Sync ->
+            Sync
+
+        WebSocketService.Error error ->
+            Error error
+
+        WebSocketService.Incoming body ->
+            Incoming body
+
+        WebSocketService.Reply reply ->
+            Reply reply

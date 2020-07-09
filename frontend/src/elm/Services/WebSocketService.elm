@@ -1,22 +1,27 @@
 module Services.WebSocketService exposing (..)
 
-import Common.Session exposing (Session(..))
+import Json.Decode exposing (Decoder, decodeString, field, string)
+import Json.Encode exposing (Value, encode)
 import Networking.WebSocket as WebSocket
 
 
-init : Session -> String -> Cmd msg
-init session url =
-    case session of
-        Guest _ ->
-            Cmd.none
+type WSEventType body
+    = Incoming body
+    | Offline
+    | Online
+    | Sync
+    | Reply body
+    | Error String
 
-        LoggedIn _ userInfo ->
-            WebSocket.initWebSocket (url ++ "/" ++ userInfo.gameID ++ "?authorization=" ++ userInfo.userToken)
+
+init : String -> String -> Cmd msg
+init userToken url =
+    WebSocket.initWebSocket (url ++ "?authorization=" ++ userToken)
 
 
-sendMessage : String -> Cmd msg
+sendMessage : Value -> Cmd msg
 sendMessage message =
-    WebSocket.sendWSMessage message
+    WebSocket.sendWSMessage (encode 0 message)
 
 
 close : Cmd msg
@@ -24,16 +29,29 @@ close =
     WebSocket.closeWS ""
 
 
-subscriptions : (String -> msg) -> Sub msg
-subscriptions toMsg =
+subscriptions : (String -> Decoder body) -> (WSEventType body -> msg) -> Sub msg
+subscriptions messageDecoder toMsg =
     let
-        event name payload =
-            toMsg (name ++ payload)
+        eventWithoutPayload eventType _ =
+            toMsg eventType
+
+        event eventType payload =
+            case decodeString (field "type" string) payload of
+                Ok messageType ->
+                    case decodeString (field "body" <| messageDecoder messageType) payload of
+                        Ok a ->
+                            toMsg (eventType a)
+
+                        Err _ ->
+                            toMsg (Error "decoding body failed")
+
+                Err _ ->
+                    toMsg (Error "decoding type failed")
     in
     Sub.batch
-        [ WebSocket.incomingWSMessage toMsg
-        , WebSocket.onWSOffline (event "Offline")
-        , WebSocket.onWSOnline (event "Online")
-        , WebSocket.onWSSync (event "Sync")
-        , WebSocket.replyWSMessage toMsg
+        [ WebSocket.incomingWSMessage (event Incoming)
+        , WebSocket.onWSOffline (eventWithoutPayload Offline)
+        , WebSocket.onWSOnline (eventWithoutPayload Online)
+        , WebSocket.onWSSync (eventWithoutPayload Sync)
+        , WebSocket.replyWSMessage (event Reply)
         ]

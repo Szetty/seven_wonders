@@ -1,7 +1,7 @@
 package game
 
 import (
-	"github.com/Szetty/seven_wonders/backend/web/websocket"
+	"github.com/Szetty/seven_wonders/backend/dto"
 	"sync"
 )
 
@@ -9,7 +9,7 @@ var games = sync.Map{}
 
 func getGame(id string) *Game {
 	game, _ := games.LoadOrStore(id, &Game{
-		broadcast:  make(chan websocket.Envelope),
+		broadcast:  make(chan dto.Envelope),
 		register:   make(chan *Player),
 		unregister: make(chan *Player),
 		players:    make(map[*Player]bool),
@@ -22,7 +22,7 @@ type Game struct {
 	players map[*Player]bool
 
 	// Inbound messages from the players.
-	broadcast chan websocket.Envelope
+	broadcast chan dto.Envelope
 
 	// Register requests from the players.
 	register chan *Player

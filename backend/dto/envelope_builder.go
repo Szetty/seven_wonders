@@ -1,4 +1,6 @@
-package websocket
+package dto
+
+import "github.com/google/uuid"
 
 type EnveloperBuilder struct {
 	data     interface{}
@@ -13,6 +15,11 @@ func (b EnveloperBuilder) Data(data interface{}) EnveloperBuilder {
 
 func (b EnveloperBuilder) UUID(uuid string) EnveloperBuilder {
 	b.uuid = uuid
+	return b
+}
+
+func (b EnveloperBuilder) GenerateUUID() EnveloperBuilder {
+	b.uuid = uuid.New().String()
 	return b
 }
 
@@ -36,11 +43,11 @@ func (b EnveloperBuilder) Build() Envelope {
 }
 
 type MessageBuilder struct {
-	messageType string
+	messageType MessageType
 	body        interface{}
 }
 
-func (b MessageBuilder) MessageType(messageType string) MessageBuilder {
+func (b MessageBuilder) MessageType(messageType MessageType) MessageBuilder {
 	b.messageType = messageType
 	return b
 }
@@ -64,4 +71,20 @@ func (b MessageBuilder) Build() Message {
 		MessageType: b.messageType,
 		Body:        b.body,
 	}
+}
+
+func NewOrigin(id string, originType OriginType) Origin {
+	return Origin{ID: id, OriginType: originType}
+}
+
+func (e Envelope) WithOrigin(origin Origin) OriginEnvelope {
+	return OriginEnvelope{Envelope: e, Origin: origin}
+}
+
+func Reply(envelope Envelope, message Message) Envelope {
+	return EnveloperBuilder{}.AckUUIDs([]string{envelope.UUID}).Data(message).Build()
+}
+
+func Notify(message Message) Envelope {
+	return EnveloperBuilder{}.GenerateUUID().Data(message).Build()
 }
