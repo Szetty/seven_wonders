@@ -6,8 +6,6 @@ import Dict exposing (Dict, size)
 import Html exposing (Attribute, Html, a, button, div, option, select, table, tbody, td, text, th, thead, tr)
 import Html.Attributes as Attributes exposing (attribute, class, colspan, id, style, type_, value)
 import Html.Events exposing (on, onClick, onInput)
-import Html.Events.Extra exposing (onChange)
-import Http
 import Pages.Header as Header
 import Services.LobbyService as LobbyService exposing (MessageBody(..))
 
@@ -15,9 +13,8 @@ import Services.LobbyService as LobbyService exposing (MessageBody(..))
 type Msg
     = HeaderEvent Header.Msg
     | Invite
-    | Uninvite
-    | SetInvitedUsername String
-    | SetUninvitedUsername String
+    | Uninvite String
+    | SetToInviteUsername String
     | GotLobbyMessage LobbyService.Message
 
 
@@ -25,7 +22,6 @@ type alias Model =
     { session : Session
     , gameID : String
     , toInviteUsername : String
-    , toUninviteUsername : String
     , onlineUsernames : List String
     , invitedUsernames : Dict String Bool
     }
@@ -36,10 +32,6 @@ init session gameID =
     ( { session = session
       , gameID = gameID
       , toInviteUsername = ""
-      , toUninviteUsername = ""
-
-      --, onlineUsernames = [ "arnold", "andra", "alex" ]
-      --, invitedUsernames = Dict.fromList [ ( "andra", True ), ( "alex", False ) ]
       , onlineUsernames = []
       , invitedUsernames = Dict.fromList []
       }
@@ -67,24 +59,17 @@ update msg model =
             , LobbyService.inviteUser model.toInviteUsername
             )
 
-        Uninvite ->
+        Uninvite toInvite ->
             ( model
-            , LobbyService.uninviteUser model.toUninviteUsername
+            , LobbyService.uninviteUser toInvite
             )
 
-        SetInvitedUsername username ->
+        SetToInviteUsername username ->
             let
                 name =
                     username
             in
             ( { model | toInviteUsername = name }, Logger.log "" username )
-
-        SetUninvitedUsername username ->
-            let
-                name =
-                    username
-            in
-            ( { model | toUninviteUsername = name }, Cmd.none )
 
         GotLobbyMessage message ->
             case message of
@@ -92,17 +77,17 @@ update msg model =
                     ( model
                     , Cmd.batch
                         [ Cmd.map HeaderEvent <| Header.checkToken <| toSession model
-                        , Logger.log "Lobby EVENT" "Offline"
+                        , Logger.log "Lobby WS EVENT" "Offline"
                         ]
                     )
 
                 LobbyService.Online ->
-                    ( model, Logger.log "Lobby EVENT" "Online" )
+                    ( model, Logger.log "Lobby WS EVENT" "Online" )
 
                 LobbyService.Sync ->
                     ( model
                     , Cmd.batch
-                        [ Logger.log "Lobby EVENT" "Sync"
+                        [ Logger.log "Lobby WS EVENT" "Sync"
                         , LobbyService.getOnlineUsers
                         , LobbyService.getInvitedUsers
                         ]
@@ -115,10 +100,10 @@ update msg model =
 
                         InvitedUsersReply invitedUsers ->
                             let
-                                toDict =
-                                    Dict.fromList << List.map (\invitedUser -> ( invitedUser, False ))
+                                toTupleList =
+                                    List.map (\invitedUser -> ( invitedUser.name, invitedUser.connected ))
                             in
-                            ( { model | invitedUsernames = toDict invitedUsers }, Cmd.none )
+                            ( { model | invitedUsernames = Dict.fromList <| toTupleList invitedUsers }, Cmd.none )
 
                         InviteUserReply username ->
                             let
@@ -152,8 +137,8 @@ update msg model =
                         _ ->
                             ( model, Cmd.none )
 
-                _ ->
-                    ( model, Cmd.none )
+                LobbyService.Error errorMessage ->
+                    ( model, Logger.log "Lobby WS Error" errorMessage )
 
 
 view : Model -> List (Html Msg)
@@ -169,7 +154,7 @@ view model =
         [ Html.map HeaderEvent <| Header.view model.session
         ]
     , div [ class "" ]
-        [ select [ onInput SetInvitedUsername, class "custom-select-md mr-4 btn btn-lg btn-primary" ] <|
+        [ select [ onInput SetToInviteUsername, class "custom-select-md mr-4 btn btn-lg btn-primary" ] <|
             [ option [] [ text "" ] ]
                 ++ List.map (\onlineUsername -> option [] [ text onlineUsername ])
                     (List.filter
@@ -189,15 +174,14 @@ view model =
                             |> List.map
                                 (\( invitedUsername, isConnected ) ->
                                     tr
-                                        [ onInput SetUninvitedUsername
-                                        , if not isConnected then
+                                        [ if not isConnected then
                                             class "not-connected-row"
 
                                           else
                                             class ""
                                         ]
                                         [ td [ class "align-middle" ] [ text invitedUsername ]
-                                        , td [] [ button [ onClick Uninvite, class "btn btn-dark" ] [ text "x" ] ]
+                                        , td [] [ button [ onClick (Uninvite invitedUsername), class "btn btn-dark" ] [ text "x" ] ]
                                         ]
                                 )
                        )

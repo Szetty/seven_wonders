@@ -5,6 +5,7 @@ import (
 	"github.com/Szetty/seven_wonders/backend/core"
 	"github.com/Szetty/seven_wonders/backend/game"
 	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend/users"
 	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
 	"github.com/Szetty/seven_wonders/backend/web/websocket"
 	"github.com/gorilla/mux"
@@ -95,7 +96,7 @@ func gameHandler(w http.ResponseWriter, r *http.Request) {
 
 func gameLobbyHandler(w http.ResponseWriter, r *http.Request) {
 	gameID := mux.Vars(r)["gameID"]
-	name := r.Context().Value("name").(string)
+	username := r.Context().Value("name").(string)
 	if gameID == "" {
 		errorHandling.ErrorHandler{
 			Message:    fmt.Sprintf("Could not upgrade to WS: game id is empty"),
@@ -104,10 +105,11 @@ func gameLobbyHandler(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	session := websocket.CreateWSSession(w, r, name)
+	session := websocket.CreateWSSession(w, r, username)
 	if session != nil {
 		logger.L.Infof("Registering session %s in lobby %s", session.ID, gameID)
-		hubCh := game.RegisterInLobby(name, gameID, session.ClientCh)
+		hubCh := game.RegisterInLobby(username, gameID, session.ClientCh)
 		session.EventCh <- websocket.RegisterHubEvent{HubCh: hubCh}
+		users.Register(username, session.ClientCh)
 	}
 }

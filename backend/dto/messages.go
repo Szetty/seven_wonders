@@ -1,13 +1,5 @@
 package dto
 
-type OriginType string
-
-const (
-	Empty       OriginType = "Empty"
-	FromSession            = "FromSession"
-	FromLobby              = "FromLobby"
-)
-
 type MessageType string
 
 const Welcome = "Welcome"
@@ -15,11 +7,6 @@ const Welcome = "Welcome"
 type OriginEnvelope struct {
 	Envelope
 	Origin
-}
-
-type Origin struct {
-	ID         string
-	OriginType OriginType
 }
 
 type Envelope struct {
@@ -36,8 +23,4 @@ type Message struct {
 type ErrorBody struct {
 	Code string      `json:"code"`
 	Info interface{} `json:"info"`
-}
-
-func EmptyOrigin() Origin {
-	return Origin{OriginType: Empty}
 }

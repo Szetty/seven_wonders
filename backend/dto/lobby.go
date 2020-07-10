@@ -9,20 +9,20 @@ import (
 const (
 	// Request
 	OnlineUsers  MessageType = "OnlineUsers"
-	InvitedUsers             = "InvitedUsers"
-	InviteUser               = "InviteUser"
-	UninviteUser             = "UninviteUser"
+	InvitedUsers MessageType = "InvitedUsers"
+	InviteUser   MessageType = "InviteUser"
+	UninviteUser MessageType = "UninviteUser"
 	// Reply
-	OnlineUsersReply  = "OnlineUsersReply"
-	InvitedUsersReply = "InvitedUsersReply"
-	InviteUserReply   = "InviteUserReply"
-	UninviteUserReply = "UninviteUserReply"
+	OnlineUsersReply  MessageType = "OnlineUsersReply"
+	InvitedUsersReply MessageType = "InvitedUsersReply"
+	InviteUserReply   MessageType = "InviteUserReply"
+	UninviteUserReply MessageType = "UninviteUserReply"
 	// Notifications
-	GotInvite      = "GotInvite"
-	GotUninvite    = "GotUninvite"
-	UserGotOnline  = "UserGotOnline"
-	UserGotOffline = "UserGotOffline"
-	StartGame      = "StartGame"
+	GotInvite      MessageType = "GotInvite"
+	GotUninvite    MessageType = "GotUninvite"
+	UserGotOnline  MessageType = "UserGotOnline"
+	UserGotOffline MessageType = "UserGotOffline"
+	StartGame      MessageType = "StartGame"
 )
 
 type InvitedUser struct {

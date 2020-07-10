@@ -7,37 +7,37 @@ import (
 	"sync"
 )
 
-var users = sync.Map{}
+var authenticatedUsers = sync.Map{}
 
 type User struct {
 	name   string
 	gameID string
 }
 
-func CreateUser(name string) (error, string, string) {
-	id := uuid.New().String()
-	jwtToken, err := createJWTToken(id, name)
+func CreateUser(name string) (err error, jwtToken string, gameID string) {
+	gameID = uuid.New().String()
+	jwtToken, err = createJWTToken(gameID, name)
 	if err != nil {
-		return nil, "", ""
+		return
 	}
-	users.Store(name, User{
+	authenticatedUsers.Store(name, User{
 		name:   name,
-		gameID: id,
+		gameID: gameID,
 	})
-	return nil, jwtToken, id
+	return
 }
 
 func NameExists(name string) bool {
-	_, exists := users.Load(name)
+	_, exists := authenticatedUsers.Load(name)
 	return exists
 }
 
 func Delete(name string) {
-	users.Delete(name)
+	authenticatedUsers.Delete(name)
 }
 
 func DoesBelongGameIDToUser(name, gameID string) bool {
-	user, exists := users.Load(name)
+	user, exists := authenticatedUsers.Load(name)
 	if !exists || user.(User).gameID != gameID {
 		return false
 	}

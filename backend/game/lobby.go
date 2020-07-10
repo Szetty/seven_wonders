@@ -3,6 +3,7 @@ package game
 import (
 	"github.com/Szetty/seven_wonders/backend/dto"
 	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend/users"
 	"sync"
 )
 
@@ -10,14 +11,14 @@ type Lobby struct {
 	gameID            string
 	authorizedUsers   map[string]bool
 	connectedUsers    map[string]bool
-	connectedSessions map[string]chan dto.OriginEnvelope
+	connectedSessions map[string]chan<- dto.OriginEnvelope
 	envelopeCh        chan dto.OriginEnvelope
 	eventCh           chan interface{}
 }
 
 type register struct {
 	username    string
-	toSessionCh chan dto.OriginEnvelope
+	toSessionCh chan<- dto.OriginEnvelope
 }
 
 type changeAuthorization struct {
@@ -30,28 +31,13 @@ type verifyAuthorization struct {
 	replyCh  chan bool
 }
 
-type newOnlineUser struct {
-	username string
-}
-
 var gameLobbies = sync.Map{}
-var onlineUsers = sync.Map{}
 
-func RegisterInLobby(username, gameID string, toSessionCh chan dto.OriginEnvelope) chan dto.OriginEnvelope {
-	onlineUsers.Range(func(key, value interface{}) bool {
-		message := dto.MessageBuilder{}.MessageType(dto.UserGotOnline).Body(username).Build()
-		value.(chan dto.OriginEnvelope) <- dto.Notify(message).WithOrigin(dto.EmptyOrigin())
-		return true
-	})
-	onlineUsers.Store(username, toSessionCh)
-	gameLobbies.Range(func(key, value interface{}) bool {
-		value.(*Lobby).eventCh <- newOnlineUser{username}
-		return true
-	})
+func RegisterInLobby(username, gameID string, toSessionCh chan<- dto.OriginEnvelope) chan<- dto.OriginEnvelope {
 	l, exists := gameLobbies.LoadOrStore(gameID, newLobby(gameID))
 	lobby := l.(*Lobby)
 	if !exists {
-		go lobby.lobby()
+		go lobby.lobbyRoutine()
 	}
 	lobby.eventCh <- register{username, toSessionCh}
 	return lobby.envelopeCh
@@ -73,13 +59,13 @@ func newLobby(gameID string) *Lobby {
 		gameID:            gameID,
 		authorizedUsers:   make(map[string]bool),
 		connectedUsers:    make(map[string]bool),
-		connectedSessions: make(map[string]chan dto.OriginEnvelope),
+		connectedSessions: make(map[string]chan<- dto.OriginEnvelope),
 		envelopeCh:        make(chan dto.OriginEnvelope),
 		eventCh:           make(chan interface{}),
 	}
 }
 
-func (l *Lobby) lobby() {
+func (l *Lobby) lobbyRoutine() {
 	for {
 		select {
 		case envelope := <-l.envelopeCh:
@@ -103,17 +89,9 @@ func (l *Lobby) handleEnvelope(originEnvelope dto.OriginEnvelope) {
 	switch m := originEnvelope.Data.(type) {
 	case dto.Message:
 		switch m.MessageType {
-		case dto.OnlineUsers:
-			var onlineUsersList []string
-			onlineUsers.Range(func(key, value interface{}) bool {
-				onlineUsersList = append(onlineUsersList, key.(string))
-				return true
-			})
-			replyMessage := dto.MessageBuilder{}.MessageType(dto.OnlineUsersReply).Body(onlineUsersList).Build()
-			l.replyToOrigin(originEnvelope, replyMessage)
 		case dto.InviteUser:
 			toInvite := m.Body.(string)
-			l.notifyTarget(toInvite, dto.MessageBuilder{}.MessageType(dto.GotInvite).Body(l.gameID).Build())
+			users.Notify(toInvite, dto.MessageBuilder{}.MessageType(dto.GotInvite).Body(l.gameID).Build(), l.origin())
 			l.replyToOrigin(originEnvelope, dto.MessageBuilder{}.MessageType(dto.InviteUserReply).Body(toInvite).Build())
 			l.changeAuthorization(toInvite, true)
 		case dto.InvitedUsers:
@@ -127,9 +105,14 @@ func (l *Lobby) handleEnvelope(originEnvelope dto.OriginEnvelope) {
 			l.replyToOrigin(originEnvelope, replyMessage)
 		case dto.UninviteUser:
 			toUninvite := m.Body.(string)
-			l.notifyTarget(toUninvite, dto.MessageBuilder{}.MessageType(dto.GotUninvite).Body(l.gameID).Build())
+			users.Notify(toUninvite, dto.MessageBuilder{}.MessageType(dto.GotUninvite).Body(l.gameID).Build(), l.origin())
 			l.replyToOrigin(originEnvelope, dto.MessageBuilder{}.MessageType(dto.UninviteUserReply).Body(toUninvite).Build())
 			l.changeAuthorization(toUninvite, false)
+		case dto.UserGotOffline:
+			offlineUsername := m.Body.(string)
+			delete(l.connectedSessions, originEnvelope.ID)
+			delete(l.connectedUsers, offlineUsername)
+			users.Unregister(offlineUsername)
 		case dto.StartGame:
 			//TODO implement starting a game
 			break
@@ -141,7 +124,7 @@ func (l *Lobby) handleEnvelope(originEnvelope dto.OriginEnvelope) {
 	}
 }
 
-func (l *Lobby) registerUserAndSession(username string, toSessionCh chan dto.OriginEnvelope) {
+func (l *Lobby) registerUserAndSession(username string, toSessionCh chan<- dto.OriginEnvelope) {
 	l.connectedUsers[username] = true
 	l.connectedSessions[username] = toSessionCh
 }
@@ -156,15 +139,6 @@ func (l *Lobby) replyToOrigin(envelope dto.OriginEnvelope, replyMessage dto.Mess
 		l.connectedSessions[envelope.ID] <- dto.Reply(envelope.Envelope, replyMessage).WithOrigin(l.origin())
 	default:
 		logger.L.Warnf("Unknown origin type: %s", envelope.OriginType)
-	}
-}
-
-func (l *Lobby) notifyTarget(username string, message dto.Message) {
-	sessionCh, exists := onlineUsers.Load(username)
-	if exists {
-		sessionCh.(chan dto.OriginEnvelope) <- dto.Notify(message).WithOrigin(l.origin())
-	} else {
-		logger.L.Warnf("Cannot notify target %s", username)
 	}
 }
 

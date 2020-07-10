@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/dto"
 	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend/users"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -25,18 +26,24 @@ const (
 	maxMessageSize = 512
 
 	// Tries to send queue message from client with this period.
-	retryFromClientPeriod = 5 * time.Second
+	hubRetryPeriod = 5 * time.Second
 )
 
 type RegisterHubEvent struct {
-	HubCh chan dto.OriginEnvelope
+	HubCh chan<- dto.OriginEnvelope
 }
 
 type Session struct {
 	ID       string
-	ClientCh chan dto.OriginEnvelope
-	EventCh  chan interface{}
-	hubCh    chan dto.OriginEnvelope
+	ClientCh chan<- dto.OriginEnvelope
+	EventCh  chan<- interface{}
+	internalSession
+}
+
+type internalSession struct {
+	clientCh <-chan dto.OriginEnvelope
+	eventCh  <-chan interface{}
+	hubCh    chan<- dto.OriginEnvelope
 	conn     *websocket.Conn
 	hubQ     []dto.Envelope
 	clientQ  []dto.Envelope
@@ -44,13 +51,19 @@ type Session struct {
 
 func newSession(username string, conn *websocket.Conn) *Session {
 	id := username + "@" + uuid.New().String()
+	clientCh := make(chan dto.OriginEnvelope, 100)
+	eventCh := make(chan interface{})
 	return &Session{
 		ID:       id,
-		conn:     conn,
-		ClientCh: make(chan dto.OriginEnvelope, 100),
-		EventCh:  make(chan interface{}),
-		hubQ:     []dto.Envelope{},
-		clientQ:  []dto.Envelope{},
+		ClientCh: clientCh,
+		EventCh:  eventCh,
+		internalSession: internalSession{
+			clientCh: clientCh,
+			eventCh:  eventCh,
+			conn:     conn,
+			hubQ:     []dto.Envelope{},
+			clientQ:  []dto.Envelope{},
+		},
 	}
 }
 
@@ -59,34 +72,34 @@ func (s *Session) refreshSession(conn *websocket.Conn) {
 		closeWebsocket(s.conn, "Refreshing session")
 		s.invalidateSessionChannels()
 	}
+	clientCh := make(chan dto.OriginEnvelope, 100)
 	s.conn = conn
 	s.hubCh = nil
-	s.ClientCh = make(chan dto.OriginEnvelope, 100)
+	s.ClientCh = clientCh
+	s.clientCh = clientCh
 }
 
 func (s *Session) startSession() {
 	s.conn.SetReadLimit(maxMessageSize)
 	_ = s.conn.SetReadDeadline(time.Now().Add(pongWait))
 	s.conn.SetPongHandler(func(string) error { _ = s.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
-	go s.readChannel()
-	go s.writeChannel()
+	go s.sessionRoutine()
 	s.sendWelcomeMessage()
 }
 
 func (s *Session) invalidateSessionChannels() {
-	close(s.ClientCh)
 }
 
-// readChannel sends messages from the websocket connection to the game hub.
-//
-// The application runs readChannel in a per-connection goroutine. The application
-// ensures that there is at most one reader on a connection by executing all
-// reads from this goroutine.
-func (s *Session) readChannel() {
+func (s *Session) sessionRoutine() {
 	conn := s.conn
-	logger.L.Infof("Starting read channel for %s", s.ID)
+	logger.L.Infof("Starting session %s", s.ID)
 	clientReaderCh := make(chan []dto.Envelope)
-	ticker := time.NewTicker(retryFromClientPeriod)
+	hubTicker := time.NewTicker(hubRetryPeriod)
+	pingTicker := time.NewTicker(pingPeriod)
+	defer func() {
+		hubTicker.Stop()
+		pingTicker.Stop()
+	}()
 	go func() {
 		for {
 			logger.L.Infof("Waiting to receive")
@@ -113,6 +126,8 @@ func (s *Session) readChannel() {
 		select {
 		case envelopes, ok := <-clientReaderCh:
 			if !ok {
+				offlineMessage := dto.MessageBuilder{}.MessageType(dto.UserGotOffline).Body(s.getUsername()).Build()
+				s.hubCh <- dto.EnveloperBuilder{}.Data(offlineMessage).GenerateUUID().Build().WithOrigin(s.origin())
 				return
 			}
 			if len(envelopes) <= 0 {
@@ -120,9 +135,9 @@ func (s *Session) readChannel() {
 			}
 			logger.L.Infof("Received envelopes %s: %#v", s.ID, envelopes)
 			for _, envelope := range envelopes {
-				switch envelope.Data.(type) {
+				switch m := envelope.Data.(type) {
 				case dto.Message:
-					s.hubQ = append(s.hubQ, envelope)
+					s.handleMessage(envelope, m)
 				default:
 					//TODO implement ACKs and other envelope types
 				}
@@ -139,7 +154,7 @@ func (s *Session) readChannel() {
 			} else {
 				logger.L.Infof("No hub channel yet")
 			}
-		case <-ticker.C:
+		case <-hubTicker.C:
 			if len(s.hubQ) > 0 {
 				logger.L.Infof("Hub queue is NOT empty, trying to send")
 				if s.hubCh != nil {
@@ -150,31 +165,12 @@ func (s *Session) readChannel() {
 					s.hubQ = []dto.Envelope{}
 				}
 			}
-		case e := <-s.EventCh:
+		case e := <-s.eventCh:
 			switch event := e.(type) {
 			case RegisterHubEvent:
 				s.hubCh = event.HubCh
 			}
-		}
-	}
-}
-
-// writeChannel sends messages from the hub to the websocket connection.
-//
-// A goroutine running writeChannel is started for each connection. The
-// application ensures that there is at most one writer to a connection by
-// executing all writes from this goroutine.
-func (s *Session) writeChannel() {
-	logger.L.Infof("Starting write channel for %s", s.ID)
-	conn := s.conn
-	clientCh := s.ClientCh
-	ticker := time.NewTicker(pingPeriod)
-	defer func() {
-		ticker.Stop()
-	}()
-	for {
-		select {
-		case originEnvelope, ok := <-clientCh:
+		case originEnvelope, ok := <-s.clientCh:
 			if !ok {
 				clientChannelClosed(conn)
 				closeWebsocket(conn, "to client channel was closed")
@@ -200,7 +196,7 @@ func (s *Session) writeChannel() {
 				return
 			}
 			s.clientQ = []dto.Envelope{}
-		case <-ticker.C:
+		case <-pingTicker.C:
 			_ = conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
@@ -232,8 +228,20 @@ func (s *Session) sendWelcomeMessage() {
 }
 
 func (s *Session) origin() dto.Origin {
-	username := strings.Split(s.ID, "@")[0]
-	return dto.NewOrigin(username, dto.FromSession)
+	return dto.NewOrigin(s.getUsername(), dto.FromSession)
+}
+
+func (s *Session) getUsername() string {
+	return strings.Split(s.ID, "@")[0]
+}
+
+func (s *Session) handleMessage(envelope dto.Envelope, message dto.Message) {
+	switch message.MessageType {
+	case dto.OnlineUsers:
+		users.GetAllOnline(envelope.WithOrigin(s.origin()))
+	default:
+		s.hubQ = append(s.hubQ, envelope)
+	}
 }
 
 func clientChannelClosed(conn *websocket.Conn) {
@@ -242,9 +250,9 @@ func clientChannelClosed(conn *websocket.Conn) {
 }
 
 func readAllMessagesFromChannel(s *Session, conn *websocket.Conn) {
-	n := len(s.ClientCh)
+	n := len(s.clientCh)
 	for i := 0; i < n; i++ {
-		originEnvelope, ok := <-s.ClientCh
+		originEnvelope, ok := <-s.clientCh
 		if !ok {
 			clientChannelClosed(conn)
 			return
