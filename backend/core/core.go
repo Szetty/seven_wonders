@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/common"
+	"github.com/Szetty/seven_wonders/backend/logger"
 	"google.golang.org/grpc"
 	"io"
 	"os"
@@ -13,8 +13,6 @@ import (
 )
 
 const coreAddressPrefix = "127.0.0.1:"
-
-var logger = common.NewLogger("Core")
 
 type Server struct {
 	address string
@@ -46,7 +44,7 @@ func StartCoreServer() (*Server, error) {
 	if scanned := scanner.Scan(); !scanned {
 		return nil, fmt.Errorf("could not get output from core server: %v", scanner.Err())
 	}
-	logger.Info(scanner.Text())
+	logger.L.Info(scanner.Text())
 	go handleOutputFromCore(*scanner)
 	return &Server{address: coreAddress}, nil
 }
@@ -60,7 +58,7 @@ func Ping(server Server) (string, error) {
 		return "", fmt.Errorf("ping failed: %v", err)
 	}
 	pong := response.(*PingReply)
-	logger.Infof("Got pong from core: %v", pong.Message)
+	logger.L.Infof("Got pong from core: %v", pong.Message)
 	return pong.Message, nil
 }
 
@@ -78,7 +76,7 @@ func sendAndReceive(address string, reqFn requestFunction) (interface{}, error) 
 	defer func() {
 		err := conn.Close()
 		if err != nil {
-			logger.Errorf("Could not close connection: %v", err)
+			logger.L.Errorf("Could not close connection: %v", err)
 		}
 	}()
 	client := NewServiceClient(conn)
@@ -94,9 +92,9 @@ func handleOutputFromCore(scanner bufio.Scanner) {
 	for scanned {
 		scanned = scanner.Scan()
 		if scanner.Err() != nil {
-			logger.Errorf("Core read error: %v", scanner.Err())
+			logger.L.Errorf("Core read error: %v", scanner.Err())
 		} else {
-			logger.Info(scanner.Text())
+			logger.L.Info(scanner.Text())
 		}
 	}
 }

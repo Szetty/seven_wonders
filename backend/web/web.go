@@ -2,9 +2,10 @@ package web
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/common"
 	"github.com/Szetty/seven_wonders/backend/core"
-	"github.com/Szetty/seven_wonders/backend/web/errors"
+	"github.com/Szetty/seven_wonders/backend/game"
+	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
 	"github.com/Szetty/seven_wonders/backend/web/websocket"
 	"github.com/gorilla/mux"
 	"github.com/json-iterator/go"
@@ -12,15 +13,14 @@ import (
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
-var logger = common.NewLogger("Web")
 var coreServer *core.Server
 
 func MainHandler() http.Handler {
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
-	api := router.PathPrefix("/api").Subrouter()
-	defineAPI(api)
+	apiRouter := router.PathPrefix("/api").Subrouter()
+	defineAPIRouter(apiRouter)
 
 	spa := SPAHandler{StaticPath: "build", IndexPath: "index.html"}
 	router.PathPrefix("/").Handler(spa)
@@ -28,27 +28,18 @@ func MainHandler() http.Handler {
 	return router
 }
 
-func defineAPI(api *mux.Router) {
-	api.HandleFunc("/ping", ping)
-	api.HandleFunc("/login", login)
+func defineAPIRouter(apiRouter *mux.Router) {
+	apiRouter.HandleFunc("/ping", ping)
+	apiRouter.HandleFunc("/login", login)
 
-	secured := api.PathPrefix("/secured").Subrouter()
-	defineSecured(secured)
+	securedRouter := apiRouter.PathPrefix("/secured").Subrouter()
+	defineSecuredRouter(securedRouter)
 
-	api.PathPrefix("/").Handler(errors.ErrorHandler{
+	apiRouter.PathPrefix("/").Handler(errorHandling.ErrorHandler{
 		StatusCode: 404,
 		Message:    "Endpoint does not exist",
-		ErrorType:  errors.InvalidEndpoint,
+		ErrorType:  errorHandling.InvalidEndpoint,
 	})
-}
-
-func defineSecured(secured *mux.Router) {
-	secured.Use(jwtAuthorizationMiddleware)
-	secured.Use(nameVerificationMiddleware)
-	secured.HandleFunc("/logout", logout)
-	secured.HandleFunc("/checkToken", checkToken)
-	secured.HandleFunc("/game/{game}", gameHandler)
-	secured.HandleFunc("/gameLobby", gameLobby)
 }
 
 func ping(w http.ResponseWriter, r *http.Request) {
@@ -57,32 +48,66 @@ func ping(w http.ResponseWriter, r *http.Request) {
 		coreServer, err = core.StartCoreServer()
 	}
 	if err != nil {
-		logger.Errorf("Starting core server failed: %v", err)
+		logger.L.Errorf("Starting core server failed: %v", err)
 		_, _ = fmt.Fprint(w, "Could not start core server")
 		return
 	}
 	pong, err := core.Ping(*coreServer)
 	if err != nil {
-		logger.Errorf("Ping to core server failed: %v", err)
+		logger.L.Errorf("Ping to core server failed: %v", err)
 		_, _ = fmt.Fprint(w, "Pong Backend -> Frontend (ping Backend -> Core failed)")
 		return
 	}
 	_, _ = fmt.Fprint(w, pong)
 }
 
+func defineSecuredRouter(securedRouter *mux.Router) {
+	securedRouter.Use(jwtAuthorizationMiddleware)
+	securedRouter.Use(nameVerificationMiddleware)
+	securedRouter.HandleFunc("/logout", logout)
+	securedRouter.HandleFunc("/checkToken", checkToken)
+	gameRouter := securedRouter.PathPrefix("/game").Subrouter()
+	defineGameRouter(gameRouter)
+}
+
+func defineGameRouter(gameRouter *mux.Router) {
+	gameRouter.Use(gameAuthorizationMiddleware)
+	gameRouter.HandleFunc("/{gameID}", gameHandler)
+	gameRouter.HandleFunc("/lobby/{gameID}", gameLobbyHandler)
+}
+
 func gameHandler(w http.ResponseWriter, r *http.Request) {
-	gameId := mux.Vars(r)["game"]
-	name := r.Context().Value("name").(string)
+	gameId := mux.Vars(r)["gameID"]
+	username := r.Context().Value("name").(string)
 	if gameId == "" {
-		errors.ErrorHandler{
+		errorHandling.ErrorHandler{
 			Message:    fmt.Sprintf("Could not upgrade to WS: game id is empty"),
 			StatusCode: 400,
-			ErrorType:  errors.InvalidGameID,
+			ErrorType:  errorHandling.InvalidGameID,
+		}.ServeHTTP(w, r)
+		return
+	}
+	session := websocket.CreateWSSession(w, r, username)
+	if session != nil {
+		//session.hubCh = game.ConnectPlayer(session, gameId, name)
+	}
+}
+
+func gameLobbyHandler(w http.ResponseWriter, r *http.Request) {
+	gameID := mux.Vars(r)["gameID"]
+	name := r.Context().Value("name").(string)
+	if gameID == "" {
+		errorHandling.ErrorHandler{
+			Message:    fmt.Sprintf("Could not upgrade to WS: game id is empty"),
+			StatusCode: 400,
+			ErrorType:  errorHandling.InvalidGameID,
 		}.ServeHTTP(w, r)
 		return
 	}
 	session := websocket.CreateWSSession(w, r, name)
 	if session != nil {
-		//game.ConnectPlayer(session, gameId, name)
+		logger.L.Infof("Registering session %s in lobby %s", session.ID, gameID)
+		hubCh := game.RegisterInLobby(name, gameID, session.ClientCh)
+		session.EventCh <- websocket.RegisterHubEvent{HubCh: hubCh}
 	}
 }

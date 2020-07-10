@@ -36,10 +36,18 @@ func Delete(name string) {
 	users.Delete(name)
 }
 
+func DoesBelongGameIDToUser(name, gameID string) bool {
+	user, exists := users.Load(name)
+	if !exists || user.(User).gameID != gameID {
+		return false
+	}
+	return true
+}
+
 func createJWTToken(id, name string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-		Subject:   name,
-		Id:        id,
+		Subject: name,
+		Id:      id,
 	})
 	return token.SignedString([]byte(common.JWT_SECRET))
 }

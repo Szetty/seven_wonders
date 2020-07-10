@@ -84,16 +84,16 @@ update msg model =
 
         GotLogin loginResponse ->
             case LoginService.tryExtractResponse loginResponse of
-                ( Ok response, cmd ) ->
+                ( Ok userInfo, cmd ) ->
                     let
                         session =
-                            setUserInfo model.session response
+                            setUserInfo model.session userInfo
 
                         cmdBatch =
                             Cmd.batch
                                 [ Cmd.map GotLogin cmd
-                                , WebStorage.saveUserInfo response
-                                , Route.replaceUrl (getNavKey session) Game
+                                , WebStorage.saveUserInfo userInfo
+                                , Route.replaceUrl (getNavKey session) (Lobby userInfo.gameID)
                                 ]
                     in
                     ( { model | form = initForm, session = session }, cmdBatch )

@@ -28,6 +28,11 @@ In backend folder:
 go run main.go
 ```
 
+Run tests:
+```shell script
+ACCESS_TOKEN="TEST" JWT_SECRET="test" go test -v -race ./...
+```
+
 ### Frontend
 
 In frontend folder:

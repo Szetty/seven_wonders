@@ -2,9 +2,12 @@ package websocket
 
 import (
 	"fmt"
+	"github.com/Szetty/seven_wonders/backend/dto"
+	"github.com/Szetty/seven_wonders/backend/logger"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+	"strings"
 	"time"
 )
 
@@ -20,24 +23,34 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
+
+	// Tries to send queue message from client with this period.
+	retryFromClientPeriod = 5 * time.Second
 )
 
-type Session struct {
-	id           string
-	conn         *websocket.Conn
-	fromClientCh chan Envelope
-	toClientCh   chan Envelope
-	toClientQ    []Envelope
+type RegisterHubEvent struct {
+	HubCh chan dto.OriginEnvelope
 }
 
-func newSession(name string, conn *websocket.Conn) *Session {
-	id := name + "@" + uuid.New().String()
+type Session struct {
+	ID       string
+	ClientCh chan dto.OriginEnvelope
+	EventCh  chan interface{}
+	hubCh    chan dto.OriginEnvelope
+	conn     *websocket.Conn
+	hubQ     []dto.Envelope
+	clientQ  []dto.Envelope
+}
+
+func newSession(username string, conn *websocket.Conn) *Session {
+	id := username + "@" + uuid.New().String()
 	return &Session{
-		id:           id,
-		conn:         conn,
-		fromClientCh: make(chan Envelope),
-		toClientCh:   make(chan Envelope),
-		toClientQ:    []Envelope{},
+		ID:       id,
+		conn:     conn,
+		ClientCh: make(chan dto.OriginEnvelope, 100),
+		EventCh:  make(chan interface{}),
+		hubQ:     []dto.Envelope{},
+		clientQ:  []dto.Envelope{},
 	}
 }
 
@@ -47,11 +60,11 @@ func (s *Session) refreshSession(conn *websocket.Conn) {
 		s.invalidateSessionChannels()
 	}
 	s.conn = conn
-	s.fromClientCh = make(chan Envelope)
-	s.toClientCh = make(chan Envelope)
+	s.hubCh = nil
+	s.ClientCh = make(chan dto.OriginEnvelope, 100)
 }
 
-func (s *Session) restartSession() {
+func (s *Session) startSession() {
 	s.conn.SetReadLimit(maxMessageSize)
 	_ = s.conn.SetReadDeadline(time.Now().Add(pongWait))
 	s.conn.SetPongHandler(func(string) error { _ = s.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
@@ -61,8 +74,7 @@ func (s *Session) restartSession() {
 }
 
 func (s *Session) invalidateSessionChannels() {
-	close(s.fromClientCh)
-	close(s.toClientCh)
+	close(s.ClientCh)
 }
 
 // readChannel sends messages from the websocket connection to the game hub.
@@ -72,65 +84,122 @@ func (s *Session) invalidateSessionChannels() {
 // reads from this goroutine.
 func (s *Session) readChannel() {
 	conn := s.conn
-	logger.Infof("Starting read channel for %s", s.id)
-	for {
-		err, envelopes := ReceiveEnvelopes(conn)
-		if err != nil {
-			if websocket.IsCloseError(errors.Cause(err), websocket.CloseNormalClosure) {
-				return
+	logger.L.Infof("Starting read channel for %s", s.ID)
+	clientReaderCh := make(chan []dto.Envelope)
+	ticker := time.NewTicker(retryFromClientPeriod)
+	go func() {
+		for {
+			logger.L.Infof("Waiting to receive")
+			err, envelopes := ReceiveEnvelopes(conn)
+			logger.L.Infof("Received")
+			if err != nil {
+				if websocket.IsCloseError(errors.Cause(err), websocket.CloseNormalClosure) {
+					logger.L.Infof("WS was closed for session %s", s.ID)
+					close(clientReaderCh)
+					return
+				}
+				logger.L.Warnf("Fail to read WS message: %v", err)
+				time.Sleep(time.Second)
+				if websocket.IsUnexpectedCloseError(errors.Cause(err), websocket.CloseNormalClosure) {
+					close(clientReaderCh)
+					return
+				}
+				clientReaderCh <- []dto.Envelope{}
 			}
-			logger.Warnf("Fail to read WS message: %v", err)
-			time.Sleep(time.Second)
-			if websocket.IsUnexpectedCloseError(errors.Cause(err)) {
-				return
-			}
-			continue
+			clientReaderCh <- envelopes
 		}
-		logger.Infof("Received envelopes %s: %+v", s.id, envelopes)
+	}()
+	for {
+		select {
+		case envelopes, ok := <-clientReaderCh:
+			if !ok {
+				return
+			}
+			if len(envelopes) <= 0 {
+				continue
+			}
+			logger.L.Infof("Received envelopes %s: %#v", s.ID, envelopes)
+			for _, envelope := range envelopes {
+				switch envelope.Data.(type) {
+				case dto.Message:
+					s.hubQ = append(s.hubQ, envelope)
+				default:
+					//TODO implement ACKs and other envelope types
+				}
+			}
+
+			if s.hubCh != nil {
+				if len(s.hubQ) > 0 {
+					logger.L.Infof("Sending to hub from reader channel")
+					for _, envelope := range s.hubQ {
+						s.hubCh <- envelope.WithOrigin(s.origin())
+					}
+					s.hubQ = []dto.Envelope{}
+				}
+			} else {
+				logger.L.Infof("No hub channel yet")
+			}
+		case <-ticker.C:
+			if len(s.hubQ) > 0 {
+				logger.L.Infof("Hub queue is NOT empty, trying to send")
+				if s.hubCh != nil {
+					logger.L.Infof("Sending to hub from queue")
+					for _, envelope := range s.hubQ {
+						s.hubCh <- envelope.WithOrigin(s.origin())
+					}
+					s.hubQ = []dto.Envelope{}
+				}
+			}
+		case e := <-s.EventCh:
+			switch event := e.(type) {
+			case RegisterHubEvent:
+				s.hubCh = event.HubCh
+			}
+		}
 	}
 }
 
-// writeChannel sends messages from the game hub to the websocket connection.
+// writeChannel sends messages from the hub to the websocket connection.
 //
-// A goroutine running writePump is started for each connection. The
+// A goroutine running writeChannel is started for each connection. The
 // application ensures that there is at most one writer to a connection by
 // executing all writes from this goroutine.
 func (s *Session) writeChannel() {
-	logger.Infof("Starting write channel for %s", s.id)
+	logger.L.Infof("Starting write channel for %s", s.ID)
 	conn := s.conn
-	toClientCh := s.toClientCh
+	clientCh := s.ClientCh
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
 	}()
 	for {
 		select {
-		case message, ok := <-toClientCh:
+		case originEnvelope, ok := <-clientCh:
 			if !ok {
-				toClientChannelClosed(conn)
+				clientChannelClosed(conn)
 				closeWebsocket(conn, "to client channel was closed")
 				return
 			}
 			_ = conn.SetWriteDeadline(time.Now().Add(writeWait))
-			s.toClientQ = append(s.toClientQ, message)
+			s.clientQ = append(s.clientQ, originEnvelope.Envelope)
 
 			readAllMessagesFromChannel(s, conn)
 
-			logger.Infof("Sending envelopes %s: %+v", s.id, s.toClientQ)
+			logger.L.Infof("Sending envelopes %s: %#v", s.ID, s.clientQ)
 
-			if err := conn.WriteJSON(s.toClientQ); err != nil {
+			if err := conn.WriteJSON(s.clientQ); err != nil {
 				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 					return
 				}
 				if websocket.IsUnexpectedCloseError(err) {
-					logger.Warnf("Fail to write WS message: %v", err)
+					logger.L.Warnf("Fail to write WS message: %v", err)
 					return
 				}
 				reason := fmt.Sprintf("Could not write bundle message to WS: %v", err)
 				closeWebsocket(conn, reason)
 				return
 			}
-			s.toClientQ = []Envelope{}
+			s.clientQ = []dto.Envelope{}
 		case <-ticker.C:
 			_ = conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -138,7 +207,7 @@ func (s *Session) writeChannel() {
 					return
 				}
 				if websocket.IsUnexpectedCloseError(err) {
-					logger.Warnf("Fail to send ping message: %v", err)
+					logger.L.Warnf("Fail to send ping message: %v", err)
 					return
 				}
 				reason := fmt.Sprintf("Could not write ping message to WS: %v", err)
@@ -150,42 +219,48 @@ func (s *Session) writeChannel() {
 }
 
 func (s *Session) sendWelcomeMessage() {
-	s.toClientCh <- EnveloperBuilder{}.
+	s.ClientCh <- dto.EnveloperBuilder{}.
 		Data(
-			MessageBuilder{}.
-				MessageType("welcome").
+			dto.MessageBuilder{}.
+				MessageType(dto.Welcome).
 				Body("").
 				Build(),
 		).
 		UUID(uuid.New().String()).
-		Build()
+		Build().
+		WithOrigin(dto.NewOrigin("", dto.Empty))
 }
 
-func toClientChannelClosed(conn *websocket.Conn) {
-	logger.Info("Incoming channel was closed")
+func (s *Session) origin() dto.Origin {
+	username := strings.Split(s.ID, "@")[0]
+	return dto.NewOrigin(username, dto.FromSession)
+}
+
+func clientChannelClosed(conn *websocket.Conn) {
+	logger.L.Info("Client channel was closed")
 	_ = conn.WriteMessage(websocket.CloseMessage, []byte{})
 }
 
 func readAllMessagesFromChannel(s *Session, conn *websocket.Conn) {
-	n := len(s.toClientCh)
+	n := len(s.ClientCh)
 	for i := 0; i < n; i++ {
-		message, ok := <-s.toClientCh
+		originEnvelope, ok := <-s.ClientCh
 		if !ok {
-			toClientChannelClosed(conn)
+			clientChannelClosed(conn)
 			return
 		}
-		s.toClientQ = append(s.toClientQ, message)
+		s.clientQ = append(s.clientQ, originEnvelope.Envelope)
 	}
 }
 
 func closeWebsocket(conn *websocket.Conn, reason string) {
-	logger.Warnf("Closing socket, because: %s", reason)
+	logger.L.Warnf("Closing socket, because: %s", reason)
 	cm := websocket.FormatCloseMessage(websocket.CloseNormalClosure, reason)
 	if err := conn.WriteMessage(websocket.CloseMessage, cm); err != nil {
-		logger.Error(err)
+		logger.L.Error(err)
 		err = conn.Close()
 		if err != nil {
-			logger.Error(err)
+			logger.L.Error(err)
 		}
 	}
 }

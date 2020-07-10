@@ -1,6 +1,7 @@
 package web
 
 import (
+	"github.com/Szetty/seven_wonders/backend/logger"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ type SPAHandler struct {
 // file located at the index path on the SPA handler will be served. This
 // is suitable behavior for serving an SPA (single page application).
 func (h SPAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger.WithFields(map[string]interface{}{"path": r.URL.Path}).Info("Accessing static asset")
+	logger.L.WithFields(map[string]interface{}{"path": r.URL.Path}).Info("Accessing static asset")
 	path, err := filepath.Abs(r.URL.Path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -31,7 +32,7 @@ func (h SPAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	_, err = os.Stat(path)
 	if os.IsNotExist(err) {
-		logger.Info(filepath.Join(h.StaticPath, h.IndexPath) + "\n")
+		logger.L.Info(filepath.Join(h.StaticPath, h.IndexPath) + "\n")
 		http.ServeFile(w, r, filepath.Join(h.StaticPath, h.IndexPath))
 		return
 	} else if err != nil {

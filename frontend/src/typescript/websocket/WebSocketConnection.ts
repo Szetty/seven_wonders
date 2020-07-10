@@ -51,7 +51,9 @@ export class WebSocketConnection {
             this.ws = null;
         }
 
+        console.log("OPENWS");
         this.ws = new this._webSocketClass(this._url);
+        console.log("HERE");
         this.ws.addEventListener("open", this.handleOpen);
         this.ws.addEventListener("error", this.handleError);
         this.ws.addEventListener("close", this.handleClose);

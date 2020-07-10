@@ -7,12 +7,12 @@ import (
 
 var sessions = sync.Map{}
 
-func findOrCreateSession(name string, conn *websocket.Conn) *Session {
-	session, exists := sessions.LoadOrStore(name, newSession(name, conn))
+func findOrCreateSession(username string, conn *websocket.Conn) *Session {
+	session, exists := sessions.LoadOrStore(username, newSession(username, conn))
 	s := session.(*Session)
 	if exists {
 		s.refreshSession(conn)
 	}
-	s.restartSession()
+	s.startSession()
 	return s
 }

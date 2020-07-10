@@ -2,7 +2,7 @@ module Pages.Header exposing (..)
 
 import Common.Error exposing (ErrorType(..))
 import Common.Route as Route exposing (Route(..))
-import Common.Session exposing (Session(..), getName, getNavKey, getUserInfo)
+import Common.Session exposing (Session(..), getCurrentUsername, getNavKey, getUserInfo)
 import Common.WebStorage as WebStorage
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (class)
@@ -85,12 +85,7 @@ view : Session -> Html Msg
 view session =
     let
         name =
-            case getName session of
-                Just n ->
-                    n
-
-                Nothing ->
-                    "Anonymous"
+            getCurrentUsername session
     in
     div [ class "header static-top p-3 mb-5" ]
         [ div [ class "d-flex justify-content-between" ]

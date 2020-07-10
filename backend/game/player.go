@@ -8,9 +8,9 @@ import (
 var players = sync.Map{}
 
 type Player struct {
-	name       string
-	game       *Game
-	session	   *websocket.Session
+	name    string
+	game    *Game
+	session *websocket.Session
 }
 
 func ConnectPlayer(session *websocket.Session, gameId string, name string) {
@@ -20,8 +20,8 @@ func ConnectPlayer(session *websocket.Session, gameId string, name string) {
 
 func newPlayer(session *websocket.Session, game *Game, name string) *Player {
 	return &Player{
-		name:       name,
-		session:       session,
-		game:       game,
+		name:    name,
+		session: session,
+		game:    game,
 	}
 }

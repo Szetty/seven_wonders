@@ -6,15 +6,19 @@ login =
 
 
 logout =
-    apiPrefix ++ securedPrefix ++ "/logout"
+    securedPrefix ++ "/logout"
 
 
 checkToken =
-    apiPrefix ++ securedPrefix ++ "/checkToken"
+    securedPrefix ++ "/checkToken"
 
 
 game =
-    apiPrefix ++ securedPrefix ++ "/game"
+    gamePrefix ++ "/:gameID"
+
+
+gameLobby =
+    gamePrefix ++ "/lobby" ++ "/:gameID"
 
 
 apiPrefix =
@@ -22,4 +26,8 @@ apiPrefix =
 
 
 securedPrefix =
-    "/secured"
+    apiPrefix ++ "/secured"
+
+
+gamePrefix =
+    securedPrefix ++ "/game"

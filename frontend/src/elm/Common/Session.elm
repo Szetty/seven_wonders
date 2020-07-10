@@ -45,9 +45,19 @@ getUserInfo session =
             Nothing
 
 
-getName : Session -> Maybe String
-getName session =
-    Maybe.map .name (getUserInfo session)
+getCurrentUsername : Session -> String
+getCurrentUsername session =
+    case Maybe.map .name (getUserInfo session) of
+        Just n ->
+            n
+
+        Nothing ->
+            "Anonymous"
+
+
+getGameId : Session -> Maybe String
+getGameId session =
+    Maybe.map .gameID (getUserInfo session)
 
 
 setUserInfo session userInfo =

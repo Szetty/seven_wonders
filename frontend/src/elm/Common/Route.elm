@@ -4,12 +4,13 @@ import Browser.Navigation as Nav
 import Html exposing (Attribute)
 import Html.Attributes as Attr
 import Url exposing (Url)
-import Url.Parser as Parser exposing (Parser, oneOf, s)
+import Url.Parser as Parser exposing ((</>), (<?>), Parser, map, oneOf, s, string)
 
 
 type Route
     = Root
     | Game
+    | Lobby String
     | Login
     | Ping
 
@@ -17,10 +18,11 @@ type Route
 parser : Parser (Route -> a) a
 parser =
     oneOf
-        [ Parser.map Root Parser.top
-        , Parser.map Login (s "login")
-        , Parser.map Game (s "game")
-        , Parser.map Ping (s "ping")
+        [ map Root Parser.top
+        , map Login (s "login")
+        , map Lobby (s "lobby" </> string)
+        , map Game (s "game")
+        , map Ping (s "ping")
         ]
 
 
@@ -66,3 +68,6 @@ routeToPieces page =
 
         Ping ->
             [ "ping" ]
+
+        Lobby gameID ->
+            [ "lobby", gameID ]
