@@ -3,9 +3,9 @@ module Pages.Lobby exposing (..)
 import Common.Logger as Logger
 import Common.Session exposing (Session(..), UserInfo, getCurrentUsername)
 import Dict exposing (Dict, size)
-import Html exposing (Attribute, Html, a, button, div, option, select, table, tbody, td, text, th, thead, tr)
-import Html.Attributes as Attributes exposing (attribute, class, colspan, id, style, type_, value)
-import Html.Events exposing (on, onClick, onInput)
+import Html exposing (Attribute, Html, button, div, option, select, table, tbody, td, text, th, thead, tr)
+import Html.Attributes exposing (class, colspan, disabled)
+import Html.Events exposing (onClick, onInput)
 import Pages.Header as Header
 import Services.LobbyService as LobbyService exposing (MessageBody(..))
 
@@ -132,7 +132,7 @@ update msg model =
                             ( { model | onlineUsernames = model.onlineUsernames ++ [ username ] }, Cmd.none )
 
                         UserGotOffline username ->
-                            ( { model | onlineUsernames = List.filter (\u -> u == username) model.onlineUsernames }, Cmd.none )
+                            ( { model | onlineUsernames = List.filter (\u -> not (u == username)) model.onlineUsernames }, Cmd.none )
 
                         _ ->
                             ( model, Cmd.none )
@@ -154,8 +154,8 @@ view model =
         [ Html.map HeaderEvent <| Header.view model.session
         ]
     , div [ class "" ]
-        [ select [ onInput SetToInviteUsername, class "custom-select-md mr-4 btn btn-lg btn-primary" ] <|
-            [ option [] [ text "" ] ]
+        [ select [ onInput SetToInviteUsername, class "custom-select-md mr-4 btn btn-md btn-primary" ] <|
+            [ option [] [ text "Select username" ] ]
                 ++ List.map (\onlineUsername -> option [] [ text onlineUsername ])
                     (List.filter
                         (\onlineUsername ->
@@ -163,7 +163,16 @@ view model =
                         )
                         model.onlineUsernames
                     )
-        , button [ onClick Invite, class "btn btn-dark" ] [ text "Invite" ]
+        , button
+            [ onClick Invite
+            , class "btn btn-dark"
+            , if model.toInviteUsername == "Select username" || model.toInviteUsername == "" then
+                disabled True
+
+              else
+                disabled False
+            ]
+            [ text "Invite" ]
         ]
     , div [ class "table-responsive" ]
         [ table [ class "table table-md table-light mt-4" ]

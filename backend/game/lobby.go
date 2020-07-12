@@ -95,7 +95,7 @@ func (l *Lobby) handleEnvelope(originEnvelope dto.OriginEnvelope) {
 			l.replyToOrigin(originEnvelope, dto.MessageBuilder{}.MessageType(dto.InviteUserReply).Body(toInvite).Build())
 			l.changeAuthorization(toInvite, true)
 		case dto.InvitedUsers:
-			var invitedUsers []dto.InvitedUser
+			invitedUsers := []dto.InvitedUser{}
 			for name, invited := range l.authorizedUsers {
 				if invited {
 					invitedUsers = append(invitedUsers, dto.InvitedUser{Name: name, Connected: l.connectedUsers[name]})
