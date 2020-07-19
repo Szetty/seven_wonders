@@ -4,8 +4,8 @@ import Common.Logger as Logger
 import Common.Session exposing (Session(..), UserInfo)
 import Html exposing (Html, div)
 import Html.Attributes exposing (class, style)
-import Pages.Header as Header
 import Services.GameService as GameService
+import Views.Header as Header
 
 
 type Msg

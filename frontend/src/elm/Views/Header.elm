@@ -1,15 +1,15 @@
-module Pages.Header exposing (..)
+module Views.Header exposing (..)
 
 import Common.Error exposing (ErrorType(..))
 import Common.Route as Route exposing (Route(..))
 import Common.Session exposing (Session(..), getCurrentUsername, getNavKey, getUserInfo)
-import Common.WebStorage as WebStorage
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Services.LogoutService as LogoutService
 import Services.TokenService as TokenService
 import Services.WebSocketService as WebSocketService
+import Services.WebStorageService as WebStorageService
 
 
 type Msg
@@ -74,7 +74,7 @@ clearSession : Session -> ( Session, Cmd Msg )
 clearSession session =
     ( Guest (getNavKey session)
     , Cmd.batch
-        [ WebStorage.deleteItem "userInfo"
+        [ WebStorageService.deleteUserInfo
         , WebSocketService.close
         , Route.replaceUrl (getNavKey session) Login
         ]

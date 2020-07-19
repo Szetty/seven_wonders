@@ -2,12 +2,12 @@ module Pages.Login exposing (..)
 
 import Common.Route as Route exposing (Route(..))
 import Common.Session exposing (Session, getNavKey, setUserInfo)
-import Common.WebStorage as WebStorage
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Decode
 import Services.LoginService as LoginService
+import Services.WebStorageService as WebStorageService
 import Validate exposing (Valid, Validator, fromValid, ifBlank, validate)
 
 
@@ -92,7 +92,7 @@ update msg model =
                         cmdBatch =
                             Cmd.batch
                                 [ Cmd.map GotLogin cmd
-                                , WebStorage.saveUserInfo userInfo
+                                , WebStorageService.saveUserInfo userInfo
                                 , Route.replaceUrl (getNavKey session) (Lobby userInfo.gameID)
                                 ]
                     in

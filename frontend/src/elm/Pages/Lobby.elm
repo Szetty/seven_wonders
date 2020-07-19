@@ -1,17 +1,20 @@
 module Pages.Lobby exposing (..)
 
 import Common.Logger as Logger
-import Common.Session exposing (Session(..), UserInfo, getCurrentUsername)
+import Common.Route as Route exposing (Route(..))
+import Common.Session exposing (Session(..), UserInfo, getCurrentUsername, getNavKey)
 import Dict exposing (Dict, size)
 import Html exposing (Attribute, Html, button, div, option, select, table, tbody, td, text, th, thead, tr)
 import Html.Attributes exposing (class, colspan, disabled)
 import Html.Events exposing (onClick, onInput)
-import Pages.Header as Header
 import Services.LobbyService as LobbyService exposing (MessageBody(..))
+import Views.Header as Header
+import Views.Notification as Notification exposing (Notification)
 
 
 type Msg
-    = HeaderEvent Header.Msg
+    = NotificationEvent (Notification.Msg String)
+    | HeaderEvent Header.Msg
     | Invite
     | Uninvite String
     | SetToInviteUsername String
@@ -24,18 +27,27 @@ type alias Model =
     , toInviteUsername : String
     , onlineUsernames : List String
     , invitedUsernames : Dict String Bool
+    , notification : Notification.Model String
     }
 
 
 init : Session -> String -> ( Model, Cmd Msg )
 init session gameID =
+    let
+        ( notificationModel, notificationCmd ) =
+            Notification.init
+    in
     ( { session = session
       , gameID = gameID
       , toInviteUsername = ""
       , onlineUsernames = []
       , invitedUsernames = Dict.fromList []
+      , notification = notificationModel
       }
-    , LobbyService.initGameLobby session
+    , Cmd.batch
+        [ LobbyService.initGameLobby session
+        , Cmd.map NotificationEvent notificationCmd
+        ]
     )
 
 
@@ -54,6 +66,27 @@ update msg model =
             in
             ( { model | session = session }, Cmd.map HeaderEvent cmd )
 
+        NotificationEvent notificationMsg ->
+            case notificationMsg of
+                Notification.OnAcceptFromNotification _ gameID ->
+                    let
+                        ( notification, cmd ) =
+                            Notification.update notificationMsg model.notification
+                    in
+                    ( { model | notification = notification }
+                    , Cmd.batch
+                        [ Cmd.map NotificationEvent cmd
+                        , Route.replaceUrl (getNavKey model.session) (Lobby gameID)
+                        ]
+                    )
+
+                _ ->
+                    let
+                        ( notification, cmd ) =
+                            Notification.update notificationMsg model.notification
+                    in
+                    ( { model | notification = notification }, Cmd.map NotificationEvent cmd )
+
         Invite ->
             ( model
             , LobbyService.inviteUser model.toInviteUsername
@@ -69,7 +102,7 @@ update msg model =
                 name =
                     username
             in
-            ( { model | toInviteUsername = name }, Logger.log "" username )
+            ( { model | toInviteUsername = name }, Cmd.none )
 
         GotLobbyMessage message ->
             case message of
@@ -129,10 +162,33 @@ update msg model =
                 LobbyService.Incoming messageBody ->
                     case messageBody of
                         UserGotOnline username ->
-                            ( { model | onlineUsernames = model.onlineUsernames ++ [ username ] }, Cmd.none )
+                            ( { model
+                                | onlineUsernames = model.onlineUsernames ++ [ username ]
+                                , notification =
+                                    Notification.addNotification model.notification
+                                        (Notification.simpleNotification ("User " ++ username ++ " got online!"))
+                              }
+                            , Cmd.none
+                            )
 
                         UserGotOffline username ->
-                            ( { model | onlineUsernames = List.filter (\u -> not (u == username)) model.onlineUsernames }, Cmd.none )
+                            ( { model
+                                | onlineUsernames = List.filter (\u -> not (u == username)) model.onlineUsernames
+                                , notification =
+                                    Notification.addNotification model.notification
+                                        (Notification.simpleNotification ("User " ++ username ++ " got offline!"))
+                              }
+                            , Cmd.none
+                            )
+
+                        GotInvite gameID ->
+                            ( { model
+                                | notification =
+                                    Notification.addNotification model.notification
+                                        (Notification.approveNotification ("You are expected on table " ++ gameID) gameID)
+                              }
+                            , Cmd.none
+                            )
 
                         _ ->
                             ( model, Cmd.none )
@@ -150,7 +206,8 @@ view model =
         numberOfPlayers =
             7
     in
-    [ div []
+    [ div [] [ Html.map NotificationEvent <| Notification.view model.notification ]
+    , div []
         [ Html.map HeaderEvent <| Header.view model.session
         ]
     , div [ class "" ]
