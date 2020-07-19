@@ -1,25 +1,28 @@
 package dto
 
 import (
+	"github.com/Szetty/seven_wonders/backend/logger"
 	"github.com/mitchellh/mapstructure"
 	"go/types"
 )
 
 const (
 	// Request
-	OnlineUsers       MessageType = "OnlineUsers"
-	InvitedUsers                  = "InvitedUsers"
-	InviteUser                    = "InviteUser"
-	UninviteUser                  = "UninviteUser"
+	OnlineUsers  MessageType = "OnlineUsers"
+	InvitedUsers MessageType = "InvitedUsers"
+	InviteUser   MessageType = "InviteUser"
+	UninviteUser MessageType = "UninviteUser"
 	// Reply
-	OnlineUsersReply              = "OnlineUsersReply"
-	InvitedUsersReply             = "InvitedUsersReply"
-	InviteUserReply               = "InviteUserReply"
-	UninviteUserReply             = "UninviteUserReply"
+	OnlineUsersReply  MessageType = "OnlineUsersReply"
+	InvitedUsersReply MessageType = "InvitedUsersReply"
+	InviteUserReply   MessageType = "InviteUserReply"
+	UninviteUserReply MessageType = "UninviteUserReply"
 	// Notifications
-	GotInvite                     = "GotInvite"
-	GotUninvite                   = "GotUninvite"
-	StartGame                     = "StartGame"
+	GotInvite      MessageType = "GotInvite"
+	GotUninvite    MessageType = "GotUninvite"
+	UserGotOnline  MessageType = "UserGotOnline"
+	UserGotOffline MessageType = "UserGotOffline"
+	StartGame      MessageType = "StartGame"
 )
 
 type InvitedUser struct {
@@ -53,7 +56,7 @@ func DecodeMessageByType(message Message) Message {
 				var invitedUser InvitedUser
 				err := mapstructure.Decode(invitedUserMap, &invitedUser)
 				if err != nil {
-					logger.Errorf("Could not decode invitedUserMap %#v, because: %v", invitedUserMap, err)
+					logger.L.Errorf("Could not decode invitedUserMap %#v, because: %v", invitedUserMap, err)
 					continue
 				}
 				invitedUsers = append(invitedUsers, invitedUser)
@@ -67,6 +70,10 @@ func DecodeMessageByType(message Message) Message {
 	case GotInvite:
 		message.Body = message.Body.(string)
 	case GotUninvite:
+		message.Body = message.Body.(string)
+	case UserGotOnline:
+		message.Body = message.Body.(string)
+	case UserGotOffline:
 		message.Body = message.Body.(string)
 	default:
 		break

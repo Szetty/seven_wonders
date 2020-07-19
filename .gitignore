@@ -272,6 +272,7 @@ temp/
 .history
 
 backend/backend
+backend/main
 frontend/build
 frontend/src/style/*.css
 **/.env

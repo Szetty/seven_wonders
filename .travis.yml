@@ -36,6 +36,7 @@ jobs:
       script:
         - go test -v -race ./...
     - stage: deploy
+      if: branch == master AND (NOT (type IN (push, pull_request)))
       install:
         - wget -qO- https://toolbelt.heroku.com/install.sh | sh
         - heroku container:login

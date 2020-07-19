@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/common"
 	"github.com/Szetty/seven_wonders/backend/dto"
 	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
 	"github.com/gorilla/websocket"
@@ -12,7 +11,6 @@ import (
 )
 
 var upgrader = websocket.Upgrader{}
-var logger = common.NewLogger("WebSocket")
 
 func CreateWSSession(w http.ResponseWriter, r *http.Request, username string) *Session {
 	wsConn, err := upgrader.Upgrade(w, r, nil)

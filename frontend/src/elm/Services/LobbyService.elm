@@ -1,7 +1,7 @@
-module Services.GameLobbyService exposing (..)
+module Services.LobbyService exposing (..)
 
 import Common.Session exposing (Session(..))
-import Json.Decode as Decode exposing (Decoder, list, string)
+import Json.Decode as Decode exposing (Decoder, bool, field, list, string, succeed)
 import Json.Encode as Encode
 import Networking.Endpoints as Endpoints
 import Services.WebSocketService as WebSocketService
@@ -18,12 +18,20 @@ type Message
 
 type MessageBody
     = OnlineUsersReply (List String)
-    | InvitedUsersReply (List String)
+    | InvitedUsersReply (List InvitedUser)
     | InviteUserReply String
     | UninviteUserReply String
     | GotInvite String
     | GotUninvite String
+    | UserGotOnline String
+    | UserGotOffline String
     | Unknown String
+
+
+type alias InvitedUser =
+    { name : String
+    , connected : Bool
+    }
 
 
 initGameLobby : Session -> Cmd msg
@@ -122,7 +130,11 @@ messageBodyDecoder messageType =
             Decode.map OnlineUsersReply (list string)
 
         "InvitedUsersReply" ->
-            Decode.map InvitedUsersReply (list string)
+            let
+                invitedUserDecoder =
+                    Decode.map2 InvitedUser (field "name" string) (field "connected" bool)
+            in
+            Decode.map InvitedUsersReply (list invitedUserDecoder)
 
         "InviteUserReply" ->
             Decode.map InviteUserReply string
@@ -135,3 +147,12 @@ messageBodyDecoder messageType =
 
         "GotUninvite" ->
             Decode.map GotUninvite string
+
+        "UserGotOnline" ->
+            Decode.map UserGotOnline string
+
+        "UserGotOffline" ->
+            Decode.map UserGotOffline string
+
+        mType ->
+            Decode.map Unknown (succeed mType)

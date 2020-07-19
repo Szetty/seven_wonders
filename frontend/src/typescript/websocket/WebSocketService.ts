@@ -97,11 +97,7 @@ export class WebSocketService implements interfaces.WebSocketService {
                 const current = Math.max(now, lastRun);
                 lastRun = current + delay;
                 const delayPos = current - now;
-                // console.time(`${current / 1000} ${delayPos}`);
-                setTimeout(() => {
-                    // console.timeEnd(`${current / 1000} ${delayPos}`);
-                    cb();
-                }, delayPos + latency);
+                setTimeout(cb, delayPos + latency);
             };
         };
         const send = throttledRunner(wsSendDelay, wsLatency);
@@ -119,7 +115,7 @@ export class WebSocketService implements interfaces.WebSocketService {
     }
 
     public sendMessage(message: data.MessageReqToServer) {
-        return this.sendOne<data.MessageFromServer>(message)
+        return this.sendOne<data.MessageFromServer>(message, {timeout_milliseconds: 10000})
     }
 
     public close() {
@@ -180,7 +176,7 @@ export class WebSocketService implements interfaces.WebSocketService {
         if (typeof data !== "object") {
             return;
         }
-        if (data.type === "welcome") {
+        if (data.type === "Welcome") {
             this.onSync(data as data.WelcomeFromServer);
         } else {
             this._proxy.onIncomingMessage(data as data.MessageFromServer);
@@ -250,6 +246,7 @@ export class WebSocketService implements interfaces.WebSocketService {
         ];
         this.doSend(out);
         return new Promise((resolve: (replyMessage: ReplyType) => void, reject) => {
+            console.log("Adding to in flight list");
             this.inFlightList.push({ ...item, resolve, reject });
         });
     }

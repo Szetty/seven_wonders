@@ -2,7 +2,7 @@ module Pages.Header exposing (..)
 
 import Common.Error exposing (ErrorType(..))
 import Common.Route as Route exposing (Route(..))
-import Common.Session exposing (Session(..), getName, getNavKey, getUserInfo)
+import Common.Session exposing (Session(..), getCurrentUsername, getNavKey, getUserInfo)
 import Common.WebStorage as WebStorage
 import Html exposing (Html, button, div, text)
 import Html.Attributes exposing (class)
@@ -83,18 +83,9 @@ clearSession session =
 
 view : Session -> Html Msg
 view session =
-    let
-        name =
-            case getName session of
-                Just n ->
-                    n
-
-                Nothing ->
-                    "Anonymous"
-    in
     div [ class "header static-top p-3 mb-5" ]
         [ div [ class "d-flex justify-content-between" ]
-            [ div [ class "mt-1 btn-like-text" ] [ text name ]
+            [ div [ class "mt-1 btn-like-text" ] [ text (getCurrentUsername session) ]
             , button [ onClick Logout, class "btn btn-dark" ] [ text "Logout" ]
             ]
         ]

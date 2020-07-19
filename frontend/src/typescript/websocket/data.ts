@@ -42,7 +42,7 @@ export type MessageReqFromServer =
     | MessageFromServer
 
 export interface WelcomeFromServer {
-    type: "welcome";
+    type: "Welcome";
     session_key: string;
 }
 

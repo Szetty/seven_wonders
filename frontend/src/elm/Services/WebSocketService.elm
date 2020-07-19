@@ -1,6 +1,6 @@
 module Services.WebSocketService exposing (..)
 
-import Json.Decode exposing (Decoder, decodeString, field, string)
+import Json.Decode exposing (Decoder, decodeString, errorToString, field, string)
 import Json.Encode exposing (Value, encode)
 import Networking.WebSocket as WebSocket
 
@@ -42,11 +42,11 @@ subscriptions messageDecoder toMsg =
                         Ok a ->
                             toMsg (eventType a)
 
-                        Err _ ->
-                            toMsg (Error "decoding body failed")
+                        Err error ->
+                            toMsg (Error <| "Decoding body failed " ++ errorToString error)
 
-                Err _ ->
-                    toMsg (Error "decoding type failed")
+                Err error ->
+                    toMsg (Error <| "Decoding type failed " ++ errorToString error)
     in
     Sub.batch
         [ WebSocket.incomingWSMessage (event Incoming)

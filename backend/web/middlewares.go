@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/common"
 	"github.com/Szetty/seven_wonders/backend/game"
+	"github.com/Szetty/seven_wonders/backend/logger"
 	"github.com/Szetty/seven_wonders/backend/users"
 	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
 	"github.com/dgrijalva/jwt-go"
@@ -15,7 +16,7 @@ import (
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Infof("accessed: %s", r.RequestURI)
+		logger.L.Infof("accessed: %s", r.RequestURI)
 		next.ServeHTTP(w, r)
 	})
 }

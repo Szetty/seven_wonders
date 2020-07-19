@@ -1,17 +1,5 @@
 package dto
 
-import "github.com/Szetty/seven_wonders/backend/common"
-
-var logger = common.NewLogger("DTO")
-
-type OriginType string
-
-const (
-	Empty       OriginType = "Empty"
-	FromSession            = "FromSession"
-	FromLobby              = "FromLobby"
-)
-
 type MessageType string
 
 const Welcome = "Welcome"
@@ -19,11 +7,6 @@ const Welcome = "Welcome"
 type OriginEnvelope struct {
 	Envelope
 	Origin
-}
-
-type Origin struct {
-	ID         string
-	OriginType OriginType
 }
 
 type Envelope struct {

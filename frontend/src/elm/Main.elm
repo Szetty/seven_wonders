@@ -6,6 +6,7 @@ import Common.Route as Route exposing (Route)
 import Common.Session exposing (Session(..), UserInfo, getNavKey, initSession)
 import Html exposing (div, text)
 import Pages.Game as Game
+import Pages.Lobby as Lobby
 import Pages.Login as Login
 import Pages.Ping as Ping
 import Url exposing (Url)
@@ -13,6 +14,7 @@ import Url exposing (Url)
 
 type Model
     = Game Game.Model
+    | Lobby Lobby.Model
     | Login Login.Model
     | Ping Ping.Model
     | NotFound Session
@@ -27,6 +29,7 @@ type Msg
     = ChangedUrl Url
     | ClickedLink Browser.UrlRequest
     | GotGameMsg Game.Msg
+    | GotLobbyMsg Lobby.Msg
     | GotLoginMsg Login.Msg
     | GotPingMsg Ping.Msg
 
@@ -47,8 +50,8 @@ changeRouteTo maybeRoute session =
                 Guest _ ->
                     ( Redirect session, Route.replaceUrl (getNavKey session) Route.Login )
 
-                LoggedIn _ _ ->
-                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Game )
+                LoggedIn _ userInfo ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) (Route.Lobby userInfo.gameID) )
 
         Just Route.Game ->
             case session of
@@ -59,14 +62,23 @@ changeRouteTo maybeRoute session =
                     Game.init session
                         |> updateWith Game GotGameMsg
 
+        Just (Route.Lobby gameID) ->
+            case session of
+                Guest _ ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Login )
+
+                LoggedIn _ _ ->
+                    Lobby.init session gameID
+                        |> updateWith Lobby GotLobbyMsg
+
         Just Route.Login ->
             case session of
                 Guest _ ->
                     Login.init session
                         |> updateWith Login GotLoginMsg
 
-                LoggedIn _ _ ->
-                    ( Redirect session, Route.replaceUrl (getNavKey session) Route.Game )
+                LoggedIn _ userInfo ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) (Route.Lobby userInfo.gameID) )
 
         Just Route.Ping ->
             case session of
@@ -101,6 +113,10 @@ update msg model =
             Login.update subMsg login
                 |> updateWith Login GotLoginMsg
 
+        ( GotLobbyMsg subMsg, Lobby lobby ) ->
+            Lobby.update subMsg lobby
+                |> updateWith Lobby GotLobbyMsg
+
         ( GotGameMsg subMsg, Game game ) ->
             Game.update subMsg game
                 |> updateWith Game GotGameMsg
@@ -129,6 +145,9 @@ toSession page =
         Game game ->
             Game.toSession game
 
+        Lobby lobby ->
+            Lobby.toSession lobby
+
         Login login ->
             Login.toSession login
 
@@ -140,8 +159,16 @@ toSession page =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.map GotGameMsg Game.subscriptions
+subscriptions model =
+    case model of
+        Game _ ->
+            Sub.map GotGameMsg Game.subscriptions
+
+        Lobby _ ->
+            Sub.map GotLobbyMsg Lobby.subscriptions
+
+        _ ->
+            Sub.none
 
 
 view : Model -> Document Msg
@@ -158,6 +185,9 @@ view model =
 
         Game game ->
             viewPage (Game.view game) GotGameMsg
+
+        Lobby lobby ->
+            viewPage (Lobby.view lobby) GotLobbyMsg
 
         Login login ->
             viewPage (Login.view login) GotLoginMsg

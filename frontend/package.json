@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/Szetty/seven_wonders#readme",
   "dependencies": {
-    "bootstrap": "^4.4.1",
+    "bootstrap": "^4.5.0",
     "http-proxy-middleware": "^1.0.4",
     "jquery": "^3.5.1",
     "popper.js": "^1.16.1",

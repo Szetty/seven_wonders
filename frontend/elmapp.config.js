@@ -6,6 +6,7 @@ module.exports = {
     setupProxy: function(app) {
         app.use(createProxyMiddleware('/api', { target: BACKEND }));
         app.use(createProxyMiddleware('/api/secured/game/*', { target: BACKEND, ws: true }));
+        app.use(createProxyMiddleware('/api/secured/game/lobby/*', { target: BACKEND, ws: true }));
     },
     configureWebpack: (config, _env) => {
         // Object.defineProperty(RegExp.prototype, "toJSON", {

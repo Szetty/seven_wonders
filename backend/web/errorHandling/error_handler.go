@@ -2,7 +2,7 @@ package errorHandling
 
 import (
 	"encoding/json"
-	"github.com/Szetty/seven_wonders/backend/common"
+	"github.com/Szetty/seven_wonders/backend/logger"
 	"net/http"
 )
 
@@ -20,8 +20,6 @@ const (
 	InvalidUser                  = "INVALID_USER"
 )
 
-var logger = common.NewLogger("Web")
-
 type ErrorHandler struct {
 	Message    string
 	StatusCode int
@@ -34,18 +32,18 @@ type ErrorResponse struct {
 }
 
 func (h ErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger.Warn(h.Message)
+	logger.L.Warn(h.Message)
 	response := ErrorResponse{ErrorMessage: h.Message, ErrorType: h.ErrorType}
 	respBytes, err := json.Marshal(&response)
 	if err != nil {
-		logger.Errorf("Could not decode to json: %v", err)
+		logger.L.Errorf("Could not decode to json: %v", err)
 		w.WriteHeader(500)
 		return
 	}
 	w.WriteHeader(h.StatusCode)
 	_, err = w.Write(respBytes)
 	if err != nil {
-		logger.Errorf("Could not write error Message: %v", err)
+		logger.L.Errorf("Could not write error Message: %v", err)
 		return
 	}
 }

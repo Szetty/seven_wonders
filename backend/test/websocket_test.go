@@ -28,90 +28,97 @@ func TestWebSocket(t *testing.T) {
 	defer server.Close()
 	ctx := setupWS(t, server, "/api/secured/game/")
 	defer cleanupWS(t, ctx.ws)
-	t.Run("receive welcome message", receiveWelcomeMessageTestFn(ctx.ws))
-	t.Run("sending message", func(t *testing.T) {
-		envelope := dto.EnveloperBuilder{}.
-			Data(
-				dto.MessageBuilder{}.
-					MessageType(dto.Welcome).
-					Body("").
-					Build(),
-			).
-			UUID(uuid.New().String()).
-			Build()
-		sendEnvelope(t, ctx.ws, envelope)
-	})
+	expectWelcomeMessage(t, ctx.ws)
+	envelope := dto.EnveloperBuilder{}.
+		Data(
+			dto.MessageBuilder{}.
+				MessageType(dto.Welcome).
+				Body("").
+				Build(),
+		).
+		UUID(uuid.New().String()).
+		Build()
+	sendEnvelope(t, ctx.ws, envelope)
 }
 
-func TestGameLobby(t *testing.T) {
+func TestOnlineUsers(t *testing.T) {
 	server := httptest.NewServer(web.MainHandler())
 	defer server.Close()
 	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
 	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
 	defer cleanupWS(t, ctx1.ws)
-	t.Run("receive welcome message user 1", receiveWelcomeMessageTestFn(ctx1.ws))
-	t.Run("receive welcome message user 2", receiveWelcomeMessageTestFn(ctx2.ws))
-	t.Run("get online users", func(t *testing.T) {
-		requestEnvelope := envelopeWithMessageType(dto.OnlineUsers)
-		sendEnvelope(t, ctx1.ws, requestEnvelope)
-		replyEnvelope := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
-		expectAckUUIDsToContain(t, replyEnvelope.AckUUIDs, requestEnvelope.UUID)
-		message := replyEnvelope.Data.(dto.Message)
-		expectMessageType(t, message, dto.OnlineUsersReply)
-		onlineUsers := message.Body.([]string)
-		if len(onlineUsers) != 2 {
-			t.Fatalf("Expecting two online users")
+	defer cleanupWS(t, ctx2.ws)
+	expectWelcomeMessage(t, ctx1.ws)
+	expectWelcomeMessage(t, ctx2.ws)
+	expectUserGotOnline(t, ctx1.ws, ctx2.username)
+	requestEnvelope := envelopeWithMessageType(dto.OnlineUsers)
+	sendEnvelope(t, ctx1.ws, requestEnvelope)
+	replyEnvelope := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
+	expectAckUUIDsToContain(t, replyEnvelope.AckUUIDs, requestEnvelope.UUID)
+	message := replyEnvelope.Data.(dto.Message)
+	expectMessageType(t, message, dto.OnlineUsersReply)
+	onlineUsers := message.Body.([]string)
+	if len(onlineUsers) != 2 {
+		t.Fatalf("Expecting two online users")
+	}
+	allOnlineUsersStr := strings.Join(onlineUsers, "")
+	expectOnlineUser := func(username string) {
+		if !strings.Contains(allOnlineUsersStr, username) {
+			t.Fatalf("Online users list (%s) does not contain user: %s", allOnlineUsersStr, username)
 		}
-		allOnlineUsersStr := strings.Join(onlineUsers, "")
-		expectOnlineUser := func(username string) {
-			if !strings.Contains(allOnlineUsersStr, username) {
-				t.Fatalf("Online users list (%s) does not contain user: %s", allOnlineUsersStr, username)
-			}
-		}
-		expectOnlineUser(ctx1.username)
-		expectOnlineUser(ctx2.username)
-	})
-	t.Run("invite users", func(t *testing.T) {
-		invitedUsersRequest1 := envelopeWithMessageType(dto.InvitedUsers)
-		sendEnvelope(t, ctx1.ws, invitedUsersRequest1)
-		invitedUsersReply1 := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
-		expectAckUUIDsToContain(t, invitedUsersReply1.AckUUIDs, invitedUsersRequest1.UUID)
-		invitedUsersMessage1 := invitedUsersReply1.Data.(dto.Message)
-		expectMessageType(t, invitedUsersMessage1, dto.InvitedUsersReply)
-		invitedUsers1 := invitedUsersMessage1.Body.([]dto.InvitedUser)
-		if len(invitedUsers1) != 0 {
-			t.Fatalf("Expecting no invited users")
-		}
+	}
+	expectOnlineUser(ctx1.username)
+	expectOnlineUser(ctx2.username)
+}
 
-		inviteUserRequest := envelopeWithMessageTypeAndBody(dto.InviteUser, ctx2.username)
-		sendEnvelope(t, ctx1.ws, inviteUserRequest)
-		inviteUserReply := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
-		expectAckUUIDsToContain(t, inviteUserReply.AckUUIDs, inviteUserRequest.UUID)
-		inviteUserMessage := inviteUserReply.Data.(dto.Message)
-		expectMessageType(t, inviteUserMessage, dto.InviteUserReply)
+func TestInviteUsers(t *testing.T) {
+	server := httptest.NewServer(web.MainHandler())
+	defer server.Close()
+	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
+	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
+	defer cleanupWS(t, ctx1.ws)
+	expectWelcomeMessage(t, ctx1.ws)
+	expectWelcomeMessage(t, ctx2.ws)
+	expectUserGotOnline(t, ctx1.ws, ctx2.username)
+	invitedUsersRequest1 := envelopeWithMessageType(dto.InvitedUsers)
+	sendEnvelope(t, ctx1.ws, invitedUsersRequest1)
+	invitedUsersReply1 := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
+	expectAckUUIDsToContain(t, invitedUsersReply1.AckUUIDs, invitedUsersRequest1.UUID)
+	invitedUsersMessage1 := invitedUsersReply1.Data.(dto.Message)
+	expectMessageType(t, invitedUsersMessage1, dto.InvitedUsersReply)
+	invitedUsers1 := invitedUsersMessage1.Body.([]dto.InvitedUser)
+	if len(invitedUsers1) != 0 {
+		t.Fatalf("Expecting no invited users")
+	}
 
-		invitedUsersRequest2 := envelopeWithMessageType(dto.InvitedUsers)
-		sendEnvelope(t, ctx1.ws, invitedUsersRequest2)
-		invitedUsersReply2 := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
-		expectAckUUIDsToContain(t, invitedUsersReply2.AckUUIDs, invitedUsersRequest2.UUID)
-		invitedUsersMessage2 := invitedUsersReply2.Data.(dto.Message)
-		expectMessageType(t, invitedUsersMessage2, dto.InvitedUsersReply)
-		invitedUsers2 := invitedUsersMessage2.Body.([]dto.InvitedUser)
-		if len(invitedUsers2) != 1 {
-			t.Fatalf("Expecting one invited user")
-		}
-		if invitedUsers2[0].Name != ctx2.username {
-			t.Fatalf("Wrong invited user" + expectedAndGotMessage(invitedUsers2[0].Name, ctx2.username))
-		}
+	inviteUserRequest := envelopeWithMessageTypeAndBody(dto.InviteUser, ctx2.username)
+	sendEnvelope(t, ctx1.ws, inviteUserRequest)
+	inviteUserReply := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
+	expectAckUUIDsToContain(t, inviteUserReply.AckUUIDs, inviteUserRequest.UUID)
+	inviteUserMessage := inviteUserReply.Data.(dto.Message)
+	expectMessageType(t, inviteUserMessage, dto.InviteUserReply)
 
-		gotInviteEnvelope := receiveAndVerifyEnvelopes(t, ctx2.ws, 1)[0]
-		gotInviteMessage := gotInviteEnvelope.Data.(dto.Message)
-		expectMessageType(t, gotInviteMessage, dto.GotInvite)
-		invitedGameID := gotInviteMessage.Body.(string)
-		if invitedGameID != ctx1.gameID {
-			t.Fatalf("Wrong invited game id" + expectedAndGotMessage(invitedGameID, ctx1.gameID))
-		}
-	})
+	invitedUsersRequest2 := envelopeWithMessageType(dto.InvitedUsers)
+	sendEnvelope(t, ctx1.ws, invitedUsersRequest2)
+	invitedUsersReply2 := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
+	expectAckUUIDsToContain(t, invitedUsersReply2.AckUUIDs, invitedUsersRequest2.UUID)
+	invitedUsersMessage2 := invitedUsersReply2.Data.(dto.Message)
+	expectMessageType(t, invitedUsersMessage2, dto.InvitedUsersReply)
+	invitedUsers2 := invitedUsersMessage2.Body.([]dto.InvitedUser)
+	if len(invitedUsers2) != 1 {
+		t.Fatalf("Expecting one invited user")
+	}
+	if invitedUsers2[0].Name != ctx2.username {
+		t.Fatalf("Wrong invited user" + gotAndExpectedMessage(invitedUsers2[0].Name, ctx2.username))
+	}
+
+	gotInviteEnvelope := receiveAndVerifyEnvelopes(t, ctx2.ws, 1)[0]
+	gotInviteMessage := gotInviteEnvelope.Data.(dto.Message)
+	expectMessageType(t, gotInviteMessage, dto.GotInvite)
+	invitedGameID := gotInviteMessage.Body.(string)
+	if invitedGameID != ctx1.gameID {
+		t.Fatalf("Wrong invited game id" + gotAndExpectedMessage(invitedGameID, ctx1.gameID))
+	}
 }
 
 func setupWS(t *testing.T, server *httptest.Server, wsPath string) *wsContext {
@@ -129,13 +136,23 @@ func setupWS(t *testing.T, server *httptest.Server, wsPath string) *wsContext {
 	return &wsContext{ws, username, gameID}
 }
 
-func receiveWelcomeMessageTestFn(ws *gWebsocket.Conn) func(t *testing.T) {
-	return func(t *testing.T) {
-		envelopes := receiveAndVerifyEnvelopes(t, ws, 1)
-		msg := envelopes[0].Data.(dto.Message)
-		if msg.MessageType != dto.Welcome {
-			t.Fatalf("received message has wrong type: %s", msg.MessageType)
-		}
+func expectWelcomeMessage(t *testing.T, ws *gWebsocket.Conn) {
+	envelopes := receiveAndVerifyEnvelopes(t, ws, 1)
+	msg := envelopes[0].Data.(dto.Message)
+	if msg.MessageType != dto.Welcome {
+		t.Fatalf("expected welcome message" + gotAndExpectedMessage(msg.MessageType, dto.UserGotOnline))
+	}
+}
+
+func expectUserGotOnline(t *testing.T, ws *gWebsocket.Conn, expectedUsername string) {
+	envelopes := receiveAndVerifyEnvelopes(t, ws, 1)
+	msg := envelopes[0].Data.(dto.Message)
+	if msg.MessageType != dto.UserGotOnline {
+		t.Fatalf("expected user got online" + gotAndExpectedMessage(msg.MessageType, dto.UserGotOnline))
+	}
+	gotUsername := msg.Body.(string)
+	if gotUsername != expectedUsername {
+		t.Fatalf("user got online" + gotAndExpectedMessage(gotUsername, expectedUsername))
 	}
 }
 
@@ -202,13 +219,14 @@ func expectAckUUIDsToContain(t *testing.T, ackUUIDs []string, uuid string) {
 		}
 	}
 	if !found {
-		t.Fatalf("Expected uuid is not present in ack uuids")
+		expectedGot := gotAndExpectedMessage(strings.Join(ackUUIDs, ""), uuid)
+		t.Fatalf("Expected uuid is not present in ack uuids"+expectedGot+"%s", debug.Stack())
 	}
 }
 
 func expectMessageType(t *testing.T, message dto.Message, messageType dto.MessageType) {
 	if message.MessageType != messageType {
-		t.Fatalf("Unexpected message type" + expectedAndGotMessage(message.MessageType, messageType))
+		t.Fatalf("Unexpected message type" + gotAndExpectedMessage(message.MessageType, messageType))
 	}
 }
 
@@ -220,6 +238,6 @@ func cleanupWS(t *testing.T, ws *gWebsocket.Conn) {
 	_ = ws.Close()
 }
 
-func expectedAndGotMessage(args ...interface{}) string {
-	return fmt.Sprintf("got: %s, expected: %s", args...)
+func gotAndExpectedMessage(args ...interface{}) string {
+	return fmt.Sprintf(", got: %s, expected: %s", args...)
 }
