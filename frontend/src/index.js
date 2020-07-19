@@ -1,6 +1,6 @@
 import './styles/main.scss';
 import { Elm } from './elm/Main.elm';
-import { init_flags, storeUserInfo, deleteItem } from "./typescript/WebStorage.ts";
+import { init_flags, storeUserInfo, deleteUserInfo } from "./typescript/WebStorage.ts";
 import { initWebSocket } from "./typescript/websocket";
 import * as serviceWorker from './serviceWorker';
 import 'bootstrap';
@@ -12,7 +12,7 @@ let app = Elm.Main.init({
 
 app.ports.storeUserInfo.subscribe(storeUserInfo);
 
-app.ports.deleteItem.subscribe(deleteItem);
+app.ports.deleteUserInfo.subscribe(deleteUserInfo);
 
 let webSocketService = null;
 

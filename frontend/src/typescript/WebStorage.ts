@@ -21,8 +21,8 @@ export function storeUserInfo(userInfo) {
     store('userInfo', userInfo);
 }
 
-export function deleteItem(key) {
-    localStorage.removeItem(key);
+export function deleteUserInfo() {
+    localStorage.removeItem('userInfo');
 }
 
 function store(key: StoreKey, value: string) {

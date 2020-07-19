@@ -1,6 +1,7 @@
-port module Common.WebStorage exposing (..)
+module Services.WebStorageService exposing (..)
 
 import Json.Encode as Encode
+import Networking.WebStorage as WebStorage
 
 
 type alias UserInfo =
@@ -8,12 +9,6 @@ type alias UserInfo =
     , userToken : String
     , gameID : String
     }
-
-
-port storeUserInfo : String -> Cmd msg
-
-
-port deleteItem : String -> Cmd msg
 
 
 saveUserInfo : UserInfo -> Cmd msg
@@ -27,4 +22,9 @@ saveUserInfo userInfo =
                     , ( "gameID", Encode.string userInfo.gameID )
                     ]
     in
-    storeUserInfo encoded
+    WebStorage.storeUserInfo encoded
+
+
+deleteUserInfo : Cmd msg
+deleteUserInfo =
+    WebStorage.deleteUserInfo ""

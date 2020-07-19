@@ -4,7 +4,7 @@ import Common.Session exposing (Session(..), UserInfo)
 import Html exposing (Html, div, text)
 import Html.Attributes exposing (class, style)
 import Http exposing (Body)
-import Pages.Header as Header
+import Views.Header as Header
 
 
 type Msg
