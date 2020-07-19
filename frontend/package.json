@@ -27,7 +27,6 @@
   "homepage": "https://github.com/Szetty/seven_wonders#readme",
   "dependencies": {
     "bootstrap": "^4.5.0",
-    "bootstrap-select": "^1.13.18",
     "http-proxy-middleware": "^1.0.4",
     "jquery": "^3.5.1",
     "popper.js": "^1.16.1",
@@ -43,7 +42,6 @@
     "sass-loader": "^8.0.2",
     "style-loader": "^1.2.1",
     "ts-loader": "^7.0.4",
-    "typescript": "^3.9.3",
-    "webpack": "^4.43.0"
+    "typescript": "^3.9.3"
   }
 }

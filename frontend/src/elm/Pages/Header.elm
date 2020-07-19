@@ -83,13 +83,9 @@ clearSession session =
 
 view : Session -> Html Msg
 view session =
-    let
-        name =
-            getCurrentUsername session
-    in
     div [ class "header static-top p-3 mb-5" ]
         [ div [ class "d-flex justify-content-between" ]
-            [ div [ class "mt-1 btn-like-text" ] [ text name ]
+            [ div [ class "mt-1 btn-like-text" ] [ text (getCurrentUsername session) ]
             , button [ onClick Logout, class "btn btn-dark" ] [ text "Logout" ]
             ]
         ]
