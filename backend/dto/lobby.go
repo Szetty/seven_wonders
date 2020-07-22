@@ -30,6 +30,11 @@ type InvitedUser struct {
 	Connected bool   `json:"connected" mapstructure:"connected"`
 }
 
+type User struct {
+	Name   string `json:"name" mapstructure:"name"`
+	GameID string `json:"gameID" mapstructure:"gameID"`
+}
+
 func DecodeMessageByType(message Message) Message {
 	switch message.MessageType {
 	case OnlineUsers:
@@ -68,7 +73,15 @@ func DecodeMessageByType(message Message) Message {
 	case UninviteUserReply:
 		message.Body = nil
 	case GotInvite:
-		message.Body = message.Body.(string)
+		var user User
+		switch body := message.Body.(type) {
+		case map[string]interface{}:
+			err := mapstructure.Decode(body, &user)
+			if err != nil {
+				logger.L.Errorf("Could not decode user body map %#v, because: %v", body, err)
+			}
+		}
+		message.Body = user
 	case GotUninvite:
 		message.Body = message.Body.(string)
 	case UserGotOnline:

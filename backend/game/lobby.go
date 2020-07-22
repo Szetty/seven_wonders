@@ -91,7 +91,8 @@ func (l *Lobby) handleEnvelope(originEnvelope dto.OriginEnvelope) {
 		switch m.MessageType {
 		case dto.InviteUser:
 			toInvite := m.Body.(string)
-			users.Notify(toInvite, dto.MessageBuilder{}.MessageType(dto.GotInvite).Body(l.gameID).Build(), l.origin())
+			user := dto.User{Name: originEnvelope.ID, GameID: l.gameID}
+			users.Notify(toInvite, dto.MessageBuilder{}.MessageType(dto.GotInvite).Body(user).Build(), l.origin())
 			l.replyToOrigin(originEnvelope, dto.MessageBuilder{}.MessageType(dto.InviteUserReply).Body(toInvite).Build())
 			l.changeAuthorization(toInvite, true)
 		case dto.InvitedUsers:

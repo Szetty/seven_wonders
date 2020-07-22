@@ -115,9 +115,12 @@ func TestInviteUsers(t *testing.T) {
 	gotInviteEnvelope := receiveAndVerifyEnvelopes(t, ctx2.ws, 1)[0]
 	gotInviteMessage := gotInviteEnvelope.Data.(dto.Message)
 	expectMessageType(t, gotInviteMessage, dto.GotInvite)
-	invitedGameID := gotInviteMessage.Body.(string)
-	if invitedGameID != ctx1.gameID {
-		t.Fatalf("Wrong invited game id" + gotAndExpectedMessage(invitedGameID, ctx1.gameID))
+	inviter := gotInviteMessage.Body.(dto.User)
+	if inviter.GameID != ctx1.gameID {
+		t.Fatalf("Wrong inviter game id" + gotAndExpectedMessage(inviter.GameID, ctx1.gameID))
+	}
+	if inviter.Name != ctx1.username {
+		t.Fatalf("Wrong inviter username" + gotAndExpectedMessage(inviter.Name, ctx1.username))
 	}
 }
 
