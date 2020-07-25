@@ -67,25 +67,24 @@ update msg model =
             ( { model | session = session }, Cmd.map HeaderEvent cmd )
 
         NotificationEvent notificationMsg ->
-            case notificationMsg of
-                Notification.OnAcceptFromNotification _ gameID ->
-                    let
-                        ( notification, cmd ) =
-                            Notification.update notificationMsg model.notification
-                    in
-                    ( { model | notification = notification }
-                    , Cmd.batch
-                        [ Cmd.map NotificationEvent cmd
-                        , Route.replaceUrl (getNavKey model.session) (Lobby gameID)
-                        ]
-                    )
+            let
+                ( notification, cmd1 ) =
+                    Notification.update notificationMsg model.notification
 
-                _ ->
-                    let
-                        ( notification, cmd ) =
-                            Notification.update notificationMsg model.notification
-                    in
-                    ( { model | notification = notification }, Cmd.map NotificationEvent cmd )
+                cmd2 =
+                    case notificationMsg of
+                        Notification.OnAcceptFromNotification _ gameID ->
+                            Route.replaceUrl (getNavKey model.session) (Lobby gameID)
+
+                        _ ->
+                            Cmd.none
+            in
+            ( { model | notification = notification }
+            , Cmd.batch
+                [ Cmd.map NotificationEvent cmd1
+                , cmd2
+                ]
+            )
 
         Invite ->
             ( model
