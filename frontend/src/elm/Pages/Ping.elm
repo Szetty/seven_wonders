@@ -1,6 +1,6 @@
 module Pages.Ping exposing (..)
 
-import Common.Session exposing (Session(..), UserInfo)
+import Common.Session exposing (Session(..))
 import Html exposing (Html, div, text)
 import Html.Attributes exposing (class, style)
 import Http exposing (Body)

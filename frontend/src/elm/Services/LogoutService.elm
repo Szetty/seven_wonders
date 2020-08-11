@@ -1,7 +1,7 @@
 module Services.LogoutService exposing (..)
 
+import Common.Domain exposing (UserInfo)
 import Common.Error exposing (ErrorBody)
-import Common.Session exposing (UserInfo)
 import Http exposing (emptyBody, header)
 import Networking.Endpoints as Endpoints
 import Networking.Http exposing (postWithHeaders)

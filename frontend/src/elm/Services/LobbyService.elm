@@ -21,7 +21,7 @@ type MessageBody
     | InvitedUsersReply (List InvitedUser)
     | InviteUserReply String
     | UninviteUserReply String
-    | GotInvite String
+    | GotInvite User
     | GotUninvite String
     | UserGotOnline String
     | UserGotOffline String
@@ -34,18 +34,24 @@ type alias InvitedUser =
     }
 
 
+type alias User =
+    { name : String
+    , gameID : String
+    }
+
+
 initGameLobby : Session -> Cmd msg
 initGameLobby session =
     case session of
         Guest _ ->
             Cmd.none
 
-        LoggedIn _ userInfo ->
+        LoggedIn _ sessionData ->
             let
                 url =
-                    String.replace ":gameID" userInfo.gameID Endpoints.gameLobby
+                    String.replace ":gameID" sessionData.userInfo.gameID Endpoints.gameLobby
             in
-            WebSocketService.init userInfo.userToken url
+            WebSocketService.init sessionData.userInfo.userToken url
 
 
 getOnlineUsers : Cmd msg
@@ -143,7 +149,11 @@ messageBodyDecoder messageType =
             Decode.map UninviteUserReply string
 
         "GotInvite" ->
-            Decode.map GotInvite string
+            let
+                user =
+                    Decode.map2 User (field "name" string) (field "gameID" string)
+            in
+            Decode.map GotInvite user
 
         "GotUninvite" ->
             Decode.map GotUninvite string

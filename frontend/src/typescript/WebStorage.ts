@@ -1,19 +1,10 @@
-export interface Flags {
-    userInfo?: UserInfo
-}
-
-export interface UserInfo {
-    name: string
-    userToken: string
-    gameID: string
-}
-
-type StoreKey = 'userInfo';
-
-export function init_flags(): Flags {
-    let userInfo: UserInfo = JSON.parse(get('userInfo'));
-    return {
-        userInfo
+export function init_flags(): string {
+    let userInfo = JSON.parse(get('userInfo'));
+    let notifications = JSON.parse(get('notifications')) || [];
+    if (userInfo) {
+        return JSON.stringify({ userInfo, notifications } as SessionData)
+    } else {
+        return ""
     }
 }
 
@@ -21,9 +12,20 @@ export function storeUserInfo(userInfo) {
     store('userInfo', userInfo);
 }
 
-export function deleteUserInfo() {
-    localStorage.removeItem('userInfo');
+export function storeNotifications(notifications) {
+    store('notifications', notifications);
 }
+
+export function clearStorage() {
+    localStorage.clear();
+}
+
+type SessionData =
+    { userInfo : string
+    , notifications : string
+    }
+
+type StoreKey = 'notifications' | 'userInfo';
 
 function store(key: StoreKey, value: string) {
     console.log(`Storing ${key}`, value);

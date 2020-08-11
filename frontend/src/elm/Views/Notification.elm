@@ -1,42 +1,45 @@
 module Views.Notification exposing (..)
 
+import Common.Domain exposing (AcceptData, Notification, NotificationType(..), NotificationWithId, SavedNotification, savedNotificationToNotificationWithId)
+import Common.Session exposing (Session(..), getNavKey, getSavedNotifications)
 import Html exposing (Html, button, div, span, text)
 import Html.Attributes exposing (class, hidden)
 import Html.Events exposing (onClick)
 
 
-type Msg a
-    = OnAcceptFromNotification Int a
+type Msg
+    = OnAcceptFromNotification Int AcceptData
     | RemoveNotification Int
 
 
-type alias Model a =
-    { notifications : List ( Int, Notification a )
+type alias Model =
+    { notifications : List NotificationWithId
     , currentId : Int
     }
 
 
-type alias Notification a =
-    { message : String
-    , notificationType : NotificationType a
-    }
+init : Session -> ( Model, Cmd Msg )
+init session =
+    let
+        savedNotificationsMaybe =
+            getSavedNotifications session
 
+        notifications =
+            case savedNotificationsMaybe of
+                Just savedNotifications ->
+                    List.map savedNotificationToNotificationWithId savedNotifications
 
-type NotificationType a
-    = Simple
-    | Approve a
-
-
-init : ( Model a, Cmd (Msg a) )
-init =
-    ( { notifications = []
+                Nothing ->
+                    []
+    in
+    ( { notifications = notifications
       , currentId = 0
       }
     , Cmd.none
     )
 
 
-update : Msg a -> Model a -> ( Model a, Cmd (Msg a) )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OnAcceptFromNotification id _ ->
@@ -46,14 +49,14 @@ update msg model =
             ( deleteNotification model id, Cmd.none )
 
 
-view : Model a -> Html (Msg a)
+view : Model -> Html Msg
 view model =
     div []
         [ viewNotifications model.notifications
         ]
 
 
-viewNotifications : List ( Int, Notification a ) -> Html (Msg a)
+viewNotifications : List ( Int, Notification ) -> Html Msg
 viewNotifications notifications =
     let
         isHidden =
@@ -71,7 +74,7 @@ viewNotifications notifications =
     div [ class "text-light", hidden isHidden ] notificationsHtml
 
 
-viewNotification : ( Int, Notification a ) -> Html (Msg a)
+viewNotification : ( Int, Notification ) -> Html Msg
 viewNotification ( id, notification ) =
     let
         buttons =
@@ -87,12 +90,30 @@ viewNotification ( id, notification ) =
     span [ class "d-block mb-1 border border-dark bg-info" ] <| text notification.message :: buttons
 
 
-addNotification : Model a -> Notification a -> Model a
+addNotification : Model -> Notification -> Model
 addNotification model notification =
-    { model | notifications = ( model.currentId, notification ) :: model.notifications, currentId = model.currentId + 1 }
+    let
+        newNotifications =
+            if List.length model.notifications >= 3 then
+                case model.notifications of
+                    n1 :: (n2 :: (( _, n3Notification ) :: ns)) ->
+                        case n3Notification.notificationType of
+                            Simple ->
+                                n1 :: (n2 :: ns)
+
+                            _ ->
+                                model.notifications
+
+                    _ ->
+                        model.notifications
+
+            else
+                model.notifications
+    in
+    { model | notifications = ( model.currentId, notification ) :: newNotifications, currentId = model.currentId + 1 }
 
 
-deleteNotification : Model a -> Int -> Model a
+deleteNotification : Model -> Int -> Model
 deleteNotification model idToDelete =
     let
         newNotifications =
@@ -101,11 +122,35 @@ deleteNotification model idToDelete =
     { model | notifications = newNotifications }
 
 
-simpleNotification : String -> Notification a
+addApproveNotification : Session -> SavedNotification -> Session
+addApproveNotification session notification =
+    case session of
+        LoggedIn _ sessionData ->
+            LoggedIn (getNavKey session) { sessionData | notifications = notification :: sessionData.notifications }
+
+        s ->
+            s
+
+
+deleteApproveNotification : Session -> Int -> Session
+deleteApproveNotification session idToDelete =
+    case session of
+        LoggedIn _ sessionData ->
+            let
+                newNotifications =
+                    List.filter (\notification -> not (notification.id == idToDelete)) sessionData.notifications
+            in
+            LoggedIn (getNavKey session) { sessionData | notifications = newNotifications }
+
+        s ->
+            s
+
+
+simpleNotification : String -> Notification
 simpleNotification text =
     Notification text Simple
 
 
-approveNotification : String -> a -> Notification a
-approveNotification text a =
-    Notification text (Approve a)
+approveNotification : String -> AcceptData -> Notification
+approveNotification text acceptData =
+    Notification text (Approve acceptData)

@@ -1,25 +1,19 @@
 module Common.Session exposing (..)
 
 import Browser.Navigation as Nav
+import Common.Domain exposing (Notification, SavedNotification, SessionData, UserInfo)
 
 
 type Session
-    = LoggedIn Nav.Key UserInfo
+    = LoggedIn Nav.Key SessionData
     | Guest Nav.Key
 
 
-type alias UserInfo =
-    { name : String
-    , userToken : String
-    , gameID : String
-    }
-
-
-initSession : Nav.Key -> Maybe UserInfo -> Session
-initSession navKey userInfoMaybe =
-    case userInfoMaybe of
-        Just userInfo ->
-            LoggedIn navKey userInfo
+initSession : Nav.Key -> Maybe SessionData -> Session
+initSession navKey sessionDataMaybe =
+    case sessionDataMaybe of
+        Just sessionData ->
+            LoggedIn navKey sessionData
 
         Nothing ->
             Guest navKey
@@ -38,8 +32,18 @@ getNavKey session =
 getUserInfo : Session -> Maybe UserInfo
 getUserInfo session =
     case session of
-        LoggedIn _ userInfo ->
-            Just userInfo
+        LoggedIn _ sessionData ->
+            Just sessionData.userInfo
+
+        Guest _ ->
+            Nothing
+
+
+getSavedNotifications : Session -> Maybe (List SavedNotification)
+getSavedNotifications session =
+    case session of
+        LoggedIn _ sessionData ->
+            Just sessionData.notifications
 
         Guest _ ->
             Nothing
@@ -60,5 +64,10 @@ getGameId session =
     Maybe.map .gameID (getUserInfo session)
 
 
-setUserInfo session userInfo =
-    LoggedIn (getNavKey session) userInfo
+toLoggedIn : Session -> UserInfo -> Session
+toLoggedIn session userInfo =
+    let
+        sessionData =
+            SessionData userInfo []
+    in
+    LoggedIn (getNavKey session) sessionData

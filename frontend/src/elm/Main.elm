@@ -2,8 +2,9 @@ module Main exposing (..)
 
 import Browser exposing (Document)
 import Browser.Navigation as Nav
+import Common.Domain exposing (SessionData, decodeSessionData)
 import Common.Route as Route exposing (Route)
-import Common.Session exposing (Session(..), UserInfo, getNavKey, initSession)
+import Common.Session exposing (Session(..), getNavKey, initSession)
 import Html exposing (div, text)
 import Pages.Game as Game
 import Pages.Lobby as Lobby
@@ -21,10 +22,6 @@ type Model
     | Redirect Session
 
 
-type alias Flags =
-    { userInfo : Maybe UserInfo }
-
-
 type Msg
     = ChangedUrl Url
     | ClickedLink Browser.UrlRequest
@@ -34,9 +31,9 @@ type Msg
     | GotPingMsg Ping.Msg
 
 
-init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init : String -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url navKey =
-    changeRouteTo (Route.fromUrl url) (initSession navKey flags.userInfo)
+    changeRouteTo (Route.fromUrl url) (initSession navKey (decodeSessionData flags))
 
 
 changeRouteTo : Maybe Route -> Session -> ( Model, Cmd Msg )
@@ -50,8 +47,8 @@ changeRouteTo maybeRoute session =
                 Guest _ ->
                     ( Redirect session, Route.replaceUrl (getNavKey session) Route.Login )
 
-                LoggedIn _ userInfo ->
-                    ( Redirect session, Route.replaceUrl (getNavKey session) (Route.Lobby userInfo.gameID) )
+                LoggedIn _ sessionData ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) (Route.Lobby sessionData.userInfo.gameID) )
 
         Just Route.Game ->
             case session of
@@ -77,8 +74,8 @@ changeRouteTo maybeRoute session =
                     Login.init session
                         |> updateWith Login GotLoginMsg
 
-                LoggedIn _ userInfo ->
-                    ( Redirect session, Route.replaceUrl (getNavKey session) (Route.Lobby userInfo.gameID) )
+                LoggedIn _ sessionData ->
+                    ( Redirect session, Route.replaceUrl (getNavKey session) (Route.Lobby sessionData.userInfo.gameID) )
 
         Just Route.Ping ->
             case session of
@@ -203,7 +200,7 @@ notFoundView =
     [ div [] [ text "Page was not found" ] ]
 
 
-main : Program Flags Model Msg
+main : Program String Model Msg
 main =
     Browser.application
         { init = init
