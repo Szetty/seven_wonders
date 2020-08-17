@@ -46,7 +46,20 @@ func (c *Crux) Delete(name string) {
 	c.users.Delete(name)
 }
 
-func (c *Crux) DoesBelongGameIDToUser(name, gameID string) bool {
+func (c *Crux) UserByGameID(gameID string) string {
+	username := ""
+	c.users.Range(func(key, value interface{}) bool {
+		user := value.(User)
+		if user.gameID == gameID {
+			username = key.(string)
+			return false
+		}
+		return true
+	})
+	return username
+}
+
+func (c *Crux) GameIDBelongsToUser(name, gameID string) bool {
 	user, exists := c.users.Load(name)
 	if !exists || user.(User).gameID != gameID {
 		return false

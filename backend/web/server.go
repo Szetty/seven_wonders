@@ -9,29 +9,29 @@ import (
 )
 
 type Server struct {
-	crux *cr.Crux
-	router *mux.Router
+	crux     *cr.Crux
+	router   *mux.Router
 	sessions *websocket.Sessions
 }
 
 func InitServer(router *mux.Router) *Server {
 	return &Server{
-		crux:   cr.Init(),
-		router: router,
+		crux:     cr.Init(),
+		router:   router,
 		sessions: websocket.InitSessions(),
 	}
 }
 
-func (s* Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(context.WithValue(r.Context(), "server", s))
 	s.router.ServeHTTP(w, r)
 }
 
-func (s* Server) Crux() *cr.Crux {
+func (s *Server) Crux() *cr.Crux {
 	return s.crux
 }
 
-func (s* Server) Sessions() *websocket.Sessions {
+func (s *Server) Sessions() *websocket.Sessions {
 	return s.sessions
 }
 

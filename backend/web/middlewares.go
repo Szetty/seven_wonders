@@ -79,7 +79,7 @@ func gameAuthorizationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gameID := mux.Vars(r)["gameID"]
 		username := r.Context().Value("name").(string)
-		if !crux(r).Auth.DoesBelongGameIDToUser(username, gameID) && !crux(r).Lobby.AuthorizedForLobby(username, gameID) {
+		if !crux(r).Auth.GameIDBelongsToUser(username, gameID) && !crux(r).Lobby.AuthorizedForLobby(username, gameID) {
 			errorHandling.ErrorHandler{
 				Message:    fmt.Sprintf("User not authorized for %s", gameID),
 				StatusCode: 401,

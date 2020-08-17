@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -32,12 +33,8 @@ const (
 )
 
 type RegisterUpstreamChannels struct {
-	HubCh chan<- domain.OriginEnvelope
+	HubCh   chan<- domain.OriginEnvelope
 	UsersCh chan<- domain.OriginEnvelope
-}
-
-type isOnlineEvent struct {
-	resultCh chan<- bool
 }
 
 type Session struct {
@@ -51,11 +48,12 @@ type internalSession struct {
 	clientCh  <-chan domain.OriginEnvelope
 	eventCh   <-chan interface{}
 	hubCh     chan<- domain.OriginEnvelope
-	usersCh	  chan<- domain.OriginEnvelope
+	usersCh   chan<- domain.OriginEnvelope
 	conn      *websocket.Conn
 	hubQ      []domain.Envelope
 	clientQ   []domain.Envelope
 	offlineCh chan<- bool
+	mtx       sync.Mutex
 }
 
 func newSession(username string, conn *websocket.Conn) *Session {
@@ -72,6 +70,7 @@ func newSession(username string, conn *websocket.Conn) *Session {
 			conn:     conn,
 			hubQ:     []domain.Envelope{},
 			clientQ:  []domain.Envelope{},
+			mtx:      sync.Mutex{},
 		},
 	}
 }
@@ -88,9 +87,14 @@ func (s *Session) refreshSession(conn *websocket.Conn) bool {
 		s.ClientCh = clientCh
 		s.clientCh = clientCh
 	}()
-	resultCh := make(chan bool)
-	s.EventCh <- isOnlineEvent{resultCh}
-	return <-resultCh
+	wasOnline := false
+	s.mtx.Lock()
+	if s.offlineCh != nil {
+		s.offlineCh <- true
+		wasOnline = true
+	}
+	s.mtx.Unlock()
+	return wasOnline
 }
 
 func (s *Session) startSession() {
@@ -113,8 +117,7 @@ func (s *Session) sessionRoutine() {
 		case envelopes, ok := <-clientReaderCh:
 			if !ok {
 				s.setupOfflineNotifier()
-				clientReaderCh = nil
-				continue
+				return
 			}
 			if len(envelopes) <= 0 {
 				continue
@@ -184,36 +187,22 @@ func (s *Session) clientReader(conn *websocket.Conn, clientReaderCh chan<- []dom
 func (s *Session) setupOfflineNotifier() {
 	logger.L.Infof(s.messageWithPrefix("WS for session gone offline, setting up offline notifier"))
 	offlineCh := make(chan bool)
+	s.mtx.Lock()
 	s.offlineCh = offlineCh
+	s.mtx.Unlock()
 	hubCh := s.hubCh
-	go s.offlineNotifier(
-		offlineCh,
-		func (s *Session) () {
-			close(s.offlineCh)
-			s.offlineCh = nil
-		},
-		func (s* Session) () {
-			offlineMessage := domain.MessageBuilder{}.MessageType(domain.UserGotOffline).Body(s.getUsername()).Build()
-			hubCh <- domain.EnveloperBuilder{}.Data(offlineMessage).GenerateUUID().Build().WithOrigin(s.origin())
-		},
-	)
-}
-
-func (s *Session) offlineNotifier(offlineCh <-chan bool, cleanupFn func (s* Session) (), notifyOfflineFn func (s *Session) ()) {
 	ticker := time.NewTicker(offlineWait)
 	select {
 	case <-offlineCh:
 		break
 	case <-ticker.C:
-		logger.L.Infof("OFFLINE_NOTIFIER: offline wait expired")
-		notifyOfflineFn(s)
+		offlineMessage := domain.MessageBuilder{}.MessageType(domain.GotOffline).Build()
+		hubCh <- domain.EnveloperBuilder{}.Data(offlineMessage).GenerateUUID().Build().WithOrigin(s.origin())
 	}
-	cleanupFn(s)
-}
-
-func (s *Session) cleanUpOfflineCh() {
+	s.mtx.Lock()
 	close(s.offlineCh)
 	s.offlineCh = nil
+	s.mtx.Unlock()
 }
 
 func (s *Session) processEnvelopes(envelopes []domain.Envelope) {
@@ -265,12 +254,6 @@ func (s *Session) handleEvent(e interface{}) {
 	case RegisterUpstreamChannels:
 		s.hubCh = event.HubCh
 		s.usersCh = event.UsersCh
-	case isOnlineEvent:
-		if s.offlineCh != nil {
-			s.offlineCh <- true
-			event.resultCh <- true
-		}
-		event.resultCh <- false
 	}
 }
 

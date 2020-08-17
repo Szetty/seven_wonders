@@ -23,8 +23,17 @@ func TestInviteUsers(t *testing.T) {
 	invitedUsersMessage1 := invitedUsersReply1.Data.(domain.Message)
 	expectMessageType(t, invitedUsersMessage1, domain.InvitedUsersReply)
 	invitedUsers1 := invitedUsersMessage1.Body.([]domain.InvitedUser)
-	if len(invitedUsers1) != 0 {
-		t.Fatalf("Expecting no invited users")
+	if len(invitedUsers1) != 1 {
+		t.Fatalf("Expecting only leader to be invited user")
+	}
+	if invitedUsers1[0].Name != ctx1.username {
+		t.Fatalf("Wrong invited user")
+	}
+	if !invitedUsers1[0].Leader {
+		t.Fatalf("The only invited user should be the leader")
+	}
+	if !invitedUsers1[0].Connected {
+		t.Fatalf("The leader should already be connected")
 	}
 
 	inviteUserRequest := envelopeWithMessageTypeAndBody(domain.InviteUser, ctx2.username)
@@ -41,9 +50,10 @@ func TestInviteUsers(t *testing.T) {
 	invitedUsersMessage2 := invitedUsersReply2.Data.(domain.Message)
 	expectMessageType(t, invitedUsersMessage2, domain.InvitedUsersReply)
 	invitedUsers2 := invitedUsersMessage2.Body.([]domain.InvitedUser)
-	if len(invitedUsers2) != 1 {
-		t.Fatalf("Expecting one invited user")
+	if len(invitedUsers2) != 2 {
+		t.Fatalf("Expecting two invited users")
 	}
+	invitedUsers2 = removeLeaderFromInvitedUsers(invitedUsers2)
 	if invitedUsers2[0].Name != ctx2.username {
 		t.Fatalf("Wrong invited user" + gotAndExpectedMessage(invitedUsers2[0].Name, ctx2.username))
 	}
@@ -58,4 +68,14 @@ func TestInviteUsers(t *testing.T) {
 	if inviter.Name != ctx1.username {
 		t.Fatalf("Wrong inviter name" + gotAndExpectedMessage(inviter.Name, ctx1.username))
 	}
+}
+
+func removeLeaderFromInvitedUsers(invitedUsers []domain.InvitedUser) []domain.InvitedUser {
+	var newInvitedUsers []domain.InvitedUser
+	for _, user := range invitedUsers {
+		if !user.Leader {
+			newInvitedUsers = append(newInvitedUsers, user)
+		}
+	}
+	return newInvitedUsers
 }

@@ -8,26 +8,31 @@ import (
 
 const (
 	// Request
-	OnlineUsers  MessageType = "OnlineUsers"
-	InvitedUsers MessageType = "InvitedUsers"
-	InviteUser   MessageType = "InviteUser"
-	UninviteUser MessageType = "UninviteUser"
+	OnlineUsers       MessageType = "OnlineUsers"
+	InvitedUsers      MessageType = "InvitedUsers"
+	InviteUser        MessageType = "InviteUser"
+	UninviteUser      MessageType = "UninviteUser"
+	DeclineInvitation MessageType = "DeclineInvitation"
 	// Reply
-	OnlineUsersReply  MessageType = "OnlineUsersReply"
-	InvitedUsersReply MessageType = "InvitedUsersReply"
-	InviteUserReply   MessageType = "InviteUserReply"
-	UninviteUserReply MessageType = "UninviteUserReply"
+	OnlineUsersReply       MessageType = "OnlineUsersReply"
+	InvitedUsersReply      MessageType = "InvitedUsersReply"
+	InviteUserReply        MessageType = "InviteUserReply"
+	UninviteUserReply      MessageType = "UninviteUserReply"
+	DeclineInvitationReply MessageType = "DeclineInvitationReply"
 	// Notifications
-	GotInvite      MessageType = "GotInvite"
-	GotUninvite    MessageType = "GotUninvite"
-	UserGotOnline  MessageType = "UserGotOnline"
-	UserGotOffline MessageType = "UserGotOffline"
-	StartGame      MessageType = "StartGame"
+	GotInvite          MessageType = "GotInvite"
+	GotUninvite        MessageType = "GotUninvite"
+	GotOnline          MessageType = "UserGotOnline"
+	GotOffline         MessageType = "UserGotOffline"
+	AcceptedInvitation MessageType = "AcceptedInvitation"
+	DeclinedInvitation MessageType = "DeclinedInvitation"
+	StartGame          MessageType = "StartGame"
 )
 
 type InvitedUser struct {
 	Name      string `json:"name" mapstructure:"name"`
 	Connected bool   `json:"connected" mapstructure:"connected"`
+	Leader    bool   `json:"leader" mapstructure:"leader"`
 }
 
 type User struct {
@@ -84,9 +89,9 @@ func DecodeMessageByType(message Message) Message {
 		message.Body = user
 	case GotUninvite:
 		message.Body = message.Body.(string)
-	case UserGotOnline:
+	case GotOnline:
 		message.Body = message.Body.(string)
-	case UserGotOffline:
+	case GotOffline:
 		message.Body = message.Body.(string)
 	default:
 		break

@@ -14,9 +14,10 @@ type Crux struct {
 
 func Init() *Crux {
 	userCrux := user.Init()
+	authCrux := auth.Init()
 	return &Crux{
-		Auth:  auth.Init(),
-		Lobby: lobby.Init(userCrux),
+		Auth:  authCrux,
+		Lobby: lobby.Init(userCrux, authCrux),
 		User:  userCrux,
 	}
 }

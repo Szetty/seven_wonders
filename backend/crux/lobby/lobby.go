@@ -2,6 +2,7 @@ package lobby
 
 import (
 	"fmt"
+	"github.com/Szetty/seven_wonders/backend/crux/auth"
 	"github.com/Szetty/seven_wonders/backend/crux/user"
 	"github.com/Szetty/seven_wonders/backend/domain"
 	"github.com/Szetty/seven_wonders/backend/logger"
@@ -11,12 +12,14 @@ import (
 type Crux struct {
 	byGameID sync.Map
 	userCrux *user.Crux
+	authCrux *auth.Crux
 }
 
-func Init(userCrux *user.Crux) *Crux {
+func Init(userCrux *user.Crux, authCrux *auth.Crux) *Crux {
 	return &Crux{
 		byGameID: sync.Map{},
 		userCrux: userCrux,
+		authCrux: authCrux,
 	}
 }
 
@@ -37,11 +40,6 @@ type (
 		toSessionCh chan<- domain.OriginEnvelope
 	}
 
-	changeAuthorization struct {
-		username string
-		value    bool
-	}
-
 	verifyAuthorization struct {
 		username string
 		replyCh  chan bool
@@ -49,7 +47,7 @@ type (
 )
 
 func (c *Crux) RegisterInLobby(username, gameID string, toSessionCh chan<- domain.OriginEnvelope) chan<- domain.OriginEnvelope {
-	l, exists := c.byGameID.LoadOrStore(gameID, newLobby(c, gameID))
+	l, exists := c.byGameID.LoadOrStore(gameID, newLobby(c, username, gameID))
 	lobby := l.(*Lobby)
 	if !exists {
 		go lobby.lobbyRoutine()
@@ -73,11 +71,13 @@ func (c *Crux) messageWithPrefix(s string) string {
 	return "LOBBY_CRUX: " + s
 }
 
-func newLobby(lobbiesCrux *Crux, gameID string) *Lobby {
+func newLobby(lobbiesCrux *Crux, username, gameID string) *Lobby {
+	authorizedUsers := make(map[string]bool)
+	authorizedUsers[username] = true
 	return &Lobby{
 		lobbyCrux:         lobbiesCrux,
 		gameID:            gameID,
-		authorizedUsers:   make(map[string]bool),
+		authorizedUsers:   authorizedUsers,
 		connectedUsers:    make(map[string]bool),
 		connectedSessions: make(map[string]chan<- domain.OriginEnvelope),
 		envelopeCh:        make(chan domain.OriginEnvelope),
@@ -96,8 +96,6 @@ func (l *Lobby) lobbyRoutine() {
 			switch event := e.(type) {
 			case register:
 				l.registerUserAndSession(event.username, event.toSessionCh)
-			case changeAuthorization:
-				l.changeAuthorization(event.username, event.value)
 			case verifyAuthorization:
 				event.replyCh <- l.authorizedUsers[event.username]
 			}
@@ -117,9 +115,14 @@ func (l *Lobby) handleEnvelope(originEnvelope domain.OriginEnvelope) {
 			l.changeAuthorization(toInvite, true)
 		case domain.InvitedUsers:
 			invitedUsers := []domain.InvitedUser{}
+			leader := l.lobbyCrux.authCrux.UserByGameID(l.gameID)
 			for name, invited := range l.authorizedUsers {
 				if invited {
-					invitedUsers = append(invitedUsers, domain.InvitedUser{Name: name, Connected: l.connectedUsers[name]})
+					invitedUsers = append(invitedUsers, domain.InvitedUser{
+						Name:      name,
+						Connected: l.connectedUsers[name],
+						Leader:    name == leader,
+					})
 				}
 			}
 			replyMessage := domain.MessageBuilder{}.MessageType(domain.InvitedUsersReply).Body(invitedUsers).Build()
@@ -129,9 +132,9 @@ func (l *Lobby) handleEnvelope(originEnvelope domain.OriginEnvelope) {
 			l.lobbyCrux.userCrux.Notify(toUninvite, domain.MessageBuilder{}.MessageType(domain.GotUninvite).Body(l.gameID).Build(), l.origin())
 			l.replyToOrigin(originEnvelope, domain.MessageBuilder{}.MessageType(domain.UninviteUserReply).Body(toUninvite).Build())
 			l.changeAuthorization(toUninvite, false)
-		case domain.UserGotOffline:
-			offlineUsername := m.Body.(string)
-			delete(l.connectedSessions, originEnvelope.ID)
+		case domain.GotOffline:
+			offlineUsername := originEnvelope.ID
+			delete(l.connectedSessions, offlineUsername)
 			delete(l.connectedUsers, offlineUsername)
 			l.lobbyCrux.userCrux.Unregister(offlineUsername)
 		case domain.StartGame:

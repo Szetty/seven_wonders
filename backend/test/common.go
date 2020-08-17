@@ -54,7 +54,7 @@ func expectWelcomeMessage(t *testing.T, ws *gWebsocket.Conn) {
 	envelopes := receiveAndVerifyEnvelopes(t, ws, 1, false)
 	msg := envelopes[0].Data.(domain.Message)
 	if msg.MessageType != domain.Welcome {
-		t.Fatalf("expected welcome message" + gotAndExpectedMessage(msg.MessageType, domain.UserGotOnline))
+		t.Fatalf("expected welcome message" + gotAndExpectedMessage(msg.MessageType, domain.GotOnline))
 	}
 }
 

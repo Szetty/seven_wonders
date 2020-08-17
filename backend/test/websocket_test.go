@@ -99,8 +99,8 @@ func TestReconnect(t *testing.T) {
 func expectUserGotOnline(t *testing.T, ws *gWebsocket.Conn, expectedUsername string) {
 	envelopes := receiveAndVerifyEnvelopes(t, ws, 1, false)
 	msg := envelopes[0].Data.(domain.Message)
-	if msg.MessageType != domain.UserGotOnline {
-		t.Fatalf("expected user got online" + gotAndExpectedMessage(msg.MessageType, domain.UserGotOnline))
+	if msg.MessageType != domain.GotOnline {
+		t.Fatalf("expected user got online" + gotAndExpectedMessage(msg.MessageType, domain.GotOnline))
 	}
 	gotUsername := msg.Body.(string)
 	if gotUsername != expectedUsername {
@@ -111,8 +111,8 @@ func expectUserGotOnline(t *testing.T, ws *gWebsocket.Conn, expectedUsername str
 func expectUserGotOffline(t *testing.T, ws *gWebsocket.Conn, expectedUsername string) {
 	envelopes := receiveAndVerifyEnvelopes(t, ws, 1, false)
 	msg := envelopes[0].Data.(domain.Message)
-	if msg.MessageType != domain.UserGotOffline {
-		t.Fatalf("expected user got offline" + gotAndExpectedMessage(msg.MessageType, domain.UserGotOffline))
+	if msg.MessageType != domain.GotOffline {
+		t.Fatalf("expected user got offline" + gotAndExpectedMessage(msg.MessageType, domain.GotOffline))
 	}
 	gotUsername := msg.Body.(string)
 	if gotUsername != expectedUsername {

@@ -61,7 +61,7 @@ func (c *Crux) usersRoutine() {
 			switch event := e.(type) {
 			case register:
 				for _, session := range c.onlineUsers {
-					message := domain.MessageBuilder{}.MessageType(domain.UserGotOnline).Body(event.username).Build()
+					message := domain.MessageBuilder{}.MessageType(domain.GotOnline).Body(event.username).Build()
 					domain.NotifyTarget(session, message, c.origin())
 				}
 				c.onlineUsers[event.username] = event.sessionCh
@@ -69,7 +69,7 @@ func (c *Crux) usersRoutine() {
 				close(c.onlineUsers[event.username])
 				delete(c.onlineUsers, event.username)
 				for _, session := range c.onlineUsers {
-					message := domain.MessageBuilder{}.MessageType(domain.UserGotOffline).Body(event.username).Build()
+					message := domain.MessageBuilder{}.MessageType(domain.GotOffline).Body(event.username).Build()
 					domain.NotifyTarget(session, message, c.origin())
 				}
 			case notify:
