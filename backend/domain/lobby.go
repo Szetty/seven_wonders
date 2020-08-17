@@ -1,4 +1,4 @@
-package dto
+package domain
 
 import (
 	"github.com/Szetty/seven_wonders/backend/logger"

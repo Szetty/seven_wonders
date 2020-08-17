@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/dto"
+	"github.com/Szetty/seven_wonders/backend/domain"
 	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
@@ -12,7 +12,7 @@ import (
 
 var upgrader = websocket.Upgrader{}
 
-func CreateWSSession(w http.ResponseWriter, r *http.Request, username string) *Session {
+func CreateWSSession(w http.ResponseWriter, r *http.Request, username string, sessions *Sessions) (*Session, bool) {
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		errorHandling.ErrorHandler{
@@ -20,27 +20,27 @@ func CreateWSSession(w http.ResponseWriter, r *http.Request, username string) *S
 			StatusCode: 500,
 			ErrorType:  errorHandling.ServerError,
 		}.ServeHTTP(w, r)
-		return nil
+		return nil, false
 	}
-	return findOrCreateSession(username, wsConn)
+	return sessions.findOrCreateSession(username, wsConn)
 }
 
-func ReceiveEnvelopes(conn *websocket.Conn) (error, []dto.Envelope) {
-	var envelopes []dto.Envelope
+func ReceiveEnvelopes(conn *websocket.Conn) (error, []domain.Envelope) {
+	var envelopes []domain.Envelope
 	err := conn.ReadJSON(&envelopes)
 	if err != nil {
 		return errors.Wrap(err, "could not read from WS"), envelopes
 	}
-	var newEnvelopes []dto.Envelope
+	var newEnvelopes []domain.Envelope
 	for _, envelope := range envelopes {
-		var msg dto.Message
+		var msg domain.Message
 		err := mapstructure.Decode(envelope.Data, &msg)
 		if err != nil {
 			newEnvelopes = append(newEnvelopes, envelope)
 			continue
 		}
-		newEnvelopes = append(newEnvelopes, dto.Envelope{
-			Data:     dto.DecodeMessageByType(msg),
+		newEnvelopes = append(newEnvelopes, domain.Envelope{
+			Data:     domain.DecodeMessageByType(msg),
 			UUID:     envelope.UUID,
 			AckUUIDs: envelope.AckUUIDs,
 		})
