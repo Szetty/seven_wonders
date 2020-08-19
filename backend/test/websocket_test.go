@@ -1,27 +1,15 @@
 package test
 
 import (
-	"fmt"
-	"github.com/Szetty/seven_wonders/backend/dto"
-	"github.com/Szetty/seven_wonders/backend/users"
+	"github.com/Szetty/seven_wonders/backend/domain"
 	"github.com/Szetty/seven_wonders/backend/web"
-	"github.com/Szetty/seven_wonders/backend/web/websocket"
 	"github.com/google/uuid"
 	gWebsocket "github.com/gorilla/websocket"
 	"net/http/httptest"
-	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
 )
-
-const receiveTimeout = 1 * time.Second
-
-type wsContext struct {
-	ws       *gWebsocket.Conn
-	username string
-	gameID   string
-}
 
 func TestWebSocket(t *testing.T) {
 	server := httptest.NewServer(web.MainHandler())
@@ -29,10 +17,10 @@ func TestWebSocket(t *testing.T) {
 	ctx := setupWS(t, server, "/api/secured/game/")
 	defer cleanupWS(t, ctx.ws)
 	expectWelcomeMessage(t, ctx.ws)
-	envelope := dto.EnveloperBuilder{}.
+	envelope := domain.EnveloperBuilder{}.
 		Data(
-			dto.MessageBuilder{}.
-				MessageType(dto.Welcome).
+			domain.MessageBuilder{}.
+				MessageType(domain.Welcome).
 				Body("").
 				Build(),
 		).
@@ -51,12 +39,12 @@ func TestOnlineUsers(t *testing.T) {
 	expectWelcomeMessage(t, ctx1.ws)
 	expectWelcomeMessage(t, ctx2.ws)
 	expectUserGotOnline(t, ctx1.ws, ctx2.username)
-	requestEnvelope := envelopeWithMessageType(dto.OnlineUsers)
+	requestEnvelope := envelopeWithMessageType(domain.OnlineUsers)
 	sendEnvelope(t, ctx1.ws, requestEnvelope)
-	replyEnvelope := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
+	replyEnvelope := receiveAndVerifyEnvelopes(t, ctx1.ws, 1, false)[0]
 	expectAckUUIDsToContain(t, replyEnvelope.AckUUIDs, requestEnvelope.UUID)
-	message := replyEnvelope.Data.(dto.Message)
-	expectMessageType(t, message, dto.OnlineUsersReply)
+	message := replyEnvelope.Data.(domain.Message)
+	expectMessageType(t, message, domain.OnlineUsersReply)
 	onlineUsers := message.Body.([]string)
 	if len(onlineUsers) != 2 {
 		t.Fatalf("Expecting two online users")
@@ -71,87 +59,48 @@ func TestOnlineUsers(t *testing.T) {
 	expectOnlineUser(ctx2.username)
 }
 
-func TestInviteUsers(t *testing.T) {
+func TestOfflineUsers(t *testing.T) {
 	server := httptest.NewServer(web.MainHandler())
 	defer server.Close()
 	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
-	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
 	defer cleanupWS(t, ctx1.ws)
 	expectWelcomeMessage(t, ctx1.ws)
+	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
 	expectWelcomeMessage(t, ctx2.ws)
 	expectUserGotOnline(t, ctx1.ws, ctx2.username)
-	invitedUsersRequest1 := envelopeWithMessageType(dto.InvitedUsers)
-	sendEnvelope(t, ctx1.ws, invitedUsersRequest1)
-	invitedUsersReply1 := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
-	expectAckUUIDsToContain(t, invitedUsersReply1.AckUUIDs, invitedUsersRequest1.UUID)
-	invitedUsersMessage1 := invitedUsersReply1.Data.(dto.Message)
-	expectMessageType(t, invitedUsersMessage1, dto.InvitedUsersReply)
-	invitedUsers1 := invitedUsersMessage1.Body.([]dto.InvitedUser)
-	if len(invitedUsers1) != 0 {
-		t.Fatalf("Expecting no invited users")
-	}
+	ctx3 := setupWS(t, server, "/api/secured/game/lobby/")
+	defer cleanupWS(t, ctx3.ws)
+	expectWelcomeMessage(t, ctx3.ws)
+	expectUserGotOnline(t, ctx1.ws, ctx3.username)
 
-	inviteUserRequest := envelopeWithMessageTypeAndBody(dto.InviteUser, ctx2.username)
-	sendEnvelope(t, ctx1.ws, inviteUserRequest)
-	inviteUserReply := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
-	expectAckUUIDsToContain(t, inviteUserReply.AckUUIDs, inviteUserRequest.UUID)
-	inviteUserMessage := inviteUserReply.Data.(dto.Message)
-	expectMessageType(t, inviteUserMessage, dto.InviteUserReply)
-
-	invitedUsersRequest2 := envelopeWithMessageType(dto.InvitedUsers)
-	sendEnvelope(t, ctx1.ws, invitedUsersRequest2)
-	invitedUsersReply2 := receiveAndVerifyEnvelopes(t, ctx1.ws, 1)[0]
-	expectAckUUIDsToContain(t, invitedUsersReply2.AckUUIDs, invitedUsersRequest2.UUID)
-	invitedUsersMessage2 := invitedUsersReply2.Data.(dto.Message)
-	expectMessageType(t, invitedUsersMessage2, dto.InvitedUsersReply)
-	invitedUsers2 := invitedUsersMessage2.Body.([]dto.InvitedUser)
-	if len(invitedUsers2) != 1 {
-		t.Fatalf("Expecting one invited user")
-	}
-	if invitedUsers2[0].Name != ctx2.username {
-		t.Fatalf("Wrong invited user" + gotAndExpectedMessage(invitedUsers2[0].Name, ctx2.username))
-	}
-
-	gotInviteEnvelope := receiveAndVerifyEnvelopes(t, ctx2.ws, 1)[0]
-	gotInviteMessage := gotInviteEnvelope.Data.(dto.Message)
-	expectMessageType(t, gotInviteMessage, dto.GotInvite)
-	inviter := gotInviteMessage.Body.(dto.User)
-	if inviter.GameID != ctx1.gameID {
-		t.Fatalf("Wrong inviter game id" + gotAndExpectedMessage(inviter.GameID, ctx1.gameID))
-	}
-	if inviter.Name != ctx1.username {
-		t.Fatalf("Wrong inviter username" + gotAndExpectedMessage(inviter.Name, ctx1.username))
-	}
+	cleanupWS(t, ctx2.ws)
+	receiveAndVerifyEnvelopes(t, ctx3.ws, 1, true)
+	time.Sleep(5000 * time.Millisecond)
+	expectUserGotOffline(t, ctx1.ws, ctx2.username)
 }
 
-func setupWS(t *testing.T, server *httptest.Server, wsPath string) *wsContext {
-	baseWSURL := strings.TrimPrefix(server.URL, "http")
-	username := "user-" + uuid.New().String()
-	err, jwt, gameID := users.CreateUser(username)
-	if err != nil {
-		t.Fatalf("could not create JWT token: %v", err)
-	}
-	wsURL := fmt.Sprintf("ws%s%s%s?authorization=%s", baseWSURL, wsPath, gameID, jwt)
-	ws, _, err := gWebsocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("could not open a WS connection on %s %v", wsURL, err)
-	}
-	return &wsContext{ws, username, gameID}
-}
+func TestReconnect(t *testing.T) {
+	server := httptest.NewServer(web.MainHandler())
+	defer server.Close()
+	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
+	defer cleanupWS(t, ctx1.ws)
+	expectWelcomeMessage(t, ctx1.ws)
+	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
+	expectWelcomeMessage(t, ctx2.ws)
+	expectUserGotOnline(t, ctx1.ws, ctx2.username)
 
-func expectWelcomeMessage(t *testing.T, ws *gWebsocket.Conn) {
-	envelopes := receiveAndVerifyEnvelopes(t, ws, 1)
-	msg := envelopes[0].Data.(dto.Message)
-	if msg.MessageType != dto.Welcome {
-		t.Fatalf("expected welcome message" + gotAndExpectedMessage(msg.MessageType, dto.UserGotOnline))
-	}
+	cleanupWS(t, ctx2.ws)
+	ctx2.reconnectWS(t)
+	defer cleanupWS(t, ctx2.ws)
+	expectWelcomeMessage(t, ctx2.ws)
+	receiveAndVerifyEnvelopes(t, ctx1.ws, 1, true)
 }
 
 func expectUserGotOnline(t *testing.T, ws *gWebsocket.Conn, expectedUsername string) {
-	envelopes := receiveAndVerifyEnvelopes(t, ws, 1)
-	msg := envelopes[0].Data.(dto.Message)
-	if msg.MessageType != dto.UserGotOnline {
-		t.Fatalf("expected user got online" + gotAndExpectedMessage(msg.MessageType, dto.UserGotOnline))
+	envelopes := receiveAndVerifyEnvelopes(t, ws, 1, false)
+	msg := envelopes[0].Data.(domain.Message)
+	if msg.MessageType != domain.GotOnline {
+		t.Fatalf("expected user got online" + gotAndExpectedMessage(msg.MessageType, domain.GotOnline))
 	}
 	gotUsername := msg.Body.(string)
 	if gotUsername != expectedUsername {
@@ -159,88 +108,14 @@ func expectUserGotOnline(t *testing.T, ws *gWebsocket.Conn, expectedUsername str
 	}
 }
 
-func envelopeWithMessageType(messageType dto.MessageType) dto.Envelope {
-	return dto.
-		EnveloperBuilder{}.
-		Data(dto.MessageBuilder{}.MessageType(messageType).Build()).
-		UUID(uuid.New().String()).
-		Build()
-}
-
-func envelopeWithMessageTypeAndBody(messageType dto.MessageType, body interface{}) dto.Envelope {
-	return dto.
-		EnveloperBuilder{}.
-		Data(dto.MessageBuilder{}.MessageType(messageType).Body(body).Build()).
-		UUID(uuid.New().String()).
-		Build()
-}
-
-func sendEnvelope(t *testing.T, ws *gWebsocket.Conn, envelope dto.Envelope) {
-	err := ws.WriteJSON([]dto.Envelope{envelope})
-	if err != nil {
-		t.Fatalf("writing to WS failed: %v", err)
+func expectUserGotOffline(t *testing.T, ws *gWebsocket.Conn, expectedUsername string) {
+	envelopes := receiveAndVerifyEnvelopes(t, ws, 1, false)
+	msg := envelopes[0].Data.(domain.Message)
+	if msg.MessageType != domain.GotOffline {
+		t.Fatalf("expected user got offline" + gotAndExpectedMessage(msg.MessageType, domain.GotOffline))
 	}
-}
-
-func receiveAndVerifyEnvelopes(t *testing.T, ws *gWebsocket.Conn, expectedSize int) []dto.Envelope {
-	type result struct {
-		error     error
-		envelopes []dto.Envelope
+	gotUsername := msg.Body.(string)
+	if gotUsername != expectedUsername {
+		t.Fatalf("user got offline" + gotAndExpectedMessage(gotUsername, expectedUsername))
 	}
-	ch := make(chan result)
-	ticker := time.NewTicker(receiveTimeout)
-	go func() {
-		err, envelopes := websocket.ReceiveEnvelopes(ws)
-		ch <- result{err, envelopes}
-	}()
-	select {
-	case r := <-ch:
-		if r.error != nil {
-			t.Fatalf("could not receive envelopes: %v", r.error)
-		}
-		if len(r.envelopes) != expectedSize {
-			t.Fatalf("got bundle bigger than size 1: %v", r.envelopes)
-		}
-		for _, envelope := range r.envelopes {
-			if envelope.UUID == "" && len(envelope.AckUUIDs) <= 0 {
-				t.Fatalf("message has no UUID and AckUUIDs")
-			}
-		}
-		return r.envelopes
-	case <-ticker.C:
-		t.Fatalf("Received timeout %s", debug.Stack())
-		return nil
-	}
-}
-
-func expectAckUUIDsToContain(t *testing.T, ackUUIDs []string, uuid string) {
-	found := false
-	for _, ackUUID := range ackUUIDs {
-		if ackUUID == uuid {
-			found = true
-			break
-		}
-	}
-	if !found {
-		expectedGot := gotAndExpectedMessage(strings.Join(ackUUIDs, ""), uuid)
-		t.Fatalf("Expected uuid is not present in ack uuids"+expectedGot+"%s", debug.Stack())
-	}
-}
-
-func expectMessageType(t *testing.T, message dto.Message, messageType dto.MessageType) {
-	if message.MessageType != messageType {
-		t.Fatalf("Unexpected message type" + gotAndExpectedMessage(message.MessageType, messageType))
-	}
-}
-
-func cleanupWS(t *testing.T, ws *gWebsocket.Conn) {
-	cm := gWebsocket.FormatCloseMessage(gWebsocket.CloseNormalClosure, "done")
-	if err := ws.WriteMessage(gWebsocket.CloseMessage, cm); err != nil {
-		t.Fatalf("could not send close message: %v", err)
-	}
-	_ = ws.Close()
-}
-
-func gotAndExpectedMessage(args ...interface{}) string {
-	return fmt.Sprintf(", got: %s, expected: %s", args...)
 }

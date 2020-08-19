@@ -3,9 +3,7 @@ package web
 import (
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/core"
-	"github.com/Szetty/seven_wonders/backend/game"
 	"github.com/Szetty/seven_wonders/backend/logger"
-	"github.com/Szetty/seven_wonders/backend/users"
 	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
 	"github.com/Szetty/seven_wonders/backend/web/websocket"
 	"github.com/gorilla/mux"
@@ -26,7 +24,7 @@ func MainHandler() http.Handler {
 	spa := SPAHandler{StaticPath: "build", IndexPath: "index.html"}
 	router.PathPrefix("/").Handler(spa)
 
-	return router
+	return InitServer(router)
 }
 
 func defineAPIRouter(apiRouter *mux.Router) {
@@ -88,9 +86,9 @@ func gameHandler(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	session := websocket.CreateWSSession(w, r, username)
+	session, _ := websocket.CreateWSSession(w, r, username, sessions(r))
 	if session != nil {
-		//session.hubCh = game.ConnectPlayer(session, gameId, name)
+		// TODO implement game handling
 	}
 }
 
@@ -105,11 +103,13 @@ func gameLobbyHandler(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	session := websocket.CreateWSSession(w, r, username)
+	session, wasOnline := websocket.CreateWSSession(w, r, username, sessions(r))
 	if session != nil {
-		logger.L.Infof("Registering session %s in lobby %s", session.ID, gameID)
-		hubCh := game.RegisterInLobby(username, gameID, session.ClientCh)
-		session.EventCh <- websocket.RegisterHubEvent{HubCh: hubCh}
-		users.Register(username, session.ClientCh)
+		logger.L.Infof("WEB: Registering session %s in lobby %s", session.ID, gameID)
+		hubCh := crux(r).Lobby.RegisterInLobby(username, gameID, session.ClientCh)
+		session.EventCh <- websocket.RegisterUpstreamChannels{HubCh: hubCh, UsersCh: crux(r).User.Channel()}
+		if !wasOnline {
+			crux(r).User.Register(username, session.ClientCh)
+		}
 	}
 }

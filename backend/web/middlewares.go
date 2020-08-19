@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/common"
-	"github.com/Szetty/seven_wonders/backend/game"
 	"github.com/Szetty/seven_wonders/backend/logger"
-	"github.com/Szetty/seven_wonders/backend/users"
 	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
@@ -16,7 +14,7 @@ import (
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.L.Infof("accessed: %s", r.RequestURI)
+		logger.L.Infof("ACCESS: %s", r.RequestURI)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -65,7 +63,7 @@ func jwtAuthorizationMiddleware(next http.Handler) http.Handler {
 func nameVerificationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := r.Context().Value("name").(string)
-		if !users.NameExists(name) {
+		if !crux(r).Auth.NameExists(name) {
 			errorHandling.ErrorHandler{
 				Message:    "User not found",
 				StatusCode: 401,
@@ -81,7 +79,7 @@ func gameAuthorizationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gameID := mux.Vars(r)["gameID"]
 		username := r.Context().Value("name").(string)
-		if !users.DoesBelongGameIDToUser(username, gameID) && !game.AuthorizedForLobby(username, gameID) {
+		if !crux(r).Auth.GameIDBelongsToUser(username, gameID) && !crux(r).Lobby.AuthorizedForLobby(username, gameID) {
 			errorHandling.ErrorHandler{
 				Message:    fmt.Sprintf("User not authorized for %s", gameID),
 				StatusCode: 401,

@@ -3,7 +3,6 @@ package web
 import (
 	"fmt"
 	"github.com/Szetty/seven_wonders/backend/common"
-	"github.com/Szetty/seven_wonders/backend/users"
 	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
 	"io/ioutil"
 	"net/http"
@@ -55,7 +54,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	if loginRequest.Name == "" || users.NameExists(loginRequest.Name) {
+	if loginRequest.Name == "" || crux(r).Auth.NameExists(loginRequest.Name) {
 		errorHandling.ErrorHandler{
 			Message:    fmt.Sprintf("Name was not specified or already taken: %s", loginRequest.Name),
 			StatusCode: 400,
@@ -63,7 +62,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}.ServeHTTP(w, r)
 		return
 	}
-	err, jwtToken, gameID := users.CreateUser(loginRequest.Name)
+	err, jwtToken, gameID := crux(r).Auth.CreateUser(loginRequest.Name)
 	if err != nil {
 		errorHandling.ErrorHandler{
 			Message:    fmt.Sprintf("Could not create JWT token: %v", err),
@@ -83,7 +82,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := r.Context().Value("name").(string)
-	users.Delete(name)
+	crux(r).Auth.Delete(name)
 	sendStatus(w, http.StatusNoContent)
 }
 

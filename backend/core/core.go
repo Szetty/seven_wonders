@@ -13,6 +13,18 @@ import (
 )
 
 const coreAddressPrefix = "127.0.0.1:"
+const findRandomOpenPortCmd = `
+#!/usr/bin/env sh
+
+while
+  PORT=$(shuf -n 1 -i 1000-65535)
+  netstat -atun | grep -q "$PORT"
+do
+  continue
+done
+
+echo "$PORT"
+`
 
 type Server struct {
 	address string
@@ -63,7 +75,7 @@ func Ping(server Server) (string, error) {
 }
 
 func getRandomOpenPort() (string, error) {
-	portCmd := exec.Command("./scripts/find_unused_port.sh")
+	portCmd := exec.Command(findRandomOpenPortCmd)
 	portBytes, err := portCmd.Output()
 	return strings.TrimSpace(string(portBytes)), err
 }

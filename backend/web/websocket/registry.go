@@ -5,14 +5,21 @@ import (
 	"sync"
 )
 
-var sessions = sync.Map{}
+type Sessions struct {
+	byUsername sync.Map
+}
 
-func findOrCreateSession(username string, conn *websocket.Conn) *Session {
-	session, exists := sessions.LoadOrStore(username, newSession(username, conn))
+func InitSessions() *Sessions {
+	return &Sessions{byUsername: sync.Map{}}
+}
+
+func (sessions *Sessions) findOrCreateSession(username string, conn *websocket.Conn) (*Session, bool) {
+	session, exists := sessions.byUsername.LoadOrStore(username, newSession(username, conn))
 	s := session.(*Session)
+	var wasOnline = false
 	if exists {
-		s.refreshSession(conn)
+		wasOnline = s.refreshSession(conn)
 	}
 	s.startSession()
-	return s
+	return s, wasOnline
 }
