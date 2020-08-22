@@ -174,7 +174,7 @@ func (l *Lobby) handleEnvelope(originEnvelope domain.OriginEnvelope) {
 
 func (l *Lobby) registerUserAndSession(username string, toSessionCh chan<- domain.OriginEnvelope) {
 	if l.leaderUsername != username {
-		acceptedInvitationNotification := domain.MessageBuilder{}.MessageType(domain.AcceptedInvitation).Body(username).Build()
+		acceptedInvitationNotification := domain.MessageBuilder{}.MessageType(domain.Connected).Body(username).Build()
 		l.lobbyCrux.userCrux.Notify(l.leaderUsername, acceptedInvitationNotification, l.origin())
 	}
 	l.connectedUsers[username] = true

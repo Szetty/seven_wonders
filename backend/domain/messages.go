@@ -24,3 +24,16 @@ type ErrorBody struct {
 	Code string      `json:"code"`
 	Info interface{} `json:"info"`
 }
+
+var decoders = []func(Message) Message{
+	decodeLobbyMessage,
+	decodeUsersMessage,
+}
+
+func DecodeMessage(message Message) Message {
+	newMessage := message
+	for _, decoder := range decoders {
+		newMessage = decoder(newMessage)
+	}
+	return newMessage
+}

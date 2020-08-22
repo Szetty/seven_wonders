@@ -8,13 +8,11 @@ import (
 
 const (
 	// Request
-	OnlineUsers       MessageType = "OnlineUsers"
 	InvitedUsers      MessageType = "InvitedUsers"
 	InviteUser        MessageType = "InviteUser"
 	UninviteUser      MessageType = "UninviteUser"
 	DeclineInvitation MessageType = "DeclineInvitation"
 	// Reply
-	OnlineUsersReply       MessageType = "OnlineUsersReply"
 	InvitedUsersReply      MessageType = "InvitedUsersReply"
 	InviteUserReply        MessageType = "InviteUserReply"
 	UninviteUserReply      MessageType = "UninviteUserReply"
@@ -22,9 +20,7 @@ const (
 	// Notifications
 	GotInvite          MessageType = "GotInvite"
 	GotUninvite        MessageType = "GotUninvite"
-	GotOnline          MessageType = "UserGotOnline"
-	GotOffline         MessageType = "UserGotOffline"
-	AcceptedInvitation MessageType = "AcceptedInvitation"
+	Connected          MessageType = "Connected"
 	DeclinedInvitation MessageType = "DeclinedInvitation"
 	StartGame          MessageType = "StartGame"
 )
@@ -40,16 +36,8 @@ type User struct {
 	GameID string `json:"gameID" mapstructure:"gameID"`
 }
 
-func DecodeMessageByType(message Message) Message {
+func decodeLobbyMessage(message Message) Message {
 	switch message.MessageType {
-	case OnlineUsers:
-		message.Body = nil
-	case OnlineUsersReply:
-		var onlineUsers []string
-		for _, onlineUser := range message.Body.([]interface{}) {
-			onlineUsers = append(onlineUsers, onlineUser.(string))
-		}
-		message.Body = onlineUsers
 	case InviteUser:
 		message.Body = message.Body.(string)
 	case InviteUserReply:
@@ -93,11 +81,7 @@ func DecodeMessageByType(message Message) Message {
 		message.Body = user
 	case GotUninvite:
 		message.Body = message.Body.(string)
-	case GotOnline:
-		message.Body = message.Body.(string)
-	case GotOffline:
-		message.Body = message.Body.(string)
-	case AcceptedInvitation:
+	case Connected:
 		message.Body = message.Body.(string)
 	case DeclinedInvitation:
 		message.Body = message.Body.(string)

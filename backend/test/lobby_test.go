@@ -77,7 +77,7 @@ func TestAcceptInvitation(t *testing.T) {
 	ctx2.expectWelcomeMessage(t)
 	acceptedInvitationEnvelope := ctx1.receiveAndVerifyEnvelopes(t, 1, false)[0]
 	acceptedInvitationMessage := acceptedInvitationEnvelope.Data.(domain.Message)
-	expectMessageType(t, acceptedInvitationMessage, domain.AcceptedInvitation)
+	expectMessageType(t, acceptedInvitationMessage, domain.Connected)
 	username := acceptedInvitationMessage.Body.(string)
 	if username != ctx2.username {
 		t.Fatalf("Wrong accepted invitation username" + gotAndExpectedMessage(username, ctx2.username))
