@@ -113,6 +113,37 @@ func TestDeclineInvitation(t *testing.T) {
 	}
 }
 
+func TestUnauthorizedInvite(t *testing.T) {
+	server := httptest.NewServer(web.MainHandler())
+	defer server.Close()
+	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
+	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
+	defer ctx1.close(t)
+	ctx1.expectWelcomeMessage(t)
+	ctx2.expectWelcomeMessage(t)
+	ctx1.expectUserGotOnline(t, ctx2.username)
+
+	sendInviteUser(t, ctx1, ctx2.username)
+	expectGotInvite(t, ctx2, domain.User{Name: ctx1.username, GameID: ctx1.gameID})
+
+	ctx2.close(t)
+	ctx2.connectWSTo(t, ctx1.gameID)
+	defer ctx2.close(t)
+	ctx2.expectWelcomeMessage(t)
+
+	inviteUserRequest := envelopeWithMessageTypeAndBody(domain.InviteUser, ctx1.username)
+	ctx2.sendEnvelope(t, inviteUserRequest)
+	inviteUserReply := ctx2.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	expectAckUUIDsToContain(t, inviteUserReply, inviteUserRequest.UUID)
+	inviteUserMessage := inviteUserReply.Data.(domain.Message)
+	expectMessageType(t, inviteUserMessage, domain.ErrorMessageType)
+	errorBody := inviteUserMessage.Body.(domain.ErrorBody)
+	expectedErrorCode := domain.Unauthorized
+	if errorBody.Code != expectedErrorCode {
+		t.Fatalf("Wrong error code" + gotAndExpectedMessage(errorBody.Code, expectedErrorCode))
+	}
+}
+
 func sendInviteUser(t *testing.T, ctx *wsContext, invitedUserName string) {
 	inviteUserRequest := envelopeWithMessageTypeAndBody(domain.InviteUser, invitedUserName)
 	ctx.sendEnvelope(t, inviteUserRequest)
