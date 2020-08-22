@@ -77,6 +77,10 @@ func DecodeMessageByType(message Message) Message {
 		message.Body = message.Body.(string)
 	case UninviteUserReply:
 		message.Body = nil
+	case DeclineInvitation:
+		message.Body = message.Body.(string)
+	case DeclineInvitationReply:
+		message.Body = nil
 	case GotInvite:
 		var user User
 		switch body := message.Body.(type) {
@@ -92,6 +96,10 @@ func DecodeMessageByType(message Message) Message {
 	case GotOnline:
 		message.Body = message.Body.(string)
 	case GotOffline:
+		message.Body = message.Body.(string)
+	case AcceptedInvitation:
+		message.Body = message.Body.(string)
+	case DeclinedInvitation:
 		message.Body = message.Body.(string)
 	default:
 		break

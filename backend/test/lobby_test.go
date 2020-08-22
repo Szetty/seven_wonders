@@ -12,14 +12,16 @@ func TestInviteUsers(t *testing.T) {
 	defer server.Close()
 	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
 	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
-	defer cleanupWS(t, ctx1.ws)
-	expectWelcomeMessage(t, ctx1.ws)
-	expectWelcomeMessage(t, ctx2.ws)
-	expectUserGotOnline(t, ctx1.ws, ctx2.username)
+	defer ctx1.close(t)
+	defer ctx2.close(t)
+	ctx1.expectWelcomeMessage(t)
+	ctx2.expectWelcomeMessage(t)
+	ctx1.expectUserGotOnline(t, ctx2.username)
+
 	invitedUsersRequest1 := envelopeWithMessageType(domain.InvitedUsers)
-	sendEnvelope(t, ctx1.ws, invitedUsersRequest1)
-	invitedUsersReply1 := receiveAndVerifyEnvelopes(t, ctx1.ws, 1, false)[0]
-	expectAckUUIDsToContain(t, invitedUsersReply1.AckUUIDs, invitedUsersRequest1.UUID)
+	ctx1.sendEnvelope(t, invitedUsersRequest1)
+	invitedUsersReply1 := ctx1.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	expectAckUUIDsToContain(t, invitedUsersReply1, invitedUsersRequest1.UUID)
 	invitedUsersMessage1 := invitedUsersReply1.Data.(domain.Message)
 	expectMessageType(t, invitedUsersMessage1, domain.InvitedUsersReply)
 	invitedUsers1 := invitedUsersMessage1.Body.([]domain.InvitedUser)
@@ -36,17 +38,12 @@ func TestInviteUsers(t *testing.T) {
 		t.Fatalf("The leader should already be connected")
 	}
 
-	inviteUserRequest := envelopeWithMessageTypeAndBody(domain.InviteUser, ctx2.username)
-	sendEnvelope(t, ctx1.ws, inviteUserRequest)
-	inviteUserReply := receiveAndVerifyEnvelopes(t, ctx1.ws, 1, false)[0]
-	expectAckUUIDsToContain(t, inviteUserReply.AckUUIDs, inviteUserRequest.UUID)
-	inviteUserMessage := inviteUserReply.Data.(domain.Message)
-	expectMessageType(t, inviteUserMessage, domain.InviteUserReply)
+	sendInviteUser(t, ctx1, ctx2.username)
 
 	invitedUsersRequest2 := envelopeWithMessageType(domain.InvitedUsers)
-	sendEnvelope(t, ctx1.ws, invitedUsersRequest2)
-	invitedUsersReply2 := receiveAndVerifyEnvelopes(t, ctx1.ws, 1, false)[0]
-	expectAckUUIDsToContain(t, invitedUsersReply2.AckUUIDs, invitedUsersRequest2.UUID)
+	ctx1.sendEnvelope(t, invitedUsersRequest2)
+	invitedUsersReply2 := ctx1.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	expectAckUUIDsToContain(t, invitedUsersReply2, invitedUsersRequest2.UUID)
 	invitedUsersMessage2 := invitedUsersReply2.Data.(domain.Message)
 	expectMessageType(t, invitedUsersMessage2, domain.InvitedUsersReply)
 	invitedUsers2 := invitedUsersMessage2.Body.([]domain.InvitedUser)
@@ -58,15 +55,80 @@ func TestInviteUsers(t *testing.T) {
 		t.Fatalf("Wrong invited user" + gotAndExpectedMessage(invitedUsers2[0].Name, ctx2.username))
 	}
 
-	gotInviteEnvelope := receiveAndVerifyEnvelopes(t, ctx2.ws, 1, false)[0]
+	expectGotInvite(t, ctx2, domain.User{Name: ctx1.username, GameID: ctx1.gameID})
+}
+
+func TestAcceptInvitation(t *testing.T) {
+	server := httptest.NewServer(web.MainHandler())
+	defer server.Close()
+	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
+	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
+	defer ctx1.close(t)
+	ctx1.expectWelcomeMessage(t)
+	ctx2.expectWelcomeMessage(t)
+	ctx1.expectUserGotOnline(t, ctx2.username)
+
+	sendInviteUser(t, ctx1, ctx2.username)
+	expectGotInvite(t, ctx2, domain.User{Name: ctx1.username, GameID: ctx1.gameID})
+
+	ctx2.close(t)
+	ctx2.connectWSTo(t, ctx1.gameID)
+	defer ctx2.close(t)
+	ctx2.expectWelcomeMessage(t)
+	acceptedInvitationEnvelope := ctx1.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	acceptedInvitationMessage := acceptedInvitationEnvelope.Data.(domain.Message)
+	expectMessageType(t, acceptedInvitationMessage, domain.AcceptedInvitation)
+	username := acceptedInvitationMessage.Body.(string)
+	if username != ctx2.username {
+		t.Fatalf("Wrong accepted invitation username" + gotAndExpectedMessage(username, ctx2.username))
+	}
+}
+
+func TestDeclineInvitation(t *testing.T) {
+	server := httptest.NewServer(web.MainHandler())
+	defer server.Close()
+	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
+	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
+	defer ctx1.close(t)
+	ctx1.expectWelcomeMessage(t)
+	ctx2.expectWelcomeMessage(t)
+	ctx1.expectUserGotOnline(t, ctx2.username)
+
+	sendInviteUser(t, ctx1, ctx2.username)
+	expectGotInvite(t, ctx2, domain.User{Name: ctx1.username, GameID: ctx1.gameID})
+
+	declineInvitationRequest := envelopeWithMessageTypeAndBody(domain.DeclineInvitation, ctx1.gameID)
+	ctx2.sendEnvelope(t, declineInvitationRequest)
+	declineInvitationReply := ctx2.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	expectAckUUIDsToContain(t, declineInvitationReply, declineInvitationRequest.UUID)
+	declineInvitationReplyMessage := declineInvitationReply.Data.(domain.Message)
+	expectMessageType(t, declineInvitationReplyMessage, domain.DeclineInvitationReply)
+
+	declinedInvitation := ctx1.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	declinedInvitationMessage := declinedInvitation.Data.(domain.Message)
+	expectMessageType(t, declinedInvitationMessage, domain.DeclinedInvitation)
+	declinedUsername := declinedInvitationMessage.Body.(string)
+	if declinedUsername != ctx2.username {
+		t.Fatalf("Wrong declined invitation username" + gotAndExpectedMessage(declinedUsername, ctx2.username))
+	}
+}
+
+func sendInviteUser(t *testing.T, ctx *wsContext, invitedUserName string) {
+	inviteUserRequest := envelopeWithMessageTypeAndBody(domain.InviteUser, invitedUserName)
+	ctx.sendEnvelope(t, inviteUserRequest)
+	inviteUserReply := ctx.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	expectAckUUIDsToContain(t, inviteUserReply, inviteUserRequest.UUID)
+	inviteUserMessage := inviteUserReply.Data.(domain.Message)
+	expectMessageType(t, inviteUserMessage, domain.InviteUserReply)
+}
+
+func expectGotInvite(t *testing.T, ctx *wsContext, expectedInviter domain.User) {
+	gotInviteEnvelope := ctx.receiveAndVerifyEnvelopes(t, 1, false)[0]
 	gotInviteMessage := gotInviteEnvelope.Data.(domain.Message)
 	expectMessageType(t, gotInviteMessage, domain.GotInvite)
 	inviter := gotInviteMessage.Body.(domain.User)
-	if inviter.GameID != ctx1.gameID {
-		t.Fatalf("Wrong invited game id" + gotAndExpectedMessage(inviter.GameID, ctx1.gameID))
-	}
-	if inviter.Name != ctx1.username {
-		t.Fatalf("Wrong inviter name" + gotAndExpectedMessage(inviter.Name, ctx1.username))
+	if inviter != expectedInviter {
+		t.Fatalf("Wrong inviter" + gotAndExpectedMessage(inviter, expectedInviter))
 	}
 }
 
