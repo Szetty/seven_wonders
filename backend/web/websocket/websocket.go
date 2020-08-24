@@ -40,7 +40,7 @@ func ReceiveEnvelopes(conn *websocket.Conn) (error, []domain.Envelope) {
 			continue
 		}
 		newEnvelopes = append(newEnvelopes, domain.Envelope{
-			Data:     domain.DecodeMessageByType(msg),
+			Data:     domain.DecodeMessage(msg),
 			UUID:     envelope.UUID,
 			AckUUIDs: envelope.AckUUIDs,
 		})

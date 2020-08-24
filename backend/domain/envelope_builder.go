@@ -57,8 +57,8 @@ func (b MessageBuilder) Body(body interface{}) MessageBuilder {
 	return b
 }
 
-func (b MessageBuilder) Error(code string, info interface{}) Message {
-	b.messageType = "error"
+func (b MessageBuilder) Error(code ErrorCode, info interface{}) Message {
+	b.messageType = ErrorMessageType
 	b.body = ErrorBody{
 		Code: code,
 		Info: info,

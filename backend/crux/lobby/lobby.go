@@ -26,6 +26,7 @@ func Init(userCrux *user.Crux, authCrux *auth.Crux) *Crux {
 type Lobby struct {
 	lobbyCrux         *Crux
 	gameID            string
+	leaderUsername    string
 	authorizedUsers   map[string]bool
 	connectedUsers    map[string]bool
 	connectedSessions map[string]chan<- domain.OriginEnvelope
@@ -67,6 +68,17 @@ func (c *Crux) AuthorizedForLobby(username, gameID string) bool {
 	return <-replyCh
 }
 
+func (c *Crux) sendToLobby(gameID string, originEnvelope domain.OriginEnvelope) {
+	destL, ok := c.byGameID.Load(gameID)
+	if ok {
+		logger.L.Infof(c.messageWithPrefix("Sending to lobby %s: %#v"), gameID, originEnvelope)
+		destinationLobby := destL.(*Lobby)
+		destinationLobby.envelopeCh <- originEnvelope
+	} else {
+		logger.L.Errorf(c.messageWithPrefix("Could not find lobby with game id %s"), gameID)
+	}
+}
+
 func (c *Crux) messageWithPrefix(s string) string {
 	return "LOBBY_CRUX: " + s
 }
@@ -77,6 +89,7 @@ func newLobby(lobbiesCrux *Crux, username, gameID string) *Lobby {
 	return &Lobby{
 		lobbyCrux:         lobbiesCrux,
 		gameID:            gameID,
+		leaderUsername:    username,
 		authorizedUsers:   authorizedUsers,
 		connectedUsers:    make(map[string]bool),
 		connectedSessions: make(map[string]chan<- domain.OriginEnvelope),
@@ -107,15 +120,9 @@ func (l *Lobby) handleEnvelope(originEnvelope domain.OriginEnvelope) {
 	switch m := originEnvelope.Data.(type) {
 	case domain.Message:
 		switch m.MessageType {
-		case domain.InviteUser:
-			toInvite := m.Body.(string)
-			u := domain.User{Name: originEnvelope.ID, GameID: l.gameID}
-			l.lobbyCrux.userCrux.Notify(toInvite, domain.MessageBuilder{}.MessageType(domain.GotInvite).Body(u).Build(), l.origin())
-			l.replyToOrigin(originEnvelope, domain.MessageBuilder{}.MessageType(domain.InviteUserReply).Body(toInvite).Build())
-			l.changeAuthorization(toInvite, true)
 		case domain.InvitedUsers:
 			invitedUsers := []domain.InvitedUser{}
-			leader := l.lobbyCrux.authCrux.UserByGameID(l.gameID)
+			leader := l.leaderUsername
 			for name, invited := range l.authorizedUsers {
 				if invited {
 					invitedUsers = append(invitedUsers, domain.InvitedUser{
@@ -127,16 +134,49 @@ func (l *Lobby) handleEnvelope(originEnvelope domain.OriginEnvelope) {
 			}
 			replyMessage := domain.MessageBuilder{}.MessageType(domain.InvitedUsersReply).Body(invitedUsers).Build()
 			l.replyToOrigin(originEnvelope, replyMessage)
+		case domain.InviteUser:
+			leader := l.leaderUsername
+			if leader == originEnvelope.ID {
+				toInvite := m.Body.(string)
+				if !l.authorizedUsers[toInvite] {
+					u := domain.User{Name: originEnvelope.ID, GameID: l.gameID}
+					l.lobbyCrux.userCrux.Notify(toInvite, domain.MessageBuilder{}.MessageType(domain.GotInvite).Body(u).Build(), l.origin())
+					l.replyToOrigin(originEnvelope, domain.MessageBuilder{}.MessageType(domain.InviteUserReply).Body(toInvite).Build())
+					l.changeAuthorization(toInvite, true)
+				}
+			} else {
+				l.replyToOrigin(originEnvelope, domain.MessageBuilder{}.Error(domain.Unauthorized, nil))
+			}
 		case domain.UninviteUser:
-			toUninvite := m.Body.(string)
-			l.lobbyCrux.userCrux.Notify(toUninvite, domain.MessageBuilder{}.MessageType(domain.GotUninvite).Body(l.gameID).Build(), l.origin())
-			l.replyToOrigin(originEnvelope, domain.MessageBuilder{}.MessageType(domain.UninviteUserReply).Body(toUninvite).Build())
-			l.changeAuthorization(toUninvite, false)
+			leader := l.leaderUsername
+			if leader == originEnvelope.ID {
+				toUninvite := m.Body.(string)
+				if l.authorizedUsers[toUninvite] {
+					l.lobbyCrux.userCrux.Notify(toUninvite, domain.MessageBuilder{}.MessageType(domain.GotUninvite).Body(l.gameID).Build(), l.origin())
+					l.replyToOrigin(originEnvelope, domain.MessageBuilder{}.MessageType(domain.UninviteUserReply).Body(toUninvite).Build())
+					l.changeAuthorization(toUninvite, false)
+				}
+			} else {
+				l.replyToOrigin(originEnvelope, domain.MessageBuilder{}.Error(domain.Unauthorized, nil))
+			}
 		case domain.GotOffline:
 			offlineUsername := originEnvelope.ID
 			delete(l.connectedSessions, offlineUsername)
 			delete(l.connectedUsers, offlineUsername)
 			l.lobbyCrux.userCrux.Unregister(offlineUsername)
+		case domain.DeclineInvitation:
+			gameID := m.Body.(string)
+			if l.gameID == gameID {
+				originUser := originEnvelope.ID
+				if l.authorizedUsers[originUser] {
+					leader := l.leaderUsername
+					l.lobbyCrux.userCrux.Notify(leader, domain.MessageBuilder{}.MessageType(domain.DeclinedInvitation).Body(originUser).Build(), l.origin())
+					l.changeAuthorization(originUser, false)
+				}
+			} else {
+				l.replyToOrigin(originEnvelope, domain.MessageBuilder{}.MessageType(domain.DeclineInvitationReply).Build())
+				l.lobbyCrux.sendToLobby(gameID, originEnvelope)
+			}
 		case domain.StartGame:
 			//TODO implement starting a game
 			break
@@ -149,6 +189,10 @@ func (l *Lobby) handleEnvelope(originEnvelope domain.OriginEnvelope) {
 }
 
 func (l *Lobby) registerUserAndSession(username string, toSessionCh chan<- domain.OriginEnvelope) {
+	if l.leaderUsername != username {
+		acceptedInvitationNotification := domain.MessageBuilder{}.MessageType(domain.Connected).Body(username).Build()
+		l.lobbyCrux.userCrux.Notify(l.leaderUsername, acceptedInvitationNotification, l.origin())
+	}
 	l.connectedUsers[username] = true
 	l.connectedSessions[username] = toSessionCh
 }

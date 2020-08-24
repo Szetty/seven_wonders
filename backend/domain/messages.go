@@ -2,7 +2,7 @@ package domain
 
 type MessageType string
 
-const Welcome = "Welcome"
+const Welcome MessageType = "Welcome"
 
 type OriginEnvelope struct {
 	Envelope
@@ -20,7 +20,15 @@ type Message struct {
 	Body        interface{} `json:"body" mapstructure:"body"`
 }
 
-type ErrorBody struct {
-	Code string      `json:"code"`
-	Info interface{} `json:"info"`
+var decoders = []func(Message) Message{
+	decodeLobbyMessage,
+	decodeUsersMessage,
+	errorDecoder,
+}
+
+func DecodeMessage(message Message) Message {
+	for _, decoder := range decoders {
+		message = decoder(message)
+	}
+	return message
 }

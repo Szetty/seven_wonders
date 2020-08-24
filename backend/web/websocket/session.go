@@ -32,6 +32,11 @@ const (
 	offlineWait = 5 * time.Second
 )
 
+// events
+type (
+	welcome struct{}
+)
+
 type RegisterUpstreamChannels struct {
 	HubCh   chan<- domain.OriginEnvelope
 	UsersCh chan<- domain.OriginEnvelope
@@ -101,7 +106,7 @@ func (s *Session) startSession() {
 	s.conn.SetReadLimit(maxMessageSize)
 	s.conn.SetPongHandler(func(string) error { _ = s.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	go s.sessionRoutine()
-	s.sendWelcomeMessage()
+	s.EventCh <- welcome{}
 }
 
 func (s *Session) sessionRoutine() {
@@ -128,7 +133,10 @@ func (s *Session) sessionRoutine() {
 				s.handleHubQ()
 			}
 		case e := <-s.eventCh:
-			s.handleEvent(e)
+			err := s.handleEvent(e, conn)
+			if err != nil {
+				return
+			}
 		case originEnvelope, ok := <-s.clientCh:
 			if !ok {
 				s.clientChannelClosed(conn)
@@ -137,6 +145,7 @@ func (s *Session) sessionRoutine() {
 			}
 			err := s.receiveFromCrux(conn, originEnvelope)
 			if err != nil {
+				s.setupOfflineNotifier()
 				return
 			}
 		case <-pingTicker.C:
@@ -146,19 +155,6 @@ func (s *Session) sessionRoutine() {
 			}
 		}
 	}
-}
-
-func (s *Session) sendWelcomeMessage() {
-	s.ClientCh <- domain.EnveloperBuilder{}.
-		Data(
-			domain.MessageBuilder{}.
-				MessageType(domain.Welcome).
-				Body("").
-				Build(),
-		).
-		UUID(uuid.New().String()).
-		Build().
-		WithOrigin(domain.NewOrigin("", domain.Empty))
 }
 
 func (s *Session) clientReader(conn *websocket.Conn, clientReaderCh chan<- []domain.Envelope) {
@@ -249,12 +245,27 @@ func (s *Session) handleHubQ() {
 	}
 }
 
-func (s *Session) handleEvent(e interface{}) {
+func (s *Session) handleEvent(e interface{}, conn *websocket.Conn) error {
 	switch event := e.(type) {
 	case RegisterUpstreamChannels:
 		s.hubCh = event.HubCh
 		s.usersCh = event.UsersCh
+	case welcome:
+		envelope := domain.EnveloperBuilder{}.
+			Data(
+				domain.MessageBuilder{}.
+					MessageType(domain.Welcome).
+					Body("").
+					Build(),
+			).
+			UUID(uuid.New().String()).
+			Build()
+		err := s.sendToWS(conn, []domain.Envelope{envelope})
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (s *Session) receiveFromCrux(conn *websocket.Conn, originEnvelope domain.OriginEnvelope) error {
@@ -265,16 +276,8 @@ func (s *Session) receiveFromCrux(conn *websocket.Conn, originEnvelope domain.Or
 
 	logger.L.Infof(s.messageWithPrefix("Sending envelopes: %#v"), s.clientQ)
 
-	if err := conn.WriteJSON(s.clientQ); err != nil {
-		if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-			return err
-		}
-		if websocket.IsUnexpectedCloseError(err) {
-			logger.L.Warnf(s.messageWithPrefix("Fail to write WS message: %v"), err)
-			return err
-		}
-		reason := fmt.Sprintf("Could not write bundle message to WS: %v", err)
-		s.closeWebsocket(conn, reason)
+	err := s.sendToWS(conn, s.clientQ)
+	if err != nil {
 		return err
 	}
 	s.clientQ = []domain.Envelope{}
@@ -291,6 +294,22 @@ func (s *Session) readAllMessagesFromChannel(conn *websocket.Conn) {
 		}
 		s.clientQ = append(s.clientQ, originEnvelope.Envelope)
 	}
+}
+
+func (s *Session) sendToWS(conn *websocket.Conn, envelopes []domain.Envelope) error {
+	if err := conn.WriteJSON(envelopes); err != nil {
+		if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+			return err
+		}
+		if websocket.IsUnexpectedCloseError(err) {
+			logger.L.Warnf(s.messageWithPrefix("Fail to write WS message: %v"), err)
+			return err
+		}
+		reason := fmt.Sprintf("Could not write bundle message to WS: %v", err)
+		s.closeWebsocket(conn, reason)
+		return err
+	}
+	return nil
 }
 
 func (s *Session) clientChannelClosed(conn *websocket.Conn) {
