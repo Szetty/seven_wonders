@@ -110,6 +110,8 @@ func gameLobbyHandler(w http.ResponseWriter, r *http.Request) {
 		session.EventCh <- websocket.RegisterUpstreamChannels{HubCh: hubCh, UsersCh: crux(r).User.Channel()}
 		if !wasOnline {
 			crux(r).User.Register(username, session.ClientCh)
+		} else {
+			crux(r).User.Update(username, session.ClientCh)
 		}
 	}
 }

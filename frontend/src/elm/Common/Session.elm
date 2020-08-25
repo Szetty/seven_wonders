@@ -59,8 +59,8 @@ getCurrentUsername session =
             "Anonymous"
 
 
-getGameId : Session -> Maybe String
-getGameId session =
+getGameID : Session -> Maybe String
+getGameID session =
     Maybe.map .gameID (getUserInfo session)
 
 

@@ -1,10 +1,12 @@
 module Views.Notification exposing (..)
 
-import Common.Domain exposing (AcceptData, Notification, NotificationType(..), NotificationWithId, SavedNotification, savedNotificationToNotificationWithId)
+import Common.Domain exposing (AcceptData(..), Notification, NotificationType(..), NotificationWithId, SavedNotification, savedNotificationToNotificationWithId)
+import Common.Logger as Logger
 import Common.Session exposing (Session(..), getNavKey, getSavedNotifications)
 import Html exposing (Html, button, div, span, text)
 import Html.Attributes exposing (class, hidden)
 import Html.Events exposing (onClick)
+import Services.WebStorageService as WebStorageService
 
 
 type Msg
@@ -33,20 +35,30 @@ init session =
                     []
     in
     ( { notifications = notifications
-      , currentId = 0
+      , currentId = computeCurrentId notifications
       }
     , Cmd.none
     )
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : Msg -> Model -> Session -> ( Session, Model, Cmd Msg )
+update msg model session =
     case msg of
         OnAcceptFromNotification id _ ->
-            ( deleteNotification model id, Cmd.none )
+            let
+                newSession =
+                    deleteApproveNotificationById session id
+
+                cmd =
+                    WebStorageService.saveNotifications (getSavedNotifications newSession)
+
+                logger =
+                    Logger.log ("id=" ++ String.fromInt id) "end"
+            in
+            ( newSession, deleteNotificationById model id, Cmd.batch [ cmd, logger ] )
 
         RemoveNotification id ->
-            ( deleteNotification model id, Cmd.none )
+            ( session, deleteNotificationById model id, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -113,11 +125,30 @@ addNotification model notification =
     { model | notifications = ( model.currentId, notification ) :: newNotifications, currentId = model.currentId + 1 }
 
 
-deleteNotification : Model -> Int -> Model
-deleteNotification model idToDelete =
+deleteNotificationById : Model -> Int -> Model
+deleteNotificationById model idToDelete =
     let
         newNotifications =
             List.filter (\( id, _ ) -> not (id == idToDelete)) model.notifications
+    in
+    { model | notifications = newNotifications }
+
+
+deleteNotificationByGameId : Model -> String -> Model
+deleteNotificationByGameId model gameIdToDelete =
+    let
+        hasDiffGameID ( _, notification ) =
+            case notification.notificationType of
+                Approve accept ->
+                    case accept of
+                        String gID ->
+                            not (gID == gameIdToDelete)
+
+                _ ->
+                    True
+
+        newNotifications =
+            List.filter hasDiffGameID model.notifications
     in
     { model | notifications = newNotifications }
 
@@ -132,13 +163,32 @@ addApproveNotification session notification =
             s
 
 
-deleteApproveNotification : Session -> Int -> Session
-deleteApproveNotification session idToDelete =
+deleteApproveNotificationById : Session -> Int -> Session
+deleteApproveNotificationById session idToDelete =
     case session of
         LoggedIn _ sessionData ->
             let
                 newNotifications =
                     List.filter (\notification -> not (notification.id == idToDelete)) sessionData.notifications
+            in
+            LoggedIn (getNavKey session) { sessionData | notifications = newNotifications }
+
+        s ->
+            s
+
+
+deleteApproveNotificationByGameId : Session -> String -> Session
+deleteApproveNotificationByGameId session gameIdToDelete =
+    case session of
+        LoggedIn _ sessionData ->
+            let
+                hasDiffGameID notification =
+                    case notification.acceptData of
+                        String gID ->
+                            not (gID == gameIdToDelete)
+
+                newNotifications =
+                    List.filter hasDiffGameID sessionData.notifications
             in
             LoggedIn (getNavKey session) { sessionData | notifications = newNotifications }
 
@@ -154,3 +204,11 @@ simpleNotification text =
 approveNotification : String -> AcceptData -> Notification
 approveNotification text acceptData =
     Notification text (Approve acceptData)
+
+
+computeCurrentId : List NotificationWithId -> Int
+computeCurrentId notifications =
+    List.map (\( id, _ ) -> id) notifications
+        |> List.maximum
+        |> Maybe.map (\x -> x + 1)
+        |> Maybe.withDefault 0

@@ -14,8 +14,8 @@ saveUserInfo userInfo =
     WebStorage.storeUserInfo encoded
 
 
-saveNotification : Maybe (List SavedNotification) -> Cmd msg
-saveNotification savedNotifications =
+saveNotifications : Maybe (List SavedNotification) -> Cmd msg
+saveNotifications savedNotifications =
     case savedNotifications of
         Just notifications ->
             let

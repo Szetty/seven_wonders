@@ -1,5 +1,8 @@
 @import "./theme.scss";
 @import "~bootstrap/scss/bootstrap";
+@import '~@fortawesome/fontawesome-free/scss/fontawesome';
+@import '~@fortawesome/fontawesome-free/scss/regular';
+@import '~@fortawesome/fontawesome-free/scss/solid';
 
 [data-elm-hot="true"] {
   height: inherit;

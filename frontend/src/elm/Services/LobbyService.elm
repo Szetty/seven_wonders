@@ -25,12 +25,14 @@ type MessageBody
     | GotUninvite String
     | UserGotOnline String
     | UserGotOffline String
+    | Connected String
     | Unknown String
 
 
 type alias InvitedUser =
     { name : String
     , connected : Bool
+    , leader : Bool
     }
 
 
@@ -138,7 +140,7 @@ messageBodyDecoder messageType =
         "InvitedUsersReply" ->
             let
                 invitedUserDecoder =
-                    Decode.map2 InvitedUser (field "name" string) (field "connected" bool)
+                    Decode.map3 InvitedUser (field "name" string) (field "connected" bool) (field "leader" bool)
             in
             Decode.map InvitedUsersReply (list invitedUserDecoder)
 
@@ -164,5 +166,13 @@ messageBodyDecoder messageType =
         "UserGotOffline" ->
             Decode.map UserGotOffline string
 
+        "Connected" ->
+            Decode.map Connected string
+
         mType ->
             Decode.map Unknown (succeed mType)
+
+
+closeLobby : Cmd msg
+closeLobby =
+    WebSocketService.close
