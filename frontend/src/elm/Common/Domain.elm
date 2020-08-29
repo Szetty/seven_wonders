@@ -20,11 +20,11 @@ type alias UserInfo =
 type alias SavedNotification =
     { id : Int
     , message : String
-    , acceptData : AcceptData
+    , acceptData : Metadata
     }
 
 
-type AcceptData
+type Metadata
     = String String
 
 
@@ -40,7 +40,7 @@ type alias Notification =
 
 type NotificationType
     = Simple
-    | Approve AcceptData
+    | Approve Metadata
 
 
 userInfoEncoder : UserInfo -> Encode.Value
@@ -66,7 +66,7 @@ notificationEncoder notification =
         ]
 
 
-acceptDataEncoder : AcceptData -> Encode.Value
+acceptDataEncoder : Metadata -> Encode.Value
 acceptDataEncoder acceptData =
     case acceptData of
         String string ->
@@ -101,12 +101,12 @@ notificationDecoder =
         (field "acceptData" acceptDataDecoder)
 
 
-acceptDataDecoder : Decode.Decoder AcceptData
+acceptDataDecoder : Decode.Decoder Metadata
 acceptDataDecoder =
     Decode.oneOf [ acceptDataStringDecoder ]
 
 
-acceptDataStringDecoder : Decode.Decoder AcceptData
+acceptDataStringDecoder : Decode.Decoder Metadata
 acceptDataStringDecoder =
     Decode.map String (Decode.field "value" Decode.string)
 

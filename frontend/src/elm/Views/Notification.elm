@@ -1,6 +1,6 @@
 module Views.Notification exposing (..)
 
-import Common.Domain exposing (AcceptData(..), Notification, NotificationType(..), NotificationWithId, SavedNotification, savedNotificationToNotificationWithId)
+import Common.Domain exposing (Metadata(..), Notification, NotificationType(..), NotificationWithId, SavedNotification, savedNotificationToNotificationWithId)
 import Common.Logger as Logger
 import Common.Session exposing (Session(..), getNavKey, getSavedNotifications)
 import Html exposing (Html, button, div, span, text)
@@ -10,8 +10,9 @@ import Services.WebStorageService as WebStorageService
 
 
 type Msg
-    = OnAcceptFromNotification Int AcceptData
-    | RemoveNotification Int
+    = NotificationAccepted Int Metadata
+    | NotificationDeclined Int Metadata
+    | NotificationDiscarded Int
 
 
 type alias Model =
@@ -44,7 +45,7 @@ init session =
 update : Msg -> Model -> Session -> ( Session, Model, Cmd Msg )
 update msg model session =
     case msg of
-        OnAcceptFromNotification id _ ->
+        NotificationAccepted id _ ->
             let
                 newSession =
                     deleteApproveNotificationById session id
@@ -57,7 +58,10 @@ update msg model session =
             in
             ( newSession, deleteNotificationById model id, Cmd.batch [ cmd, logger ] )
 
-        RemoveNotification id ->
+        NotificationDeclined id _ ->
+            ( session, deleteNotificationById model id, Cmd.none )
+
+        NotificationDiscarded id ->
             ( session, deleteNotificationById model id, Cmd.none )
 
 
@@ -92,11 +96,11 @@ viewNotification ( id, notification ) =
         buttons =
             case notification.notificationType of
                 Simple ->
-                    [ button [ onClick (RemoveNotification id), class "btn btn-dark btn-sm ml-2" ] [ text "Ok" ] ]
+                    [ button [ onClick (NotificationDiscarded id), class "btn btn-dark btn-sm ml-2" ] [ text "Ok" ] ]
 
-                Approve accept ->
-                    [ button [ onClick (OnAcceptFromNotification id accept), class "btn btn-primary btn-sm ml-2" ] [ text "Accept" ]
-                    , button [ onClick (RemoveNotification id), class "btn btn-dark btn-sm ml-2" ] [ text "Decline" ]
+                Approve metadata ->
+                    [ button [ onClick (NotificationAccepted id metadata), class "btn btn-primary btn-sm ml-2" ] [ text "Accept" ]
+                    , button [ onClick (NotificationDeclined id metadata), class "btn btn-dark btn-sm ml-2" ] [ text "Decline" ]
                     ]
     in
     span [ class "d-block mb-1 border border-dark bg-info" ] <| text notification.message :: buttons
@@ -201,7 +205,7 @@ simpleNotification text =
     Notification text Simple
 
 
-approveNotification : String -> AcceptData -> Notification
+approveNotification : String -> Metadata -> Notification
 approveNotification text acceptData =
     Notification text (Approve acceptData)
 

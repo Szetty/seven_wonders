@@ -26,6 +26,7 @@ type MessageBody
     | UserGotOnline String
     | UserGotOffline String
     | Connected String
+    | Disconnected String
     | DeclinedInvitation String
     | DeclineInvitationReply
     | Unknown String
@@ -44,8 +45,8 @@ type alias User =
     }
 
 
-initGameLobby : Session -> Cmd msg
-initGameLobby session =
+initGameLobby : Session -> String -> Cmd msg
+initGameLobby session gameID =
     case session of
         Guest _ ->
             Cmd.none
@@ -53,7 +54,7 @@ initGameLobby session =
         LoggedIn _ sessionData ->
             let
                 url =
-                    String.replace ":gameID" sessionData.userInfo.gameID Endpoints.gameLobby
+                    String.replace ":gameID" gameID Endpoints.gameLobby
             in
             WebSocketService.init sessionData.userInfo.userToken url
 
@@ -185,6 +186,9 @@ messageBodyDecoder messageType =
 
         "Connected" ->
             Decode.map Connected string
+
+        "Disconnected" ->
+            Decode.map Disconnected string
 
         "DeclinedInvitation" ->
             Decode.map DeclinedInvitation string

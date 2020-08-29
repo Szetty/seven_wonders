@@ -121,6 +121,7 @@ func (s *Session) sessionRoutine() {
 		select {
 		case envelopes, ok := <-clientReaderCh:
 			if !ok {
+				s.sendDisconnected()
 				s.setupOfflineNotifier()
 				return
 			}
@@ -146,6 +147,7 @@ func (s *Session) sessionRoutine() {
 			logger.L.Infof(s.messageWithPrefix("RECEIVED FROM CRUX: %#v"), originEnvelope)
 			err := s.receiveFromCrux(conn, originEnvelope)
 			if err != nil {
+				s.sendDisconnected()
 				s.setupOfflineNotifier()
 				return
 			}
@@ -180,6 +182,11 @@ func (s *Session) clientReader(conn *websocket.Conn, clientReaderCh chan<- []dom
 	}
 }
 
+func (s *Session) sendDisconnected() {
+	disconnectedMessage := domain.MessageBuilder{}.MessageType(domain.Disconnected).Build()
+	s.hubCh <- domain.EnveloperBuilder{}.Data(disconnectedMessage).Build().WithOrigin(s.origin())
+}
+
 func (s *Session) setupOfflineNotifier() {
 	logger.L.Infof(s.messageWithPrefix("WS for session gone offline, setting up offline notifier"))
 	offlineCh := make(chan bool)
@@ -193,7 +200,7 @@ func (s *Session) setupOfflineNotifier() {
 		break
 	case <-ticker.C:
 		offlineMessage := domain.MessageBuilder{}.MessageType(domain.GotOffline).Build()
-		hubCh <- domain.EnveloperBuilder{}.Data(offlineMessage).GenerateUUID().Build().WithOrigin(s.origin())
+		hubCh <- domain.EnveloperBuilder{}.Data(offlineMessage).Build().WithOrigin(s.origin())
 	}
 	s.mtx.Lock()
 	close(s.offlineCh)
@@ -287,6 +294,7 @@ func (s *Session) receiveFromCrux(conn *websocket.Conn, originEnvelope domain.Or
 
 func (s *Session) readAllMessagesFromChannel(conn *websocket.Conn) {
 	n := len(s.clientCh)
+	logger.L.Infof("LENGTH of %#v is %d", s.clientCh, n)
 	for i := 0; i < n; i++ {
 		originEnvelope, ok := <-s.clientCh
 		if !ok {

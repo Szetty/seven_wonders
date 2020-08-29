@@ -1,6 +1,6 @@
 module Pages.Lobby exposing (..)
 
-import Common.Domain exposing (AcceptData(..), Notification, NotificationType(..), SavedNotification)
+import Common.Domain exposing (Metadata(..), Notification, NotificationType(..), SavedNotification)
 import Common.Logger as Logger
 import Common.Route as Route exposing (Route(..))
 import Common.Session exposing (Session(..), getCurrentUsername, getGameID, getNavKey, getSavedNotifications)
@@ -28,7 +28,7 @@ type alias Model =
     , gameID : String
     , toInviteUsername : String
     , onlineUsernames : List String
-    , invitedUsernames : Dict String InvitedUser
+    , invitedUsers : Dict String InvitedUser
     , notificationModel : Notification.Model
     }
 
@@ -49,11 +49,11 @@ init session gameID =
       , gameID = gameID
       , toInviteUsername = ""
       , onlineUsernames = []
-      , invitedUsernames = Dict.fromList []
+      , invitedUsers = Dict.fromList []
       , notificationModel = notificationModel
       }
     , Cmd.batch
-        [ LobbyService.initGameLobby session
+        [ LobbyService.initGameLobby session gameID
         , Cmd.map NotificationEvent notificationCmd
         ]
     )
@@ -81,16 +81,21 @@ update msg model =
 
                 cmd2 =
                     case notificationMsg of
-                        Notification.OnAcceptFromNotification _ acceptData ->
-                            case acceptData of
-                                String value ->
+                        Notification.NotificationAccepted _ metadata ->
+                            case metadata of
+                                String gameID ->
                                     Cmd.batch
                                         [ LobbyService.closeLobby
-                                        , Route.replaceUrl (getNavKey newSession) (Lobby value)
+                                        , Route.replaceUrl (getNavKey newSession) (Lobby gameID)
                                         ]
 
-                        Notification.RemoveNotification _ ->
-                            LobbyService.declineInvitation model.gameID
+                        Notification.NotificationDeclined _ metadata ->
+                            case metadata of
+                                String gameID ->
+                                    LobbyService.declineInvitation gameID
+
+                        _ ->
+                            Cmd.none
             in
             ( { model | notificationModel = notification, session = newSession }
             , Cmd.batch
@@ -107,9 +112,9 @@ update msg model =
         Uninvite toInvite ->
             let
                 updatedInvitedUsernames =
-                    Dict.remove toInvite model.invitedUsernames
+                    Dict.remove toInvite model.invitedUsers
             in
-            ( { model | invitedUsernames = updatedInvitedUsernames }
+            ( { model | invitedUsers = updatedInvitedUsernames }
             , LobbyService.uninviteUser toInvite
             )
 
@@ -152,14 +157,14 @@ update msg model =
                                 toTupleList =
                                     List.map (\invitedUser -> ( invitedUser.name, InvitedUser invitedUser.connected invitedUser.leader ))
                             in
-                            ( { model | invitedUsernames = Dict.fromList <| toTupleList invitedUsers }, Cmd.none )
+                            ( { model | invitedUsers = Dict.fromList <| toTupleList invitedUsers }, Cmd.none )
 
                         InviteUserReply username ->
                             let
                                 updatedInvitedUsernames =
-                                    Dict.insert username (InvitedUser False False) model.invitedUsernames
+                                    Dict.insert username (InvitedUser False False) model.invitedUsers
                             in
-                            ( { model | invitedUsernames = updatedInvitedUsernames }
+                            ( { model | invitedUsers = updatedInvitedUsernames }
                             , Cmd.none
                             )
 
@@ -190,12 +195,27 @@ update msg model =
                                             Just (InvitedUser False False)
 
                                         Just invitedUser ->
-                                            Just (InvitedUser True invitedUser.isLeader)
+                                            Just { invitedUser | connected = True }
 
-                                updatedInvitedUsernames =
-                                    Dict.update username updateInvitedUsers model.invitedUsernames
+                                updatedInvitedUsers =
+                                    Dict.update username updateInvitedUsers model.invitedUsers
                             in
-                            ( { model | invitedUsernames = updatedInvitedUsernames }, Logger.log "Connected here" "" )
+                            ( { model | invitedUsers = updatedInvitedUsers }, Logger.log ("Connected: " ++ username) "" )
+
+                        Disconnected username ->
+                            let
+                                updateInvitedUser maybeValue =
+                                    case maybeValue of
+                                        Nothing ->
+                                            Nothing
+
+                                        Just invitedUser ->
+                                            Just { invitedUser | connected = False }
+
+                                updatedInvitedUsers =
+                                    Dict.update username updateInvitedUser model.invitedUsers
+                            in
+                            ( { model | invitedUsers = updatedInvitedUsers }, Logger.log ("Disconnected: " ++ username) "" )
 
                         DeclinedInvitation username ->
                             let
@@ -244,14 +264,14 @@ update msg model =
                                             Just (InvitedUser False invitedUser.isLeader)
 
                                 updatedInvitedUsernames =
-                                    Dict.update username updateInvitedUsers model.invitedUsernames
+                                    Dict.update username updateInvitedUsers model.invitedUsers
                             in
                             ( if username /= currentUsername then
                                 { model
                                     | onlineUsernames = List.filter (\u -> not (u == username)) model.onlineUsernames
                                     , notificationModel =
                                         Notification.addNotification model.notificationModel notificationToBeAdded
-                                    , invitedUsernames = updatedInvitedUsernames
+                                    , invitedUsers = updatedInvitedUsernames
                                 }
 
                               else
@@ -359,7 +379,7 @@ viewInvited model =
                 ++ List.map (\onlineUsername -> option [] [ text onlineUsername ])
                     (List.filter
                         (\onlineUsername ->
-                            (not <| Dict.member onlineUsername model.invitedUsernames) && onlineUsername /= currentUsername
+                            (not <| Dict.member onlineUsername model.invitedUsers) && onlineUsername /= currentUsername
                         )
                         model.onlineUsernames
                     )
@@ -390,7 +410,7 @@ viewUsersTable model =
             [ class "table table-md table-light mt-4" ]
             [ thead [ class "thead-dark" ] [ tr [] [ th [] [ text "Username" ], th [] [ text "Delete" ] ] ]
             , tbody []
-                ((Dict.toList model.invitedUsernames
+                ((Dict.toList model.invitedUsers
                     |> List.map
                         (\( invitedUsername, invitedUser ) ->
                             tr
@@ -420,7 +440,7 @@ viewUsersTable model =
                                 ]
                         )
                  )
-                    ++ List.repeat (numberOfPlayers - size model.invitedUsernames) (tr [] [ td [ colspan 4 ] [ text "FREE" ] ])
+                    ++ List.repeat (numberOfPlayers - size model.invitedUsers) (tr [] [ td [ colspan 4 ] [ text "FREE" ] ])
                 )
             ]
         , button
@@ -437,7 +457,7 @@ viewConnectedUsersTable model =
             getCurrentUsername model.session
 
         connectedUsernames =
-            Dict.toList model.invitedUsernames |> List.filter (\( _, invitedUser ) -> not invitedUser.connected)
+            Dict.toList model.invitedUsers |> List.filter (\( _, invitedUser ) -> invitedUser.connected)
 
         numberOfPlayers =
             7
@@ -446,24 +466,23 @@ viewConnectedUsersTable model =
         [ table [ class "table table-md table-light mt-4" ]
             [ thead [ class "thead-dark" ] [ tr [] [ th [] [ text "Username" ] ] ]
             , tbody []
-                ([ tr [] [ td [ class "align-middle" ] [ text <| currentUsername ] ] ]
-                    ++ List.map
-                        (\( invitedUsername, invitedUser ) ->
-                            tr []
-                                [ td [ class "align-middle" ]
-                                    [ if invitedUsername == currentUsername then
-                                        div [] [ i [ class "fas fa-angle-double-right mr-2" ] [], text invitedUsername ]
+                (List.map
+                    (\( invitedUsername, invitedUser ) ->
+                        tr []
+                            [ td [ class "align-middle" ]
+                                [ if invitedUsername == currentUsername then
+                                    div [] [ i [ class "fas fa-angle-double-right mr-2" ] [], text invitedUsername ]
 
-                                      else if invitedUser.isLeader then
-                                        div [] [ i [ class "fas fa-crown mr-2" ] [], text invitedUsername ]
+                                  else if invitedUser.isLeader then
+                                    div [] [ i [ class "fas fa-crown mr-2" ] [], text invitedUsername ]
 
-                                      else
-                                        text invitedUsername
-                                    ]
+                                  else
+                                    text invitedUsername
                                 ]
-                        )
-                        connectedUsernames
-                    ++ List.repeat (numberOfPlayers - size model.invitedUsernames - 1) (tr [] [ td [ colspan 4 ] [ text "FREE" ] ])
+                            ]
+                    )
+                    connectedUsernames
+                    ++ List.repeat (numberOfPlayers - size model.invitedUsers) (tr [] [ td [ colspan 4 ] [ text "FREE" ] ])
                 )
             ]
         ]

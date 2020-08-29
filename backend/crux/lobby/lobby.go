@@ -161,9 +161,13 @@ func (l *Lobby) handleEnvelope(originEnvelope domain.OriginEnvelope) {
 			}
 		case domain.GotOffline:
 			offlineUsername := originEnvelope.ID
-			delete(l.connectedSessions, offlineUsername)
-			delete(l.connectedUsers, offlineUsername)
 			l.lobbyCrux.userCrux.Unregister(offlineUsername)
+		case domain.Disconnected:
+			username := originEnvelope.ID
+			delete(l.connectedSessions, username)
+			delete(l.connectedUsers, username)
+			notification := domain.MessageBuilder{}.MessageType(domain.Disconnected).Body(username).Build()
+			l.notifyConnectedUsers(notification)
 		case domain.DeclineInvitation:
 			gameID := m.Body.(string)
 			if l.gameID == gameID {
@@ -189,10 +193,8 @@ func (l *Lobby) handleEnvelope(originEnvelope domain.OriginEnvelope) {
 }
 
 func (l *Lobby) registerUserAndSession(username string, toSessionCh chan<- domain.OriginEnvelope) {
-	if l.leaderUsername != username {
-		acceptedInvitationNotification := domain.MessageBuilder{}.MessageType(domain.Connected).Body(username).Build()
-		l.lobbyCrux.userCrux.Notify(l.leaderUsername, acceptedInvitationNotification, l.origin())
-	}
+	connectedNotification := domain.MessageBuilder{}.MessageType(domain.Connected).Body(username).Build()
+	l.notifyConnectedUsers(connectedNotification)
 	l.connectedUsers[username] = true
 	l.connectedSessions[username] = toSessionCh
 }
@@ -207,6 +209,14 @@ func (l *Lobby) replyToOrigin(envelope domain.OriginEnvelope, replyMessage domai
 		l.connectedSessions[envelope.ID] <- domain.Reply(envelope.Envelope, replyMessage).WithOrigin(l.origin())
 	default:
 		logger.L.Warnf(l.messageWithPrefix("Unknown origin type: %s"), envelope.OriginType)
+	}
+}
+
+func (l *Lobby) notifyConnectedUsers(message domain.Message) {
+	for username, connected := range l.connectedUsers {
+		if connected {
+			l.lobbyCrux.userCrux.Notify(username, message, l.origin())
+		}
 	}
 }
 
