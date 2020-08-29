@@ -20,17 +20,21 @@ type MessageBody
     = OnlineUsersReply (List String)
     | InvitedUsersReply (List InvitedUser)
     | InviteUserReply String
-    | UninviteUserReply String
+    | UninviteUserReply
     | GotInvite User
     | GotUninvite String
     | UserGotOnline String
     | UserGotOffline String
+    | Connected String
+    | DeclinedInvitation String
+    | DeclineInvitationReply
     | Unknown String
 
 
 type alias InvitedUser =
     { name : String
     , connected : Bool
+    , leader : Bool
     }
 
 
@@ -98,6 +102,18 @@ uninviteUser toUninvite =
     WebSocketService.sendMessage payload
 
 
+declineInvitation : String -> Cmd msg
+declineInvitation gameID =
+    let
+        payload =
+            Encode.object
+                [ ( "type", Encode.string "DeclineInvitation" )
+                , ( "body", Encode.string gameID )
+                ]
+    in
+    WebSocketService.sendMessage payload
+
+
 subscriptions : (Message -> msg) -> Sub msg
 subscriptions toMsg =
     let
@@ -138,7 +154,7 @@ messageBodyDecoder messageType =
         "InvitedUsersReply" ->
             let
                 invitedUserDecoder =
-                    Decode.map2 InvitedUser (field "name" string) (field "connected" bool)
+                    Decode.map3 InvitedUser (field "name" string) (field "connected" bool) (field "leader" bool)
             in
             Decode.map InvitedUsersReply (list invitedUserDecoder)
 
@@ -146,7 +162,10 @@ messageBodyDecoder messageType =
             Decode.map InviteUserReply string
 
         "UninviteUserReply" ->
-            Decode.map UninviteUserReply string
+            Decode.succeed UninviteUserReply
+
+        "DeclineInvitationReply" ->
+            Decode.succeed DeclineInvitationReply
 
         "GotInvite" ->
             let
@@ -164,5 +183,16 @@ messageBodyDecoder messageType =
         "UserGotOffline" ->
             Decode.map UserGotOffline string
 
+        "Connected" ->
+            Decode.map Connected string
+
+        "DeclinedInvitation" ->
+            Decode.map DeclinedInvitation string
+
         mType ->
             Decode.map Unknown (succeed mType)
+
+
+closeLobby : Cmd msg
+closeLobby =
+    WebSocketService.close

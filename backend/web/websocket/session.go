@@ -143,6 +143,7 @@ func (s *Session) sessionRoutine() {
 				s.closeWebsocket(conn, "to client channel was closed")
 				return
 			}
+			logger.L.Infof(s.messageWithPrefix("RECEIVED FROM CRUX: %#v"), originEnvelope)
 			err := s.receiveFromCrux(conn, originEnvelope)
 			if err != nil {
 				s.setupOfflineNotifier()
@@ -168,7 +169,6 @@ func (s *Session) clientReader(conn *websocket.Conn, clientReaderCh chan<- []dom
 				return
 			}
 			logger.L.Warnf(s.messageWithPrefix("Fail to read WS message: %v"), err)
-			time.Sleep(time.Second)
 			if websocket.IsUnexpectedCloseError(errors.Cause(err), websocket.CloseNormalClosure) {
 				close(clientReaderCh)
 				return
@@ -246,6 +246,7 @@ func (s *Session) handleHubQ() {
 }
 
 func (s *Session) handleEvent(e interface{}, conn *websocket.Conn) error {
+	logger.L.Infof(s.messageWithPrefix("EVENT: %#v"), e)
 	switch event := e.(type) {
 	case RegisterUpstreamChannels:
 		s.hubCh = event.HubCh

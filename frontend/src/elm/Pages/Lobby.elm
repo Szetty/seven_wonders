@@ -1,17 +1,17 @@
 module Pages.Lobby exposing (..)
 
-import Common.Domain exposing (AcceptData(..), Notification, SavedNotification)
+import Common.Domain exposing (AcceptData(..), Notification, NotificationType(..), SavedNotification)
 import Common.Logger as Logger
 import Common.Route as Route exposing (Route(..))
-import Common.Session exposing (Session(..), getCurrentUsername, getNavKey, getSavedNotifications)
+import Common.Session exposing (Session(..), getCurrentUsername, getGameID, getNavKey, getSavedNotifications)
 import Dict exposing (Dict, size)
-import Html exposing (Attribute, Html, button, div, option, select, table, tbody, td, text, th, thead, tr)
+import Html exposing (Attribute, Html, button, div, i, option, select, table, tbody, td, text, th, thead, tr)
 import Html.Attributes exposing (class, colspan, disabled)
 import Html.Events exposing (onClick, onInput)
 import Services.LobbyService as LobbyService exposing (MessageBody(..))
 import Services.WebStorageService as WebStorageService
 import Views.Header as Header
-import Views.Notification as Notification exposing (addApproveNotification)
+import Views.Notification as Notification exposing (addApproveNotification, deleteApproveNotificationByGameId, deleteNotificationByGameId)
 
 
 type Msg
@@ -28,8 +28,14 @@ type alias Model =
     , gameID : String
     , toInviteUsername : String
     , onlineUsernames : List String
-    , invitedUsernames : Dict String Bool
+    , invitedUsernames : Dict String InvitedUser
     , notificationModel : Notification.Model
+    }
+
+
+type alias InvitedUser =
+    { connected : Bool
+    , isLeader : Bool
     }
 
 
@@ -70,21 +76,21 @@ update msg model =
 
         NotificationEvent notificationMsg ->
             let
-                ( notification, cmd1 ) =
-                    Notification.update notificationMsg model.notificationModel
+                ( newSession, notification, cmd1 ) =
+                    Notification.update notificationMsg model.notificationModel model.session
 
                 cmd2 =
                     case notificationMsg of
                         Notification.OnAcceptFromNotification _ acceptData ->
                             case acceptData of
                                 String value ->
-                                    Route.replaceUrl (getNavKey model.session) (Lobby value)
+                                    Cmd.batch
+                                        [ LobbyService.closeLobby
+                                        , Route.replaceUrl (getNavKey newSession) (Lobby value)
+                                        ]
 
-                        _ ->
-                            Cmd.none
-
-                newSession =
-                    Notification.deleteApproveNotification model.session model.notificationModel.currentId
+                        Notification.RemoveNotification _ ->
+                            LobbyService.declineInvitation model.gameID
             in
             ( { model | notificationModel = notification, session = newSession }
             , Cmd.batch
@@ -99,7 +105,11 @@ update msg model =
             )
 
         Uninvite toInvite ->
-            ( model
+            let
+                updatedInvitedUsernames =
+                    Dict.remove toInvite model.invitedUsernames
+            in
+            ( { model | invitedUsernames = updatedInvitedUsernames }
             , LobbyService.uninviteUser toInvite
             )
 
@@ -140,25 +150,26 @@ update msg model =
                         InvitedUsersReply invitedUsers ->
                             let
                                 toTupleList =
-                                    List.map (\invitedUser -> ( invitedUser.name, invitedUser.connected ))
+                                    List.map (\invitedUser -> ( invitedUser.name, InvitedUser invitedUser.connected invitedUser.leader ))
                             in
                             ( { model | invitedUsernames = Dict.fromList <| toTupleList invitedUsers }, Cmd.none )
 
                         InviteUserReply username ->
                             let
                                 updatedInvitedUsernames =
-                                    Dict.insert username False model.invitedUsernames
+                                    Dict.insert username (InvitedUser False False) model.invitedUsernames
                             in
                             ( { model | invitedUsernames = updatedInvitedUsernames }
                             , Cmd.none
                             )
 
-                        UninviteUserReply username ->
-                            let
-                                updatedInvitedUsernames =
-                                    Dict.remove username model.invitedUsernames
-                            in
-                            ( { model | invitedUsernames = updatedInvitedUsernames }
+                        UninviteUserReply ->
+                            ( model
+                            , Cmd.none
+                            )
+
+                        DeclineInvitationReply ->
+                            ( model
                             , Cmd.none
                             )
 
@@ -171,6 +182,37 @@ update msg model =
                             getCurrentUsername model.session
                     in
                     case messageBody of
+                        Connected username ->
+                            let
+                                updateInvitedUsers maybeValue =
+                                    case maybeValue of
+                                        Nothing ->
+                                            Just (InvitedUser False False)
+
+                                        Just invitedUser ->
+                                            Just (InvitedUser True invitedUser.isLeader)
+
+                                updatedInvitedUsernames =
+                                    Dict.update username updateInvitedUsers model.invitedUsernames
+                            in
+                            ( { model | invitedUsernames = updatedInvitedUsernames }, Logger.log "Connected here" "" )
+
+                        DeclinedInvitation username ->
+                            let
+                                notificationToBeAdded =
+                                    Notification.simpleNotification ("User " ++ username ++ " declined your invitation!")
+                            in
+                            ( if username /= currentUsername then
+                                { model
+                                    | notificationModel =
+                                        Notification.addNotification model.notificationModel notificationToBeAdded
+                                }
+
+                              else
+                                model
+                            , Cmd.none
+                            )
+
                         UserGotOnline username ->
                             let
                                 notificationToBeAdded =
@@ -192,12 +234,24 @@ update msg model =
                             let
                                 notificationToBeAdded =
                                     Notification.simpleNotification ("User " ++ username ++ " got offline!")
+
+                                updateInvitedUsers maybeValue =
+                                    case maybeValue of
+                                        Nothing ->
+                                            Just (InvitedUser False False)
+
+                                        Just invitedUser ->
+                                            Just (InvitedUser False invitedUser.isLeader)
+
+                                updatedInvitedUsernames =
+                                    Dict.update username updateInvitedUsers model.invitedUsernames
                             in
                             ( if username /= currentUsername then
                                 { model
                                     | onlineUsernames = List.filter (\u -> not (u == username)) model.onlineUsernames
                                     , notificationModel =
                                         Notification.addNotification model.notificationModel notificationToBeAdded
+                                    , invitedUsernames = updatedInvitedUsernames
                                 }
 
                               else
@@ -222,8 +276,31 @@ update msg model =
                                         notificationToBeAdded
                                 , session = newSession
                               }
-                            , WebStorageService.saveNotification (getSavedNotifications newSession)
+                            , WebStorageService.saveNotifications (getSavedNotifications newSession)
                             )
+
+                        GotUninvite gameID ->
+                            let
+                                newSession =
+                                    deleteApproveNotificationByGameId model.session gameID
+
+                                cmd =
+                                    WebStorageService.saveNotifications (getSavedNotifications newSession)
+
+                                cmd1 =
+                                    if gameID == model.gameID then
+                                        Route.replaceUrl (getNavKey newSession) (Lobby (getCurrentGameID model))
+
+                                    else
+                                        cmd
+
+                                oldNotificationModel =
+                                    model.notificationModel
+
+                                notificationModel =
+                                    deleteNotificationByGameId model.notificationModel gameID
+                            in
+                            ( { model | notificationModel = { oldNotificationModel | notifications = notificationModel.notifications } }, cmd1 )
 
                         _ ->
                             ( model, Cmd.none )
@@ -235,19 +312,50 @@ update msg model =
 view : Model -> List (Html Msg)
 view model =
     let
+        body =
+            if model.gameID == getCurrentGameID model then
+                div [] [ viewInvited model, viewUsersTable model ]
+
+            else
+                div [] [ viewConnectedUsersTable model ]
+    in
+    [ viewTopPage model
+    , body
+    ]
+
+
+viewTopPage : Model -> Html Msg
+viewTopPage model =
+    div []
+        [ div [] [ Html.map NotificationEvent <| Notification.view model.notificationModel ]
+        , div []
+            [ Html.map HeaderEvent <| Header.view model.session
+            ]
+        ]
+
+
+viewDeleteButton : String -> Html Msg
+viewDeleteButton invitedUsername =
+    button
+        [ onClick (Uninvite invitedUsername)
+        , class "btn btn-dark"
+        ]
+        [ text "x" ]
+
+
+viewInvited : Model -> Html Msg
+viewInvited model =
+    let
+        defaultOption =
+            "Select username"
+
         currentUsername =
             getCurrentUsername model.session
-
-        numberOfPlayers =
-            7
     in
-    [ div [] [ Html.map NotificationEvent <| Notification.view model.notificationModel ]
-    , div []
-        [ Html.map HeaderEvent <| Header.view model.session
-        ]
-    , div [ class "" ]
+    div
+        []
         [ select [ onInput SetToInviteUsername, class "custom-select-md mr-4 btn btn-md btn-primary" ] <|
-            [ option [] [ text "Select username" ] ]
+            [ option [] [ text defaultOption ] ]
                 ++ List.map (\onlineUsername -> option [] [ text onlineUsername ])
                     (List.filter
                         (\onlineUsername ->
@@ -258,7 +366,7 @@ view model =
         , button
             [ onClick Invite
             , class "btn btn-dark"
-            , if model.toInviteUsername == "Select username" || model.toInviteUsername == "" then
+            , if model.toInviteUsername == defaultOption || model.toInviteUsername == "" then
                 disabled True
 
               else
@@ -266,33 +374,117 @@ view model =
             ]
             [ text "Invite" ]
         ]
-    , div [ class "table-responsive" ]
-        [ table [ class "table table-md table-light mt-4" ]
+
+
+viewUsersTable : Model -> Html Msg
+viewUsersTable model =
+    let
+        currentUsername =
+            getCurrentUsername model.session
+
+        numberOfPlayers =
+            7
+    in
+    div [ class "table-responsive" ]
+        [ table
+            [ class "table table-md table-light mt-4" ]
             [ thead [ class "thead-dark" ] [ tr [] [ th [] [ text "Username" ], th [] [ text "Delete" ] ] ]
             , tbody []
-                ([ tr [] [ td [ class "align-middle" ] [ text <| currentUsername ], td [] [] ] ]
-                    ++ (Dict.toList model.invitedUsernames
-                            |> List.map
-                                (\( invitedUsername, isConnected ) ->
-                                    tr
-                                        [ if not isConnected then
-                                            class "not-connected-row"
+                ((Dict.toList model.invitedUsernames
+                    |> List.map
+                        (\( invitedUsername, invitedUser ) ->
+                            tr
+                                [ if not invitedUser.connected then
+                                    class "not-connected-row"
 
-                                          else
-                                            class ""
-                                        ]
-                                        [ td [ class "align-middle" ] [ text invitedUsername ]
-                                        , td [] [ button [ onClick (Uninvite invitedUsername), class "btn btn-dark" ] [ text "x" ] ]
-                                        ]
-                                )
-                       )
+                                  else
+                                    class ""
+                                ]
+                                [ td [ class "align-middle" ]
+                                    [ if invitedUsername == currentUsername then
+                                        div [] [ i [ class "fas fa-angle-double-right mr-2" ] [], text invitedUsername ]
+
+                                      else if invitedUser.isLeader then
+                                        div [] [ i [ class "fas fa-crown mr-2" ] [], text invitedUsername ]
+
+                                      else
+                                        text invitedUsername
+                                    ]
+                                , td []
+                                    [ if model.gameID == getCurrentGameID model && not (invitedUsername == currentUsername) then
+                                        viewDeleteButton currentUsername
+
+                                      else
+                                        text ""
+                                    ]
+                                ]
+                        )
+                 )
+                    ++ List.repeat (numberOfPlayers - size model.invitedUsernames) (tr [] [ td [ colspan 4 ] [ text "FREE" ] ])
+                )
+            ]
+        , button
+            [ class "btn btn-dark mt-4"
+            ]
+            [ text "Start" ]
+        ]
+
+
+viewConnectedUsersTable : Model -> Html Msg
+viewConnectedUsersTable model =
+    let
+        currentUsername =
+            getCurrentUsername model.session
+
+        connectedUsernames =
+            Dict.toList model.invitedUsernames |> List.filter (\( _, invitedUser ) -> not invitedUser.connected)
+
+        numberOfPlayers =
+            7
+    in
+    div [ class "table-responsive" ]
+        [ table [ class "table table-md table-light mt-4" ]
+            [ thead [ class "thead-dark" ] [ tr [] [ th [] [ text "Username" ] ] ]
+            , tbody []
+                ([ tr [] [ td [ class "align-middle" ] [ text <| currentUsername ] ] ]
+                    ++ List.map
+                        (\( invitedUsername, invitedUser ) ->
+                            tr []
+                                [ td [ class "align-middle" ]
+                                    [ if invitedUsername == currentUsername then
+                                        div [] [ i [ class "fas fa-angle-double-right mr-2" ] [], text invitedUsername ]
+
+                                      else if invitedUser.isLeader then
+                                        div [] [ i [ class "fas fa-crown mr-2" ] [], text invitedUsername ]
+
+                                      else
+                                        text invitedUsername
+                                    ]
+                                ]
+                        )
+                        connectedUsernames
                     ++ List.repeat (numberOfPlayers - size model.invitedUsernames - 1) (tr [] [ td [ colspan 4 ] [ text "FREE" ] ])
                 )
             ]
         ]
-    , button [ class "btn btn-dark mt-4" ] [ text "Start" ]
-    ]
 
 
 subscriptions =
     LobbyService.subscriptions GotLobbyMessage
+
+
+getCurrentGameID : Model -> String
+getCurrentGameID model =
+    let
+        maybeCurrentGameID =
+            getGameID model.session
+
+        currentGameID =
+            case maybeCurrentGameID of
+                Just value ->
+                    value
+
+                Nothing ->
+                    ""
+    in
+    currentGameID

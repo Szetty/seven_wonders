@@ -27,6 +27,10 @@ type (
 		username  string
 		sessionCh chan<- domain.OriginEnvelope
 	}
+	update struct {
+		username  string
+		sessionCh chan<- domain.OriginEnvelope
+	}
 	notify struct {
 		username string
 		message  domain.Message
@@ -39,6 +43,10 @@ type (
 
 func (c *Crux) Register(username string, sessionCh chan<- domain.OriginEnvelope) {
 	c.eventCh <- register{username, sessionCh}
+}
+
+func (c* Crux) Update(username string, sessionCh chan<- domain.OriginEnvelope) {
+	c.eventCh <- update{username, sessionCh}
 }
 
 func (c *Crux) Unregister(username string) {
@@ -72,6 +80,8 @@ func (c *Crux) usersRoutine() {
 					message := domain.MessageBuilder{}.MessageType(domain.GotOffline).Body(event.username).Build()
 					domain.NotifyTarget(session, message, c.origin())
 				}
+			case update:
+				c.onlineUsers[event.username] = event.sessionCh
 			case notify:
 				c.notifyTarget(event.username, event.message, event.origin)
 			}
@@ -82,6 +92,7 @@ func (c *Crux) usersRoutine() {
 }
 
 func (c *Crux) handleEnvelope(originEnvelope domain.OriginEnvelope) {
+	logger.L.Infof(c.messageWithPrefix("ENVELOPE: %#v"), originEnvelope)
 	switch m := originEnvelope.Data.(type) {
 	case domain.Message:
 		switch m.MessageType {
