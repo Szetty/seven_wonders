@@ -35,7 +35,7 @@ type alias Model =
 
 type alias InvitedUser =
     { connected : Bool
-    , isLeader : Bool
+    , leader : Bool
     }
 
 
@@ -164,7 +164,7 @@ update msg model =
                                 updatedInvitedUsernames =
                                     Dict.insert username (InvitedUser False False) model.invitedUsers
                             in
-                            ( { model | invitedUsers = updatedInvitedUsernames }
+                            ( { model | invitedUsers = updatedInvitedUsernames, toInviteUsername = "" }
                             , Cmd.none
                             )
 
@@ -192,7 +192,7 @@ update msg model =
                                 updateInvitedUsers maybeValue =
                                     case maybeValue of
                                         Nothing ->
-                                            Just (InvitedUser False False)
+                                            Just { connected = True, leader = False }
 
                                         Just invitedUser ->
                                             Just { invitedUser | connected = True }
@@ -200,7 +200,7 @@ update msg model =
                                 updatedInvitedUsers =
                                     Dict.update username updateInvitedUsers model.invitedUsers
                             in
-                            ( { model | invitedUsers = updatedInvitedUsers }, Logger.log ("Connected: " ++ username) "" )
+                            ( { model | invitedUsers = updatedInvitedUsers }, Cmd.none )
 
                         Disconnected username ->
                             let
@@ -221,11 +221,15 @@ update msg model =
                             let
                                 notificationToBeAdded =
                                     Notification.simpleNotification ("User " ++ username ++ " declined your invitation!")
+
+                                updatedInvitedUsernames =
+                                    Dict.remove username model.invitedUsers
                             in
                             ( if username /= currentUsername then
                                 { model
                                     | notificationModel =
                                         Notification.addNotification model.notificationModel notificationToBeAdded
+                                    , invitedUsers = updatedInvitedUsernames
                                 }
 
                               else
@@ -258,10 +262,10 @@ update msg model =
                                 updateInvitedUsers maybeValue =
                                     case maybeValue of
                                         Nothing ->
-                                            Just (InvitedUser False False)
+                                            Nothing
 
                                         Just invitedUser ->
-                                            Just (InvitedUser False invitedUser.isLeader)
+                                            Just { invitedUser | connected = False }
 
                                 updatedInvitedUsernames =
                                     Dict.update username updateInvitedUsers model.invitedUsers
@@ -320,7 +324,9 @@ update msg model =
                                 notificationModel =
                                     deleteNotificationByGameId model.notificationModel gameID
                             in
-                            ( { model | notificationModel = { oldNotificationModel | notifications = notificationModel.notifications } }, cmd1 )
+                            ( { model | notificationModel = { oldNotificationModel | notifications = notificationModel.notifications } }
+                            , Cmd.batch [ LobbyService.closeLobby, cmd1 ]
+                            )
 
                         _ ->
                             ( model, Cmd.none )
@@ -424,7 +430,7 @@ viewUsersTable model =
                                     [ if invitedUsername == currentUsername then
                                         div [] [ i [ class "fas fa-angle-double-right mr-2" ] [], text invitedUsername ]
 
-                                      else if invitedUser.isLeader then
+                                      else if invitedUser.leader then
                                         div [] [ i [ class "fas fa-crown mr-2" ] [], text invitedUsername ]
 
                                       else
@@ -432,7 +438,7 @@ viewUsersTable model =
                                     ]
                                 , td []
                                     [ if model.gameID == getCurrentGameID model && not (invitedUsername == currentUsername) then
-                                        viewDeleteButton currentUsername
+                                        viewDeleteButton invitedUsername
 
                                       else
                                         text ""
@@ -473,7 +479,7 @@ viewConnectedUsersTable model =
                                 [ if invitedUsername == currentUsername then
                                     div [] [ i [ class "fas fa-angle-double-right mr-2" ] [], text invitedUsername ]
 
-                                  else if invitedUser.isLeader then
+                                  else if invitedUser.leader then
                                     div [] [ i [ class "fas fa-crown mr-2" ] [], text invitedUsername ]
 
                                   else
