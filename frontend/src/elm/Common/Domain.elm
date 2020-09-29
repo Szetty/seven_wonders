@@ -1,6 +1,6 @@
 module Common.Domain exposing (..)
 
-import Json.Decode as Decode exposing (errorToString, field, int, string)
+import Json.Decode as Decode exposing (field, int, string)
 import Json.Encode as Encode
 
 
@@ -117,8 +117,8 @@ decodeSessionData string =
         Ok sessionData ->
             Just sessionData
 
-        Err e ->
-            Debug.log (errorToString e) Nothing
+        Err _ ->
+            Nothing
 
 
 savedNotificationToNotificationWithId : SavedNotification -> NotificationWithId
