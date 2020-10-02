@@ -52,11 +52,8 @@ update msg model session =
 
                 cmd =
                     WebStorageService.saveNotifications (getSavedNotifications newSession)
-
-                logger =
-                    Logger.log ("id=" ++ String.fromInt id) "end"
             in
-            ( newSession, deleteNotificationById model id, Cmd.batch [ cmd, logger ] )
+            ( newSession, deleteNotificationById model id, cmd )
 
         NotificationDeclined id _ ->
             ( session, deleteNotificationById model id, Cmd.none )

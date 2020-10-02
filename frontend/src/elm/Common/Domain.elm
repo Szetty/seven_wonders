@@ -43,6 +43,12 @@ type NotificationType
     | Approve Metadata
 
 
+type alias InvitedUser =
+    { connected : Bool
+    , leader : Bool
+    }
+
+
 userInfoEncoder : UserInfo -> Encode.Value
 userInfoEncoder userInfo =
     Encode.object
