@@ -70,10 +70,10 @@ update msg model =
 
         NotificationEvent notificationMsg ->
             let
-                ( newSession, notification, cmd1 ) =
+                ( newSession, notification, updateResultCmd ) =
                     Notification.update notificationMsg model.notificationModel model.session
 
-                cmd2 =
+                notificationActionCmd =
                     case notificationMsg of
                         Notification.NotificationAccepted _ metadata ->
                             case metadata of
@@ -90,11 +90,14 @@ update msg model =
 
                         _ ->
                             Cmd.none
+
+                mapNotificationCmd =
+                    Cmd.map NotificationEvent updateResultCmd
             in
             ( { model | notificationModel = notification, session = newSession }
             , Cmd.batch
-                [ Cmd.map NotificationEvent cmd1
-                , cmd2
+                [ mapNotificationCmd
+                , notificationActionCmd
                 ]
             )
 
@@ -206,8 +209,11 @@ update msg model =
 
                                 updatedInvitedUsernames =
                                     Dict.remove username model.invitedUsers
+
+                                isSameUsername =
+                                    username == currentUsername
                             in
-                            ( if username /= currentUsername then
+                            ( if not isSameUsername then
                                 { model
                                     | notificationModel =
                                         Notification.addNotification model.notificationModel notificationToBeAdded
@@ -223,8 +229,11 @@ update msg model =
                             let
                                 notificationToBeAdded =
                                     Notification.simpleNotification ("User " ++ username ++ " got online!")
+
+                                isSameUsername =
+                                    username == currentUsername
                             in
-                            ( if username /= currentUsername then
+                            ( if not isSameUsername then
                                 { model
                                     | onlineUsernames = model.onlineUsernames ++ [ username ]
                                     , notificationModel =
@@ -243,8 +252,11 @@ update msg model =
 
                                 updatedInvitedUsernames =
                                     Dict.update username updateInvitedUser model.invitedUsers
+
+                                isSameUsername =
+                                    username == currentUsername
                             in
-                            ( if username /= currentUsername then
+                            ( if not isSameUsername then
                                 { model
                                     | onlineUsernames = List.filter (\u -> not (u == username)) model.onlineUsernames
                                     , notificationModel =
@@ -281,15 +293,18 @@ update msg model =
                                 newSession =
                                     deleteApproveNotificationByGameId model.session gameID
 
-                                cmd =
+                                replaceUrlCmd =
+                                    Route.replaceUrl (getNavKey newSession) (Lobby (getCurrentGameID model))
+
+                                saveToWebstorageCmd =
                                     WebStorageService.saveNotifications (getSavedNotifications newSession)
 
-                                cmd1 =
+                                checkGameIDCmd =
                                     if gameID == model.gameID then
-                                        Route.replaceUrl (getNavKey newSession) (Lobby (getCurrentGameID model))
+                                        Cmd.batch [ LobbyService.closeLobby, replaceUrlCmd ]
 
                                     else
-                                        cmd
+                                        saveToWebstorageCmd
 
                                 oldNotificationModel =
                                     model.notificationModel
@@ -298,7 +313,7 @@ update msg model =
                                     deleteNotificationByGameId model.notificationModel gameID
                             in
                             ( { model | notificationModel = { oldNotificationModel | notifications = notificationModel.notifications } }
-                            , Cmd.batch [ LobbyService.closeLobby, cmd1 ]
+                            , checkGameIDCmd
                             )
 
                         _ ->
@@ -314,12 +329,18 @@ view model =
         currentUsername =
             getCurrentUsername model.session
 
+        invitedUsers =
+            Dict.toList model.invitedUsers
+
+        connectedUsers =
+            Dict.toList model.invitedUsers |> List.filter (\( _, invitedUser ) -> invitedUser.connected)
+
         body =
             if model.gameID == getCurrentGameID model then
-                div [] [ viewInvited model currentUsername, viewUsersTable model currentUsername ]
+                div [] [ viewInvited model currentUsername, viewUsersTable model currentUsername invitedUsers ]
 
             else
-                div [] [ viewUsersTable model currentUsername ]
+                div [] [ viewUsersTable model currentUsername connectedUsers ]
     in
     [ viewTopPage model
     , body
@@ -334,13 +355,6 @@ viewTopPage model =
             [ Html.map HeaderEvent <| Header.view model.session
             ]
         ]
-
-
-viewDeleteButton : String -> Html Msg
-viewDeleteButton invitedUsername =
-    button
-        [ onClick (Uninvite invitedUsername), class "btn btn-dark" ]
-        [ text "x" ]
 
 
 viewInvited : Model -> String -> Html Msg
@@ -374,18 +388,40 @@ viewInvited model currentUsername =
         ]
 
 
-viewUsersTable : Model -> String -> Html Msg
-viewUsersTable model currentUsername =
+viewUsersTable : Model -> String -> List ( String, InvitedUser ) -> Html Msg
+viewUsersTable model currentUsername usernames =
     let
         numberOfPlayers =
             7
+
+        isSameGameId =
+            model.gameID == getCurrentGameID model
+
+        showDeleteHeader =
+            if isSameGameId then
+                [ th [] [ text "Delete" ] ]
+
+            else
+                []
+
+        showHeader =
+            [ th [] [ text "Username" ] ] ++ showDeleteHeader
+
+        showFreeSlots =
+            List.repeat (numberOfPlayers - size model.invitedUsers) (tr [] [ td [ colspan 4 ] [ text "FREE" ] ])
+
+        startButton =
+            button
+                [ class "btn btn-dark mt-4" ]
+                [ text "Start" ]
     in
     div [ class "table-responsive" ]
         [ table
             [ class "table table-md table-light mt-4" ]
-            [ thead [ class "thead-dark" ] [ tr [] [ th [] [ text "Username" ], th [] [ text "Delete" ] ] ]
+            [ thead [ class "thead-dark" ]
+                [ tr [] showHeader ]
             , tbody []
-                ((Dict.toList model.invitedUsers
+                ((usernames
                     |> List.map
                         (\( invitedUsername, invitedUser ) ->
                             tr
@@ -395,7 +431,7 @@ viewUsersTable model currentUsername =
                                   else
                                     class ""
                                 ]
-                                [ td [ class "align-middle" ]
+                                ([ td [ class "align-middle" ]
                                     [ if invitedUsername == currentUsername then
                                         div [] [ i [ class "fas fa-angle-double-right mr-2" ] [], text invitedUsername ]
 
@@ -405,22 +441,29 @@ viewUsersTable model currentUsername =
                                       else
                                         text invitedUsername
                                     ]
-                                , td []
-                                    [ if model.gameID == getCurrentGameID model && not (invitedUsername == currentUsername) then
-                                        viewDeleteButton invitedUsername
+                                 ]
+                                    ++ (if isSameGameId then
+                                            [ td []
+                                                [ if not (invitedUsername == currentUsername) then
+                                                    button
+                                                        [ onClick (Uninvite invitedUsername), class "btn btn-dark" ]
+                                                        [ text "x" ]
 
-                                      else
-                                        text ""
-                                    ]
-                                ]
+                                                  else
+                                                    text ""
+                                                ]
+                                            ]
+
+                                        else
+                                            []
+                                       )
+                                )
                         )
                  )
-                    ++ List.repeat (numberOfPlayers - size model.invitedUsers) (tr [] [ td [ colspan 4 ] [ text "FREE" ] ])
+                    ++ showFreeSlots
                 )
             ]
-        , button
-            [ class "btn btn-dark mt-4" ]
-            [ text "Start" ]
+        , startButton
         ]
 
 
