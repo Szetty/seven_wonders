@@ -74,7 +74,7 @@ clearSession : Session -> ( Session, Cmd Msg )
 clearSession session =
     ( Guest (getNavKey session)
     , Cmd.batch
-        [ WebStorageService.deleteUserInfo
+        [ WebStorageService.deleteSessionData
         , WebSocketService.close
         , Route.replaceUrl (getNavKey session) Login
         ]

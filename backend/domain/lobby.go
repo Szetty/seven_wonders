@@ -21,6 +21,7 @@ const (
 	GotInvite          MessageType = "GotInvite"
 	GotUninvite        MessageType = "GotUninvite"
 	Connected          MessageType = "Connected"
+	Disconnected	   MessageType = "Disconnected"
 	DeclinedInvitation MessageType = "DeclinedInvitation"
 	StartGame          MessageType = "StartGame"
 )
@@ -82,6 +83,8 @@ func decodeLobbyMessage(message Message) Message {
 	case GotUninvite:
 		message.Body = message.Body.(string)
 	case Connected:
+		message.Body = message.Body.(string)
+	case Disconnected:
 		message.Body = message.Body.(string)
 	case DeclinedInvitation:
 		message.Body = message.Body.(string)

@@ -1,6 +1,6 @@
 import './styles/main.scss';
 import { Elm } from './elm/Main.elm';
-import { init_flags, storeUserInfo, deleteUserInfo } from "./typescript/WebStorage.ts";
+import { init_flags, storeUserInfo, storeNotifications, clearStorage } from "./typescript/WebStorage.ts";
 import { initWebSocket } from "./typescript/websocket";
 import * as serviceWorker from './serviceWorker';
 import 'bootstrap';
@@ -11,8 +11,8 @@ let app = Elm.Main.init({
 });
 
 app.ports.storeUserInfo.subscribe(storeUserInfo);
-
-app.ports.deleteUserInfo.subscribe(deleteUserInfo);
+app.ports.storeNotifications.subscribe(storeNotifications);
+app.ports.clearStorage.subscribe(clearStorage);
 
 let webSocketService = null;
 

@@ -21,12 +21,12 @@ initGame session =
         Guest _ ->
             Cmd.none
 
-        LoggedIn _ userInfo ->
+        LoggedIn _ sessionData ->
             let
                 url =
-                    String.replace ":gameID" userInfo.gameID Endpoints.game
+                    String.replace ":gameID" sessionData.userInfo.gameID Endpoints.game
             in
-            WebSocketService.init userInfo.userToken url
+            WebSocketService.init sessionData.userInfo.userToken url
 
 
 subscriptions : (Message -> msg) -> Sub msg

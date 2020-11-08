@@ -1,30 +1,33 @@
 module Services.WebStorageService exposing (..)
 
+import Common.Domain as Domain exposing (SavedNotification, SessionData, UserInfo)
 import Json.Encode as Encode
 import Networking.WebStorage as WebStorage
-
-
-type alias UserInfo =
-    { name : String
-    , userToken : String
-    , gameID : String
-    }
 
 
 saveUserInfo : UserInfo -> Cmd msg
 saveUserInfo userInfo =
     let
         encoded =
-            Encode.encode 0 <|
-                Encode.object
-                    [ ( "name", Encode.string userInfo.name )
-                    , ( "userToken", Encode.string userInfo.userToken )
-                    , ( "gameID", Encode.string userInfo.gameID )
-                    ]
+            Encode.encode 0 <| Domain.userInfoEncoder userInfo
     in
     WebStorage.storeUserInfo encoded
 
 
-deleteUserInfo : Cmd msg
-deleteUserInfo =
-    WebStorage.deleteUserInfo ""
+saveNotifications : Maybe (List SavedNotification) -> Cmd msg
+saveNotifications savedNotifications =
+    case savedNotifications of
+        Just notifications ->
+            let
+                encoded =
+                    Encode.encode 0 <| Domain.notificationsEncoder notifications
+            in
+            WebStorage.storeNotifications encoded
+
+        Nothing ->
+            Cmd.none
+
+
+deleteSessionData : Cmd msg
+deleteSessionData =
+    WebStorage.clearStorage ""

@@ -121,6 +121,7 @@ func (s *Session) sessionRoutine() {
 		select {
 		case envelopes, ok := <-clientReaderCh:
 			if !ok {
+				s.sendDisconnected()
 				s.setupOfflineNotifier()
 				return
 			}
@@ -143,8 +144,10 @@ func (s *Session) sessionRoutine() {
 				s.closeWebsocket(conn, "to client channel was closed")
 				return
 			}
+			logger.L.Infof(s.messageWithPrefix("RECEIVED FROM CRUX: %#v"), originEnvelope)
 			err := s.receiveFromCrux(conn, originEnvelope)
 			if err != nil {
+				s.sendDisconnected()
 				s.setupOfflineNotifier()
 				return
 			}
@@ -168,7 +171,6 @@ func (s *Session) clientReader(conn *websocket.Conn, clientReaderCh chan<- []dom
 				return
 			}
 			logger.L.Warnf(s.messageWithPrefix("Fail to read WS message: %v"), err)
-			time.Sleep(time.Second)
 			if websocket.IsUnexpectedCloseError(errors.Cause(err), websocket.CloseNormalClosure) {
 				close(clientReaderCh)
 				return
@@ -178,6 +180,11 @@ func (s *Session) clientReader(conn *websocket.Conn, clientReaderCh chan<- []dom
 		logger.L.Infof(s.messageWithPrefix("Received envelopes: %#v"), envelopes)
 		clientReaderCh <- envelopes
 	}
+}
+
+func (s *Session) sendDisconnected() {
+	disconnectedMessage := domain.MessageBuilder{}.MessageType(domain.Disconnected).Build()
+	s.hubCh <- domain.EnveloperBuilder{}.Data(disconnectedMessage).Build().WithOrigin(s.origin())
 }
 
 func (s *Session) setupOfflineNotifier() {
@@ -193,7 +200,7 @@ func (s *Session) setupOfflineNotifier() {
 		break
 	case <-ticker.C:
 		offlineMessage := domain.MessageBuilder{}.MessageType(domain.GotOffline).Build()
-		hubCh <- domain.EnveloperBuilder{}.Data(offlineMessage).GenerateUUID().Build().WithOrigin(s.origin())
+		hubCh <- domain.EnveloperBuilder{}.Data(offlineMessage).Build().WithOrigin(s.origin())
 	}
 	s.mtx.Lock()
 	close(s.offlineCh)
@@ -246,6 +253,7 @@ func (s *Session) handleHubQ() {
 }
 
 func (s *Session) handleEvent(e interface{}, conn *websocket.Conn) error {
+	logger.L.Infof(s.messageWithPrefix("EVENT: %#v"), e)
 	switch event := e.(type) {
 	case RegisterUpstreamChannels:
 		s.hubCh = event.HubCh
@@ -286,6 +294,7 @@ func (s *Session) receiveFromCrux(conn *websocket.Conn, originEnvelope domain.Or
 
 func (s *Session) readAllMessagesFromChannel(conn *websocket.Conn) {
 	n := len(s.clientCh)
+	logger.L.Infof("LENGTH of %#v is %d", s.clientCh, n)
 	for i := 0; i < n; i++ {
 		originEnvelope, ok := <-s.clientCh
 		if !ok {

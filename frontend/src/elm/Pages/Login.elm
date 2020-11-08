@@ -1,7 +1,7 @@
 module Pages.Login exposing (..)
 
 import Common.Route as Route exposing (Route(..))
-import Common.Session exposing (Session, getNavKey, setUserInfo)
+import Common.Session exposing (Session, getNavKey, toLoggedIn)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -87,7 +87,7 @@ update msg model =
                 ( Ok userInfo, cmd ) ->
                     let
                         session =
-                            setUserInfo model.session userInfo
+                            toLoggedIn model.session userInfo
 
                         cmdBatch =
                             Cmd.batch

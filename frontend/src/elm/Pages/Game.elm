@@ -1,7 +1,7 @@
 module Pages.Game exposing (..)
 
 import Common.Logger as Logger
-import Common.Session exposing (Session(..), UserInfo)
+import Common.Session exposing (Session(..))
 import Html exposing (Html, div)
 import Html.Attributes exposing (class, style)
 import Services.GameService as GameService
