@@ -3,8 +3,8 @@ module Views.Header exposing (..)
 import Common.Error exposing (ErrorType(..))
 import Common.Route as Route exposing (Route(..))
 import Common.Session exposing (Session(..), getCurrentUsername, getNavKey, getUserInfo)
-import Html exposing (Html, button, div, text)
-import Html.Attributes exposing (class)
+import Html exposing (Html, a, button, div, text)
+import Html.Attributes exposing (class, href)
 import Html.Events exposing (onClick)
 import Services.LogoutService as LogoutService
 import Services.TokenService as TokenService
@@ -16,6 +16,7 @@ type Msg
     = OnTokenCheck TokenService.Msg
     | Logout
     | GotLogout LogoutService.Msg
+    | Redirect
 
 
 init : Session -> Cmd Msg
@@ -69,6 +70,19 @@ update msg session =
                     else
                         ( session, Cmd.map OnTokenCheck cmd )
 
+        Redirect ->
+            case getUserInfo session of
+                Just userInfo ->
+                    ( session
+                    , Cmd.batch
+                        [ WebSocketService.close
+                        , Route.replaceUrl (getNavKey session) (Lobby userInfo.gameID)
+                        ]
+                    )
+
+                Nothing ->
+                    ( Guest (getNavKey session), Cmd.none )
+
 
 clearSession : Session -> ( Session, Cmd Msg )
 clearSession session =
@@ -85,7 +99,7 @@ view : Session -> Html Msg
 view session =
     div [ class "header static-top p-3 mb-5" ]
         [ div [ class "d-flex justify-content-between" ]
-            [ div [ class "mt-1 btn-like-text" ] [ text (getCurrentUsername session) ]
+            [ div [ class "mt-1 btn-like-text" ] [ a [ onClick Redirect, href "#" ] [ text (getCurrentUsername session) ] ]
             , button [ onClick Logout, class "btn btn-dark" ] [ text "Logout" ]
             ]
         ]
