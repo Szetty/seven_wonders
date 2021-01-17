@@ -43,7 +43,11 @@ export class WebSocketService implements interfaces.WebSocketService {
 
     constructor(wsUrl: string, private _proxy: interfaces.WebSocketProxy) {
         const protocol = process.env["NODE_ENV"] == "production" ? "wss://" : "ws://";
-        this.wsUrl = `${protocol}${window.location.host}${wsUrl}`;
+        if (global.window) {
+            this.wsUrl = `${protocol}${window.location.host}${wsUrl}`;
+        } else {
+            this.wsUrl = `${protocol}${wsUrl}`;
+        }
         this.pulseInterval = setInterval(this.pulse, this.pulseMs);
     }
 

@@ -1,0 +1,39 @@
+{
+  "name": "integration-tests",
+  "version": "0.0.1",
+  "description": "Seven Wonders Online Integration Tests",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Szetty/seven_wonders.git"
+  },
+  "keywords": [
+    "seven_wonders",
+    "haskell",
+    "go",
+    "elm",
+    "typescript"
+  ],
+  "author": "Arnold & Andra Szederjesi-Dragomir",
+  "bugs": {
+    "url": "https://github.com/Szetty/seven_wonders/issues"
+  },
+  "homepage": "https://github.com/Szetty/seven_wonders#readme",
+  "scripts": {
+    "test": "jest --detectOpenHandles"
+  },
+  "dependencies": {
+    "axios": "^0.21.1",
+    "websocket-client": "file:../websocket-client",
+    "ws": "^7.4.2"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.11.9",
+    "@types/jest": "^26.0.20",
+    "@types/node": "^14.0.5",
+    "jest": "^26.6.3",
+    "ts-jest": "^26.4.4",
+    "ts-loader": "^7.0.4",
+    "typescript": "^3.9.7"
+  }
+}

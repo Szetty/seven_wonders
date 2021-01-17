@@ -23,7 +23,7 @@ app.ports.initWebSocket.subscribe((wsUrl) => {
     onOffline() { app.ports.onWSOffline.send("") },
     onOnline() { app.ports.onWSOnline.send("") },
     onIncomingMessage(data) { app.ports.incomingWSMessage.send(JSON.stringify(data)) }
-  })
+  });
 });
 
 app.ports.sendWSMessage.subscribe((message) => {
