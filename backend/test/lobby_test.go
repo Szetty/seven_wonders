@@ -18,25 +18,7 @@ func TestInviteUsers(t *testing.T) {
 	ctx2.expectWelcomeMessage(t)
 	ctx1.expectUserGotOnline(t, ctx2.username)
 
-	invitedUsersRequest1 := envelopeWithMessageType(domain.InvitedUsers)
-	ctx1.sendEnvelope(t, invitedUsersRequest1)
-	invitedUsersReply1 := ctx1.receiveAndVerifyEnvelopes(t, 1, false)[0]
-	expectAckUUIDsToContain(t, invitedUsersReply1, invitedUsersRequest1.UUID)
-	invitedUsersMessage1 := invitedUsersReply1.Data.(domain.Message)
-	expectMessageType(t, invitedUsersMessage1, domain.InvitedUsersReply)
-	invitedUsers1 := invitedUsersMessage1.Body.([]domain.InvitedUser)
-	if len(invitedUsers1) != 1 {
-		t.Fatalf("Expecting only leader to be invited user")
-	}
-	if invitedUsers1[0].Name != ctx1.username {
-		t.Fatalf("Wrong invited user")
-	}
-	if !invitedUsers1[0].Leader {
-		t.Fatalf("The only invited user should be the leader")
-	}
-	if !invitedUsers1[0].Connected {
-		t.Fatalf("The leader should already be connected")
-	}
+	testLeaderIsInvited(t, ctx1)
 
 	sendInviteUser(t, ctx1, ctx2.username)
 
@@ -141,6 +123,52 @@ func TestUnauthorizedInvite(t *testing.T) {
 	expectedErrorCode := domain.Unauthorized
 	if errorBody.Code != expectedErrorCode {
 		t.Fatalf("Wrong error code" + gotAndExpectedMessage(errorBody.Code, expectedErrorCode))
+	}
+}
+
+func TestReturnToOwnLobby(t *testing.T) {
+	server := httptest.NewServer(web.MainHandler())
+	defer server.Close()
+	ctx1 := setupWS(t, server, "/api/secured/game/lobby/")
+	ctx2 := setupWS(t, server, "/api/secured/game/lobby/")
+	defer ctx1.close(t)
+	ctx1.expectWelcomeMessage(t)
+	ctx2.expectWelcomeMessage(t)
+	ctx1.expectUserGotOnline(t, ctx2.username)
+
+	sendInviteUser(t, ctx1, ctx2.username)
+	expectGotInvite(t, ctx2, domain.User{Name: ctx1.username, GameID: ctx1.gameID})
+
+	ctx2.close(t)
+	ctx2.connectWSTo(t, ctx1.gameID)
+	ctx2.expectWelcomeMessage(t)
+
+	ctx2.close(t)
+	ctx2.reconnectWS(t)
+	ctx2.expectWelcomeMessage(t)
+	testOnlineUsers(t, ctx2, []string{ctx1.username, ctx2.username})
+	testLeaderIsInvited(t, ctx2)
+}
+
+func testLeaderIsInvited(t *testing.T, ctx *wsContext) {
+	invitedUsersRequest := envelopeWithMessageType(domain.InvitedUsers)
+	ctx.sendEnvelope(t, invitedUsersRequest)
+	invitedUsersReply := ctx.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	expectAckUUIDsToContain(t, invitedUsersReply, invitedUsersRequest.UUID)
+	invitedUsersMessage := invitedUsersReply.Data.(domain.Message)
+	expectMessageType(t, invitedUsersMessage, domain.InvitedUsersReply)
+	invitedUsers := invitedUsersMessage.Body.([]domain.InvitedUser)
+	if len(invitedUsers) != 1 {
+		t.Fatalf("Expecting only leader to be invited user")
+	}
+	if invitedUsers[0].Name != ctx.username {
+		t.Fatalf("Wrong invited user")
+	}
+	if !invitedUsers[0].Leader {
+		t.Fatalf("The only invited user should be the leader")
+	}
+	if !invitedUsers[0].Connected {
+		t.Fatalf("The leader should already be connected")
 	}
 }
 

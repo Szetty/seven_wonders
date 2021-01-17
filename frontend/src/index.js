@@ -1,7 +1,7 @@
 import './styles/main.scss';
 import { Elm } from './elm/Main.elm';
-import { init_flags, storeUserInfo, storeNotifications, clearStorage } from "./typescript/WebStorage.ts";
-import { initWebSocket } from "./typescript/websocket";
+import { init_flags, storeUserInfo, storeNotifications, clearStorage } from "./webStorage.js";
+import { initWebSocket } from "websocket-client";
 import * as serviceWorker from './serviceWorker';
 import 'bootstrap';
 

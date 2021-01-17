@@ -3,12 +3,6 @@
   "version": "0.0.1",
   "description": "Seven Wonders Online frontend",
   "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Szetty/seven_wonders.git"
@@ -17,7 +11,8 @@
     "seven_wonders",
     "haskell",
     "go",
-    "elm"
+    "elm",
+    "typescript"
   ],
   "author": "Arnold & Andra Szederjesi-Dragomir",
   "license": "MIT",
@@ -31,19 +26,14 @@
     "http-proxy-middleware": "^1.0.4",
     "jquery": "^3.5.1",
     "popper.js": "^1.16.1",
-    "underscore": "^1.10.2",
-    "uuid": "^8.1.0"
+    "websocket-client": "file:../websocket-client"
   },
   "devDependencies": {
-    "@types/node": "^14.0.5",
-    "@types/underscore": "^1.10.0",
-    "@types/uuid": "^8.0.0",
     "css-loader": "^3.5.3",
     "node-sass": "^4.14.1",
     "resolve-url-loader": "^3.1.1",
     "sass-loader": "^8.0.2",
     "style-loader": "^1.2.1",
-    "ts-loader": "^7.0.4",
     "typescript": "^3.9.3"
   }
 }

@@ -1,0 +1,37 @@
+{
+  "name": "websocket-client",
+  "version": "1.0.0",
+  "description": "Websocket Client for Seven Wonders Online WS protocol",
+  "main": "build/index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Szetty/seven_wonders.git"
+  },
+  "keywords": [
+    "seven_wonders",
+    "haskell",
+    "go",
+    "elm",
+    "typescript"
+  ],
+  "author": "Arnold & Andra Szederjesi-Dragomir",
+  "bugs": {
+    "url": "https://github.com/Szetty/seven_wonders/issues"
+  },
+  "homepage": "https://github.com/Szetty/seven_wonders#readme",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "underscore": "^1.10.2",
+    "uuid": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.5",
+    "@types/underscore": "^1.10.0",
+    "@types/uuid": "^8.0.0",
+    "ts-loader": "^7.0.4",
+    "typescript": "^3.9.3"
+  }
+}

@@ -1,10 +1,10 @@
-export function init_flags(): string {
+export function init_flags() {
     let userInfo = JSON.parse(get('userInfo'));
     let notifications = JSON.parse(get('notifications')) || [];
     if (userInfo) {
-        return JSON.stringify({ userInfo, notifications } as SessionData)
+        return JSON.stringify({ userInfo, notifications });
     } else {
-        return ""
+        return "";
     }
 }
 
@@ -20,19 +20,11 @@ export function clearStorage() {
     localStorage.clear();
 }
 
-type SessionData =
-    { userInfo : string
-    , notifications : string
-    }
-
-type StoreKey = 'notifications' | 'userInfo';
-
-function store(key: StoreKey, value: string) {
+function store(key, value) {
     console.log(`Storing ${key}`, value);
     localStorage.setItem(key, value);
 }
 
-function get(key: StoreKey): string {
+function get(key) {
     return localStorage.getItem(key);
 }
-

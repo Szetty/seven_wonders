@@ -38,24 +38,7 @@ func TestOnlineUsers(t *testing.T) {
 	ctx1.expectWelcomeMessage(t)
 	ctx2.expectWelcomeMessage(t)
 	ctx1.expectUserGotOnline(t, ctx2.username)
-	requestEnvelope := envelopeWithMessageType(domain.OnlineUsers)
-	ctx1.sendEnvelope(t, requestEnvelope)
-	replyEnvelope := ctx1.receiveAndVerifyEnvelopes(t, 1, false)[0]
-	expectAckUUIDsToContain(t, replyEnvelope, requestEnvelope.UUID)
-	message := replyEnvelope.Data.(domain.Message)
-	expectMessageType(t, message, domain.OnlineUsersReply)
-	onlineUsers := message.Body.([]string)
-	if len(onlineUsers) != 2 {
-		t.Fatalf("Expecting two online users")
-	}
-	allOnlineUsersStr := strings.Join(onlineUsers, "")
-	expectOnlineUser := func(username string) {
-		if !strings.Contains(allOnlineUsersStr, username) {
-			t.Fatalf("Online users list (%s) does not contain user: %s", allOnlineUsersStr, username)
-		}
-	}
-	expectOnlineUser(ctx1.username)
-	expectOnlineUser(ctx2.username)
+	testOnlineUsers(t, ctx1, []string{ctx1.username, ctx2.username})
 }
 
 func TestOfflineUsers(t *testing.T) {
@@ -93,4 +76,26 @@ func TestReconnect(t *testing.T) {
 	defer ctx2.close(t)
 	ctx2.expectWelcomeMessage(t)
 	ctx1.receiveAndVerifyEnvelopes(t, 1, true)
+}
+
+func testOnlineUsers(t *testing.T, ctx *wsContext, usernames []string) {
+	requestEnvelope := envelopeWithMessageType(domain.OnlineUsers)
+	ctx.sendEnvelope(t, requestEnvelope)
+	replyEnvelope := ctx.receiveAndVerifyEnvelopes(t, 1, false)[0]
+	expectAckUUIDsToContain(t, replyEnvelope, requestEnvelope.UUID)
+	message := replyEnvelope.Data.(domain.Message)
+	expectMessageType(t, message, domain.OnlineUsersReply)
+	onlineUsers := message.Body.([]string)
+	if len(onlineUsers) != 2 {
+		t.Fatalf("Expecting two online users")
+	}
+	allOnlineUsersStr := strings.Join(onlineUsers, "")
+	expectOnlineUser := func(username string) {
+		if !strings.Contains(allOnlineUsersStr, username) {
+			t.Fatalf("Online users list (%s) does not contain user: %s", allOnlineUsersStr, username)
+		}
+	}
+	for _, username := range usernames {
+		expectOnlineUser(username)
+	}
 }

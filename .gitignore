@@ -275,6 +275,7 @@ backend/backend
 backend/main
 frontend/build
 frontend/src/style/*.css
+websocket-client/build
 **/.env
 core.cabal
 

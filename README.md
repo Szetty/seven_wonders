@@ -35,6 +35,13 @@ ACCESS_TOKEN="TEST" JWT_SECRET="test" go test -v -race ./...
 
 ### Frontend
 
+In *websocket-client* folder:
+
+```shell script
+npm install
+npm run build
+```
+
 In frontend folder:
 ```shell script
 npm install
