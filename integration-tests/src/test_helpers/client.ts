@@ -1,53 +1,71 @@
-import { initWebSocket, WebSocketService, MessageFromServer, WelcomeFromServer } from "websocket-client";
-import { delay } from "./common";
+import { AcceptInvitationReply, DeclineInvitationReply, InvitedUser, InviteUserReply, User, Username } from "./api";
+import { WSWrapper } from "./ws_wrapper";
 
 export interface UserContext {
-    name: string
-    userToken: string
-    gameID: string
+  name: string
+  userToken: string
+  gameID: string
 }
 
 export class Client {
-    private webSocketService: WebSocketService;
-    private incomingMessages: Record<string, any> = [];
-    private userContext: UserContext;
+  public username: Username;
+  public gameID: string;
+  private wsWrapper: WSWrapper;
 
-    constructor(url: string, userContext: UserContext, onSync: (data: WelcomeFromServer) => void = () => {}, onOnline: () => void = () => {}, onOffline: () => void = () => {}) {
-        this.userContext = userContext;
-        const fullURL = `${url}/${userContext.gameID}?authorization=${this.userContext.userToken}`;
-        this.webSocketService = initWebSocket(fullURL, {
-            onSync,
-            onOnline,
-            onOffline,
-            onIncomingMessage(data: MessageFromServer) { 
-                if (!this.incomingMessages[data.type]) {
-                    this.incomingMessages[data.type] = [];
-                }
-                this.incomingMessages[data.type].push(data.body);
-            }
-        });
-    }
+  constructor(private baseURL: string, private userContext: UserContext) {
+    const fullURL = this.buildWSURL(this.userContext.gameID);
+    this.wsWrapper = new WSWrapper(fullURL);
+    this.username = this.userContext.name;
+    this.gameID = this.userContext.gameID;
+  }
 
-    public async call<Req, Resp>(type: string, body: Req): Promise<Resp> {
-        let res = await this.webSocketService.sendMessage({type, body});
-        return res.body as Resp;
-    }
+  // Request-Reply messages
+  async getOnlineUsers(): Promise<Username[]> {
+    return await this.wsWrapper.call<null, Username[]>('OnlineUsers', null);
+  }
+  async getInvitedUsers(): Promise<InvitedUser[]> {
+    return await this.wsWrapper.call<null, InvitedUser[]>('InvitedUsers', null);
+  }
+  async inviteUser(user: Username): Promise<InviteUserReply> {
+    return await this.wsWrapper.call<Username, InviteUserReply>('InviteUser', user);
+  }
+  async acceptInvitation(gameID: string): Promise<AcceptInvitationReply> {
+    this.wsWrapper.close();
+    this.wsWrapper = new WSWrapper(this.buildWSURL(gameID));
+    await this.receiveSyncData();
+    return {} as AcceptInvitationReply;
+  }
+  async declineInvitation(gameID: string) {
+    return await this.wsWrapper.call<string, DeclineInvitationReply>('DeclineInvitation', gameID);
+  }
+  async returnToOwnLobby() {
+    this.wsWrapper.close();
+    this.wsWrapper = new WSWrapper(this.buildWSURL(this.userContext.gameID));
+    await this.receiveSyncData();
+  }
 
-    public async receive<T>(type: string): Promise<T[]> {
-        let retries = 10;
-        while (retries > 0 && (!this.incomingMessages[type] || this.incomingMessages[type].length == 0)) {
-            await delay(100);
-            retries--;
-        }
-        if (retries == 0) {
-            return [];
-        }
-        const res = this.incomingMessages[type];
-        this.incomingMessages[type] = [];
-        return res as T[];
-    }
+  // Notifications
+  async onOnlineUsers(): Promise<Username[]> {
+    return await this.wsWrapper.receive<Username>('UserGotOnline');
+  }
+  async onOfflineUsers(): Promise<Username[]> {
+    return await this.wsWrapper.receive<Username>('UserGotOffline');
+  }
+  async onInvite(): Promise<User[]> {
+    return await this.wsWrapper.receive<User>('GotInvite');
+  }
+  async onConnected(): Promise<Username[]> {
+    return await this.wsWrapper.receive<Username>('Connected');
+  }
+  async onDeclineInvitation(): Promise<Username[]> {
+    return await this.wsWrapper.receive<Username>('DeclinedInvitation');
+  }
+  
+  close = () => this.wsWrapper.close()
+  reconnect = () => this.wsWrapper.reconnect()
+  receiveSyncData = () => this.wsWrapper.receiveSyncData()
 
-    public close() {
-        this.webSocketService.close();
-    }
+  private buildWSURL(gameID: string) {
+    return `${this.baseURL}/${gameID}?authorization=${this.userContext.userToken}`;
+  }
 }

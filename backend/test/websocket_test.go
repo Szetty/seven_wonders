@@ -13,7 +13,7 @@ import (
 func TestWebSocket(t *testing.T) {
 	server := httptest.NewServer(web.MainHandler())
 	defer server.Close()
-	ctx := setupWS(t, server, "/api/secured/game/")
+	ctx := setupWS(t, server, "/api/secured/game/lobby/")
 	defer ctx.close(t)
 	ctx.expectWelcomeMessage(t)
 	envelope := domain.EnveloperBuilder{}.

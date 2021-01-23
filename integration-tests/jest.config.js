@@ -8,5 +8,6 @@ module.exports = {
     '\\.ts$': 'ts-jest',
     '\\.js$': 'ts-jest',
   },
-  transformIgnorePatterns: []
+  transformIgnorePatterns: [],
+  testTimeout: 15000
 };
