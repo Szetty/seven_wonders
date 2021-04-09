@@ -46,7 +46,7 @@ jobs:
         - cd ../integration-tests
         - npm install
       script:
-        - ../backend_old/backend_old && npm test
+        - ../backend_old/backend_old & npm test
     - stage: deploy
       if: branch == master AND (NOT (type IN (push, pull_request)))
       install:
