@@ -20,6 +20,9 @@
     "url": "https://github.com/Szetty/seven_wonders/issues"
   },
   "homepage": "https://github.com/Szetty/seven_wonders#readme",
+  "scripts": {
+    "preinstall": "cd ../websocket-client && npm run build && cd ../integration-tests && npm install ../websocket-client"
+  },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^5.14.0",
     "bootstrap": "^4.5.0",

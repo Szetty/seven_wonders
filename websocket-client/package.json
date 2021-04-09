@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/Szetty/seven_wonders#readme",
   "scripts": {
+    "prebuild": "npm install",
     "build": "tsc"
   },
   "dependencies": {
