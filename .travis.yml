@@ -47,6 +47,7 @@ jobs:
         - npm install
       script:
         - ../backend_old/backend_old & npm test
+        - kill %1
     - stage: deploy
       if: branch == master AND (NOT (type IN (push, pull_request)))
       install:

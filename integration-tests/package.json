@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/Szetty/seven_wonders#readme",
   "scripts": {
+    "preinstall": "npm install ../websocket-client",
     "test": "jest --detectOpenHandles"
   },
   "dependencies": {
