@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+func init() {
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel != "" {
+		logger.SetLevel(logLevel)
+	}
+}
+
 func main() {
 	port, err := strconv.Atoi(os.Getenv("PORT"))
 	if err != nil {

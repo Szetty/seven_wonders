@@ -2,7 +2,7 @@ import { Client, UserContext } from "./client";
 const axios = require('axios');
 
 const SERVER_URL = "localhost:8080";
-const ACCESS_TOKEN = "7";
+const ACCESS_TOKEN = process.env["ACCESS_TOKEN"] || "TEST";
 
 export async function initClient(path: string, userContext: UserContext = undefined): Promise<Client> {
   if (!userContext) {

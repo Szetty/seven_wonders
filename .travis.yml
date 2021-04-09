@@ -30,11 +30,23 @@ jobs:
     - language: go
       stage: test
       env:
-        - ACCESS_TOKEN="TEST" JWT_SECRET="test"
+        - ACCESS_TOKEN="TEST"
+        - JWT_SECRET="test"
       go:
         - "1.16"
+    - language: generic
+      stage: test
+      env:
+        - ACCESS_TOKEN="TEST"
+        - JWT_SECRET="test"
+        - LOG_LEVEL="error"
+      install:
+        - cd backend_old
+        - go build
+        - cd ../integration-tests
+        - npm install
       script:
-        - go test -v -race ./...
+        - ../backend_old/backend_old && npm test
     - stage: deploy
       if: branch == master AND (NOT (type IN (push, pull_request)))
       install:
