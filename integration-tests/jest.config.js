@@ -9,5 +9,5 @@ module.exports = {
     '\\.js$': 'ts-jest',
   },
   transformIgnorePatterns: [],
-  testTimeout: 15000
+  testTimeout: 60000
 };
