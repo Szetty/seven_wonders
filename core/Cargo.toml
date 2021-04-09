@@ -1,0 +1,21 @@
+[package]
+name = "core"
+version = "0.1.0"
+authors = []
+edition = "2018"
+
+[lib]
+name = "core"
+path = "src/lib.rs"
+crate-type = ["dylib"]
+
+[dependencies]
+rustler = "0.21.1"
+lazy_static = "1.0"
+protobuf = "2.22.0"
+derive_more = "0.99.11"
+strum = "0.20.0"
+strum_macros = "0.20"
+rand = "0.8.3"
+itertools = "0.10.0"
+maplit = "1.0.2"

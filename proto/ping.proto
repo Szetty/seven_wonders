@@ -1,15 +1,11 @@
-syntax = "proto3";
+syntax = "proto2";
 
-package ping;
+package core.api.ping;
 option go_package = "core";
 
-service Service {
-    rpc Ping (PingRequest) returns (PingReply) {}
-}
-
 message PingRequest {
-    string name = 1;
+    optional string name = 1;
 }
 message PingReply {
-    string message = 1;
+    optional string message = 1;
 }

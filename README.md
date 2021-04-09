@@ -21,11 +21,23 @@ stack test
 stack run
 ```
 
-### Backend
+### Backend old
 
 In backend folder:
 ```shell script
 go run main.go
+```
+
+Run tests:
+```shell script
+ACCESS_TOKEN="TEST" JWT_SECRET="test" go test -v -race ./...
+```
+
+### Backend new
+
+In backend folder:
+```shell script
+iex -S mix
 ```
 
 Run tests:
