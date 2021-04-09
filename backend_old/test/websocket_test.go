@@ -1,8 +1,8 @@
 package test
 
 import (
-	"github.com/Szetty/seven_wonders/backend/domain"
-	"github.com/Szetty/seven_wonders/backend/web"
+	"github.com/Szetty/seven_wonders/backend_old/domain"
+	"github.com/Szetty/seven_wonders/backend_old/web"
 	"github.com/google/uuid"
 	"net/http/httptest"
 	"strings"

@@ -2,8 +2,8 @@ package websocket
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/domain"
-	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend_old/domain"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"

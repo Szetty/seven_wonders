@@ -2,10 +2,10 @@ package web
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/core"
-	"github.com/Szetty/seven_wonders/backend/logger"
-	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
-	"github.com/Szetty/seven_wonders/backend/web/websocket"
+	"github.com/Szetty/seven_wonders/backend_old/core"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
+	"github.com/Szetty/seven_wonders/backend_old/web/errorHandling"
+	"github.com/Szetty/seven_wonders/backend_old/web/websocket"
 	"github.com/gorilla/mux"
 	"github.com/json-iterator/go"
 	"net/http"

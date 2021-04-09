@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"github.com/Szetty/seven_wonders/backend/common"
-	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend_old/common"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"sync"

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/Szetty/seven_wonders/backend/logger"
-	"github.com/Szetty/seven_wonders/backend/web"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
+	"github.com/Szetty/seven_wonders/backend_old/web"
 	"net/http"
 	"os"
 	"strconv"

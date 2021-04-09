@@ -2,7 +2,7 @@ package errorHandling
 
 import (
 	"encoding/json"
-	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
 	"net/http"
 )
 

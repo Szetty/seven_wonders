@@ -2,8 +2,8 @@ package web
 
 import (
 	"context"
-	cr "github.com/Szetty/seven_wonders/backend/crux"
-	"github.com/Szetty/seven_wonders/backend/web/websocket"
+	cr "github.com/Szetty/seven_wonders/backend_old/crux"
+	"github.com/Szetty/seven_wonders/backend_old/web/websocket"
 	"github.com/gorilla/mux"
 	"net/http"
 )

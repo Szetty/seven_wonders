@@ -2,8 +2,8 @@ package websocket
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/domain"
-	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
+	"github.com/Szetty/seven_wonders/backend_old/domain"
+	"github.com/Szetty/seven_wonders/backend_old/web/errorHandling"
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"

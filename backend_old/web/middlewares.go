@@ -3,9 +3,9 @@ package web
 import (
 	"context"
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/common"
-	"github.com/Szetty/seven_wonders/backend/logger"
-	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
+	"github.com/Szetty/seven_wonders/backend_old/common"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
+	"github.com/Szetty/seven_wonders/backend_old/web/errorHandling"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"net/http"

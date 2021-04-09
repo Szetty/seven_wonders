@@ -1,7 +1,7 @@
 package common
 
 import (
-	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
 	"github.com/joho/godotenv"
 	"os"
 )

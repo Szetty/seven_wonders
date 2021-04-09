@@ -1,8 +1,8 @@
 package user
 
 import (
-	"github.com/Szetty/seven_wonders/backend/domain"
-	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend_old/domain"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
 )
 
 type Crux struct {

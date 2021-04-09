@@ -1,6 +1,6 @@
 package domain
 
-import "github.com/Szetty/seven_wonders/backend/logger"
+import "github.com/Szetty/seven_wonders/backend_old/logger"
 
 type OriginType string
 

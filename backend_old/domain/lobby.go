@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
 	"github.com/mitchellh/mapstructure"
 	"go/types"
 )

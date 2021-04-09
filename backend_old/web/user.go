@@ -2,8 +2,8 @@ package web
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/common"
-	"github.com/Szetty/seven_wonders/backend/web/errorHandling"
+	"github.com/Szetty/seven_wonders/backend_old/common"
+	"github.com/Szetty/seven_wonders/backend_old/web/errorHandling"
 	"io/ioutil"
 	"net/http"
 )

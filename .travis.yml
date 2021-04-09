@@ -3,16 +3,16 @@ sudo: false
 os: osx
 jobs:
   include:
-    - language: elm
-      stage: test
-      before_install:
-        - cd frontend/
-      install:
-        - npm install
-        - npm install -g elm-github-install create-elm-app@4.2.16 --unsafe-perm=true
-        - elm-app build
-      script:
-        - elm-app test
+    # - language: elm
+    #   stage: test
+    #   before_install:
+    #     - cd frontend/
+    #   install:
+    #     - npm install
+    #     - npm install -g elm-github-install create-elm-app@4.2.16 --unsafe-perm=true
+    #     - elm-app build
+    #   script:
+    #     - elm-app test
     - language: rust
       stage: test
       env:

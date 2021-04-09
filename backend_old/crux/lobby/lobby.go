@@ -2,10 +2,10 @@ package lobby
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/crux/auth"
-	"github.com/Szetty/seven_wonders/backend/crux/user"
-	"github.com/Szetty/seven_wonders/backend/domain"
-	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend_old/crux/auth"
+	"github.com/Szetty/seven_wonders/backend_old/crux/user"
+	"github.com/Szetty/seven_wonders/backend_old/domain"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
 	"sync"
 )
 

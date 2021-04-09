@@ -1,9 +1,9 @@
 package crux
 
 import (
-	"github.com/Szetty/seven_wonders/backend/crux/auth"
-	"github.com/Szetty/seven_wonders/backend/crux/lobby"
-	"github.com/Szetty/seven_wonders/backend/crux/user"
+	"github.com/Szetty/seven_wonders/backend_old/crux/auth"
+	"github.com/Szetty/seven_wonders/backend_old/crux/lobby"
+	"github.com/Szetty/seven_wonders/backend_old/crux/user"
 )
 
 type Crux struct {

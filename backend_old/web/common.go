@@ -1,7 +1,7 @@
 package web
 
 import (
-	"github.com/Szetty/seven_wonders/backend/logger"
+	"github.com/Szetty/seven_wonders/backend_old/logger"
 	"net/http"
 )
 

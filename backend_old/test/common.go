@@ -2,9 +2,9 @@ package test
 
 import (
 	"fmt"
-	"github.com/Szetty/seven_wonders/backend/domain"
-	"github.com/Szetty/seven_wonders/backend/web"
-	"github.com/Szetty/seven_wonders/backend/web/websocket"
+	"github.com/Szetty/seven_wonders/backend_old/domain"
+	"github.com/Szetty/seven_wonders/backend_old/web"
+	"github.com/Szetty/seven_wonders/backend_old/web/websocket"
 	"github.com/google/uuid"
 	gWebsocket "github.com/gorilla/websocket"
 	"net/http/httptest"
