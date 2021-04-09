@@ -31,6 +31,8 @@ jobs:
       stage: test
       env:
         - ACCESS_TOKEN="TEST" JWT_SECRET="test"
+      go:
+        - "1.16"
       script:
         - go test -v -race ./...
     - stage: deploy
