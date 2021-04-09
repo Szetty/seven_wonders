@@ -1,8 +1,6 @@
 sudo: false
 
-env:
-  - RUSTLER_NIF_VERSION=2.15
-
+os: osx
 jobs:
   include:
     - language: elm
@@ -17,6 +15,8 @@ jobs:
         - elm-app test
     - language: rust
       stage: test
+      env:
+        - RUSTLER_NIF_VERSION=2.15
       rust:
         - stable
         - beta
