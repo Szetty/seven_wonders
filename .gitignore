@@ -1,6 +1,6 @@
 
-# Created by https://www.gitignore.io/api/go,git,elm,node,haskell,intellij,visualstudiocode
-# Edit at https://www.gitignore.io/?templates=go,git,elm,node,haskell,intellij,visualstudiocode
+# Created by https://www.gitignore.io/api/go,git,elm,node,intellij,visualstudiocode
+# Edit at https://www.gitignore.io/?templates=go,git,elm,node,intellij,visualstudiocode
 
 ### Elm ###
 # elm-package generated files
@@ -256,4 +256,4 @@ websocket-client/build
 core.cabal
 
 *.iml
-# End of https://www.gitignore.io/api/go,git,elm,node,haskell,intellij,visualstudiocode
+# End of https://www.gitignore.io/api/go,git,elm,node,intellij,visualstudiocode

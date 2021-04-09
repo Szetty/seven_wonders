@@ -1,5 +1,8 @@
 sudo: false
 
+env:
+  - RUSTLER_NIF_VERSION=2.15
+
 jobs:
   include:
     - language: elm
