@@ -2,10 +2,11 @@ use super::super::point::Point;
 use derive_more::Display;
 use itertools::Itertools;
 use std::collections::HashSet;
+use std::fmt;
 
 pub type ScientificSymbols<'a> = &'a [ScientificSymbol];
 
-#[derive(Display, Copy, Clone)]
+#[derive(Display, Copy, Clone, Debug, PartialEq)]
 pub enum ScientificSymbol {
     Tablet,
     Compass,
@@ -27,9 +28,6 @@ pub struct ScientificSymbolsProduced {
 pub type ScientificSymbolCounts = [ScientificSymbolCount; 3];
 
 impl ScientificSymbolsProduced {
-    pub fn new() -> Self {
-        Default::default()
-    }
     pub fn add_all_symbols(&mut self, symbols: ScientificSymbols) {
         for symbol in symbols {
             self.add_symbol(symbol);
@@ -58,6 +56,18 @@ impl ScientificSymbolsProduced {
                 self.compass += 1;
             }
         }
+    }
+}
+
+impl fmt::Debug for ScientificSymbolsProduced {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ScientificSymbolsProduced")
+            .field("tablet", &self.tablet)
+            .field("compass", &self.compass)
+            .field("gears", &self.gears)
+            .field("actions_size", &self.actions.len())
+            .field("any_symbols", &self.any_symbols)
+            .finish()
     }
 }
 

@@ -12,6 +12,8 @@ mod domain;
 #[cfg(test)]
 mod tests {
     pub mod deck;
+    pub mod game_effects;
+    pub mod helpers;
     pub mod points;
     pub mod resources;
     pub mod trading;

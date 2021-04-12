@@ -1,15 +1,17 @@
+use super::effects::Effects;
 use super::player::{
     Neighbours, PName, Player,
     PlayerDirection::{East, Own, West},
     PlayerDirections,
 };
 use super::point::PointCategory::{
-    CivilianP, CommercialP, GuildsP, MilitaryP, ScientificP, TreasuryP, WonderP,
+    CivilianP, CommercialP, GuildP, MilitaryP, ScientificP, TreasuryP, WonderP,
 };
 use super::point::{Point, PointCategory, PointsMap};
 use super::structure::Age::{I, II, III};
 use super::structure::Category::{Civilian, Commercial, Guild, Military, Scientific, MG, RM};
-use super::structure::{Categories, Category, Name as SName, Structure};
+use super::structure::{Age, Categories, Category, SName, Structure};
+use super::structure_builder::StructureBuilder;
 use super::supply::ResourceType::{Clay, Glass, Loom, Ore, Papyrus, Stone, Wood};
 use super::supply::ScientificSymbol::{Compass, Gears, Tablet};
 use super::supply::{
@@ -19,14 +21,17 @@ use super::supply::{
 };
 use super::wonder::{Wonder, WonderSide, WonderStage};
 use lazy_static::lazy_static;
+use maplit::hashset;
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 
 #[derive(Default)]
 pub struct GameState {
     pub deck: Deck,
     pub player_states: HashMap<PName, PlayerState>,
     pub neighbours: Neighbours,
-    pub cards_dismissed: Cards,
+    pub cards_discarded: Cards,
+    pub current_age: Age,
     pub current_age_cards: HashMap<PName, Cards>,
     pub events: Events,
 }
@@ -50,6 +55,10 @@ impl GameState {
             ..Default::default()
         }
     }
+    pub fn init(&mut self) {
+        unimplemented!()
+        // coins, trade actions, wonder effects
+    }
     pub fn get_neighbour_player_states(&self, player_name: &PName) -> (&PlayerState, &PlayerState) {
         let (west, east) = self.neighbours.get_neighbours(player_name);
         (self.get_player_state(west), self.get_player_state(east))
@@ -59,6 +68,50 @@ impl GameState {
     }
     fn get_mut_player_state(&mut self, player_name: &PName) -> &mut PlayerState {
         self.player_states.get_mut(player_name).unwrap()
+    }
+    pub fn apply_player_decisions(&mut self, player_decisions: HashMap<PName, PlayerDecision>) {
+        let current_age = self.current_age;
+        let mut effects: Vec<(&Effect, PName)> = Default::default();
+        for (player_name, player_decision) in player_decisions {
+            let player_state = self.get_mut_player_state(&player_name);
+            match player_decision {
+                PlayerDecision::BuildStructure(Card(structure)) => {
+                    effects.extend(
+                        player_state
+                            .build_structure(structure)
+                            .iter()
+                            .map(|e| (e, player_name.clone())),
+                    );
+                }
+                PlayerDecision::BuildNextWonderStage(Card(_)) => {
+                    // TODO store cards used for stages?
+                    effects.extend(
+                        player_state
+                            .build_next_wonder_stage()
+                            .iter()
+                            .map(|e| (e, player_name.clone())),
+                    );
+                }
+                PlayerDecision::Discard(card) => {
+                    player_state.coins += 3;
+                    self.cards_discarded.push(card);
+                }
+                PlayerDecision::ConstructForFreeOncePerAge(Card(structure)) => {
+                    effects.extend(
+                        player_state
+                            .build_structure(structure)
+                            .iter()
+                            .map(|e| (e, player_name.clone())),
+                    );
+                    player_state
+                        .structure_builder
+                        .apply_used_construct_for_free_for_age(&current_age);
+                }
+            }
+        }
+        for (effect, player_name) in effects {
+            (*effect)(self, player_name);
+        }
     }
     pub fn calculate_points(&self) -> HashMap<PName, HashMap<PointCategory, Point>> {
         self.player_states
@@ -72,22 +125,28 @@ impl GameState {
 
 pub type Deck = (Cards, Cards, Cards);
 pub type Cards = Vec<Card>;
+#[derive(Debug, PartialEq)]
 pub struct Card(pub &'static Structure<'static, Effect>);
 pub type PlayersWithWonders = Vec<(Player, &'static WonderSide<'static, Effect>)>;
+pub enum PlayerDecision {
+    BuildStructure(Card),
+    BuildNextWonderStage(Card),
+    Discard(Card),
+    ConstructForFreeOncePerAge(Card),
+}
 
 pub struct PlayerState {
     pub player: Player,
     pub wonder: &'static WonderSide<'static, Effect>,
+    pub wonder_stages_built: WonderStagesBuilt,
     pub coins: Coin,
     pub military_symbols: MilitarySymbolCount,
     pub battle_tokens: BattleTokens,
     pub scientific_symbols_produced: ScientificSymbolsProduced,
-    pub built_structures: HashMap<Category, HashSet<SName<'static>>>,
     pub resources_produced: ResourcesProduced,
-    pub wonder_stages_built: WonderStagesBuilt,
+    pub structure_builder: StructureBuilder,
     pub point_actions: Actions<dyn Fn(&GameState, &mut PointsMap) + Sync>,
     pub trade_actions: Actions<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync>,
-    pub can_construct_free: bool,
     pub can_play_last_card: bool,
     pub can_copy_guild: bool,
 }
@@ -97,16 +156,15 @@ impl PlayerState {
         Self {
             player,
             wonder: wonder_side,
-            coins: 0,
             military_symbols: 0,
-            battle_tokens: vec![],
-            scientific_symbols_produced: ScientificSymbolsProduced::new(),
-            built_structures: HashMap::new(),
-            resources_produced: ResourcesProduced::new(),
+            coins: 0,
             wonder_stages_built: 0,
+            battle_tokens: vec![],
+            scientific_symbols_produced: Default::default(),
+            resources_produced: Default::default(),
+            structure_builder: Default::default(),
             point_actions: vec![],
-            trade_actions: vec![Box::new(|_, _| 2)],
-            can_construct_free: false,
+            trade_actions: vec![],
             can_play_last_card: false,
             can_copy_guild: false,
         }
@@ -149,11 +207,47 @@ impl PlayerState {
         self.trade_actions.push(action);
         self
     }
+    pub fn build_structure(
+        &mut self,
+        structure: &'static Structure<'static, Effect>,
+    ) -> &'static Effects<Effect> {
+        self.structure_builder.build_structure(structure);
+        structure.effects()
+    }
+    pub fn build_next_wonder_stage(&mut self) -> &'static Effects<Effect> {
+        self.wonder_stages_built += 1;
+        self.wonder
+            .wonder_stage_with_idx(self.wonder_stages_built.into())
+            .effects()
+    }
 }
 
 impl Default for PlayerState {
     fn default() -> Self {
         Self::new(Default::default(), &WONDERS[0].2)
+    }
+}
+
+impl fmt::Debug for PlayerState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PlayerState")
+            .field("name", &self.player.name())
+            .field("wonder", &self.wonder)
+            .field("coins", &self.coins)
+            .field("military_symbols", &self.military_symbols)
+            .field("battle_tokens", &self.battle_tokens)
+            .field(
+                "scientific_symbols_produced",
+                &self.scientific_symbols_produced,
+            )
+            .field("structure_builder", &self.structure_builder)
+            .field("resources_produced", &self.resources_produced)
+            .field("wonder_stages_built", &self.wonder_stages_built)
+            .field("point_actions_len", &self.point_actions.len())
+            .field("trade_actions_len", &self.trade_actions.len())
+            .field("can_play_last_card", &self.can_play_last_card)
+            .field("can_copy_guild", &self.can_copy_guild)
+            .finish()
     }
 }
 
@@ -285,18 +379,18 @@ lazy_static! {
     ];
     #[rustfmt::skip]
     pub static ref GUILD_STRUCTURES: [Structure<'static, Effect>; 10] = [
-        Structure("Workers Guild"     , Guild, III, vec![dpe(GuildsP, &[East, West], &[RM], 1)]        , &[], &[], (0, &[RCost(Ore, 2), RCost(Clay, 1), RCost(Stone, 1), RCost(Wood, 1)]), &[]),
-        Structure("Craftsmens Guild"  , Guild, III, vec![dpe(GuildsP, &[East, West], &[MG], 2)]        , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 2)])                                , &[]),
-        Structure("Traders Guild"     , Guild, III, vec![dpe(GuildsP, &[East, West], &[Commercial], 1)], &[], &[], (0, &[RCost(Loom, 1), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
-        Structure("Philosophers Guild", Guild, III, vec![dpe(GuildsP, &[East, West], &[Scientific], 1)], &[], &[], (0, &[RCost(Clay, 3), RCost(Loom, 1), RCost(Papyrus, 1)])             , &[]),
-        Structure("Spies Guild"       , Guild, III, vec![dpe(GuildsP, &[East, West], &[Military], 1)]  , &[], &[], (0, &[RCost(Clay, 3), RCost(Glass, 1)])                               , &[]),
-        Structure("Strategists Guild" , Guild, III, vec![dblpe(GuildsP, &[East, West], 1)]             , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 1), RCost(Loom, 1)])                , &[]),
-        Structure("Shipowners Guild"  , Guild, III, vec![dpe(GuildsP, &[Own], &[RM, MG, Guild], 1)]    , &[], &[], (0, &[RCost(Wood, 3), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
+        Structure("Workers Guild"     , Guild, III, vec![dpe(GuildP, &[East, West], &[RM], 1)]        , &[], &[], (0, &[RCost(Ore, 2), RCost(Clay, 1), RCost(Stone, 1), RCost(Wood, 1)]), &[]),
+        Structure("Craftsmens Guild"  , Guild, III, vec![dpe(GuildP, &[East, West], &[MG], 2)]        , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 2)])                                , &[]),
+        Structure("Traders Guild"     , Guild, III, vec![dpe(GuildP, &[East, West], &[Commercial], 1)], &[], &[], (0, &[RCost(Loom, 1), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
+        Structure("Philosophers Guild", Guild, III, vec![dpe(GuildP, &[East, West], &[Scientific], 1)], &[], &[], (0, &[RCost(Clay, 3), RCost(Loom, 1), RCost(Papyrus, 1)])             , &[]),
+        Structure("Spies Guild"       , Guild, III, vec![dpe(GuildP, &[East, West], &[Military], 1)]  , &[], &[], (0, &[RCost(Clay, 3), RCost(Glass, 1)])                               , &[]),
+        Structure("Strategists Guild" , Guild, III, vec![dblpe(GuildP, &[East, West], 1)]             , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 1), RCost(Loom, 1)])                , &[]),
+        Structure("Shipowners Guild"  , Guild, III, vec![dpe(GuildP, &[Own], &[RM, MG, Guild], 1)]    , &[], &[], (0, &[RCost(Wood, 3), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
         Structure("Scientists Guild"  , Guild, III, vec![anyse(&[Compass, Gears, Tablet])]             , &[], &[], (0, &[RCost(Wood, 2), RCost(Ore, 2), RCost(Papyrus, 1)])              , &[]),
-        Structure("Magistrates Guild" , Guild, III, vec![dpe(GuildsP, &[East, West], &[Civilian], 2)]  , &[], &[], (0, &[RCost(Wood, 3), RCost(Stone, 1), RCost(Loom, 1)])               , &[]),
-        Structure("Builders Guild"    , Guild, III, vec![dwpe(GuildsP, &[East, West, Own], 1)]         , &[], &[], (0, &[RCost(Stone, 2), RCost(Clay, 2), RCost(Glass, 1)])              , &[]),
+        Structure("Magistrates Guild" , Guild, III, vec![dpe(GuildP, &[East, West], &[Civilian], 2)]  , &[], &[], (0, &[RCost(Wood, 3), RCost(Stone, 1), RCost(Loom, 1)])               , &[]),
+        Structure("Builders Guild"    , Guild, III, vec![dwpe(GuildP, &[East, West, Own], 1)]         , &[], &[], (0, &[RCost(Stone, 2), RCost(Clay, 2), RCost(Glass, 1)])              , &[]),
     ];
-    static ref STRUCTURES_BY_NAME: HashMap<&'static str, &'static Structure<'static, Effect>> = AGE_I_STRUCTURES.iter().chain(AGE_II_STRUCTURES.iter()).chain(AGE_III_STRUCTURES.iter()).chain(GUILD_STRUCTURES.iter()).map(|s| (s.0, s)).collect();
+    pub static ref STRUCTURES_BY_NAME: HashMap<String, &'static Structure<'static, Effect>> = AGE_I_STRUCTURES.iter().chain(AGE_II_STRUCTURES.iter()).chain(AGE_III_STRUCTURES.iter()).chain(GUILD_STRUCTURES.iter()).map(|s| (s.0.to_string(), s)).collect();
     #[rustfmt::skip]
     pub static ref WONDERS: [Wonder<'static, Effect>; 7] = [
         Wonder(
@@ -447,7 +541,7 @@ lazy_static! {
             )
         )
     ];
-    static ref WONDERS_BY_NAME: HashMap<&'static str, &'static Wonder<'static, Effect>> = WONDERS.iter().map(|s| (s.0, s)).collect();
+    pub static ref WONDERS_BY_NAME: HashMap<String, &'static Wonder<'static, Effect>> = WONDERS.iter().map(|s| (s.0.to_string(), s)).collect();
 }
 
 fn all_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {
@@ -627,9 +721,13 @@ fn play_last_card_effect() -> Effect {
 }
 
 fn construct_free_effect() -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state.can_construct_free = true;
-    }))
+    Box::new(move |game_state: &mut GameState, player_name: String| {
+        let current_age = game_state.current_age;
+        game_state
+            .get_mut_player_state(&player_name)
+            .structure_builder
+            .apply_construct_free_once_per_age(current_age);
+    })
 }
 
 fn copy_guild_effect() -> Effect {
@@ -660,18 +758,10 @@ fn count_structures_for_players(
     players
         .iter()
         .map(|player_name| {
-            let player_state = game_state.get_player_state(player_name);
-            player_state
-                .built_structures
-                .iter()
-                .map(|(category, structures)| {
-                    if categories.contains(&category) {
-                        structures.len()
-                    } else {
-                        0
-                    }
-                })
-                .sum::<usize>()
+            game_state
+                .get_player_state(player_name)
+                .structure_builder
+                .count_structures_for_categories(categories)
         })
         .sum()
 }

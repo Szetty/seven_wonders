@@ -1,6 +1,6 @@
 use crate::domain::{
     GameState, PlayerState,
-    PointCategory::{CivilianP, CommercialP, GuildsP, MilitaryP, ScientificP, TreasuryP, WonderP},
+    PointCategory::{CivilianP, CommercialP, GuildP, MilitaryP, ScientificP, TreasuryP, WonderP},
     PointsMap,
     ScientificSymbol::{Compass, Gears, Tablet},
     ScientificSymbolCounts, ScientificSymbolsProduced,
@@ -53,10 +53,10 @@ fn test_calculate_points() {
                     coins: 4,
                     point_actions: vec![
                         Box::new(|_:&_, points_map: &mut PointsMap| {
-                            points_map.add(&GuildsP, 10);
+                            points_map.add(&GuildP, 10);
                         }),
                         Box::new(|_:&_, points_map: &mut PointsMap| {
-                            points_map.add(&GuildsP, 10);
+                            points_map.add(&GuildP, 10);
                         }),
                     ],
                     ..Default::default()
@@ -73,7 +73,7 @@ fn test_calculate_points() {
                 CivilianP => 6,
                 ScientificP => 10,
                 CommercialP => 0,
-                GuildsP => 0,
+                GuildP => 0,
             },
             "b".to_string() => hashmap!{
                 MilitaryP => 13,
@@ -82,7 +82,7 @@ fn test_calculate_points() {
                 CivilianP => 0,
                 ScientificP => 110,
                 CommercialP => 0,
-                GuildsP => 0,
+                GuildP => 0,
             },
             "c".to_string() => hashmap!{
                 MilitaryP => 0,
@@ -91,7 +91,7 @@ fn test_calculate_points() {
                 CivilianP => 0,
                 ScientificP => 0,
                 CommercialP => 0,
-                GuildsP => 20,
+                GuildP => 20,
             },
         }
     )

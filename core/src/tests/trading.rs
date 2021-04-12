@@ -1,3 +1,4 @@
+use super::helpers::default_game_state;
 use crate::core::trading::{try_trading, TradingOptions};
 use crate::domain::{
     GameState, Neighbours, Player, PlayerState, ResourceCost, ResourceCostOptions, ResourceCosts,
@@ -9,24 +10,22 @@ use std::collections::HashMap;
 #[test]
 fn test_nothing_to_trade() {
     let f = |resource_cost_options: &'static [&'static [ResourceCost]]| -> TradingOptions {
-        let player_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let game_state = GameState {
-            neighbours: Neighbours::new(player_names),
             player_states: hashmap! {
                 "a".to_string() => PlayerState {
                     player: Player("a".to_string()),
                     ..Default::default()
                 },
                 "b".to_string() => PlayerState {
-                    player: Player("a".to_string()),
+                    player: Player("b".to_string()),
                     ..Default::default()
-                },
+                }.add_trade_action_move(Box::new(|_, _| 2)),
                 "c".to_string() => PlayerState {
-                    player: Player("a".to_string()),
+                    player: Player("c".to_string()),
                     ..Default::default()
                 },
             },
-            ..Default::default()
+            ..default_game_state()
         };
         try_trading(
             &game_state,
@@ -58,9 +57,7 @@ fn test_nothing_to_trade() {
 #[test]
 fn test_trade_without_discount() {
     let f = |resource_cost_options: &'static [&'static [ResourceCost]]| -> TradingOptions {
-        let player_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let game_state = GameState {
-            neighbours: Neighbours::new(player_names),
             player_states: hashmap! {
                 "a".to_string() => PlayerState {
                     player: Player("a".to_string()),
@@ -76,7 +73,7 @@ fn test_trade_without_discount() {
                 "b".to_string() => PlayerState {
                     player: Player("b".to_string()),
                     ..Default::default()
-                },
+                }.add_trade_action_move(Box::new(|_, _| 2)),
                 "c".to_string() => PlayerState {
                     player: Player("c".to_string()),
                     resources_produced: ResourcesProduced {
@@ -89,7 +86,7 @@ fn test_trade_without_discount() {
                     ..Default::default()
                 },
             },
-            ..Default::default()
+            ..default_game_state()
         };
         try_trading(
             &game_state,
@@ -137,9 +134,7 @@ fn test_trade_without_discount() {
 #[test]
 fn test_trade_with_one_discount_on_all_resources() {
     let f = |resource_cost_options: &'static [&'static [ResourceCost]]| -> TradingOptions {
-        let player_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let game_state = GameState {
-            neighbours: Neighbours::new(player_names),
             player_states: hashmap! {
                 "a".to_string() => PlayerState {
                     player: Player("a".to_string()),
@@ -174,7 +169,7 @@ fn test_trade_with_one_discount_on_all_resources() {
                     ..Default::default()
                 },
             },
-            ..Default::default()
+            ..default_game_state()
         };
         try_trading(
             &game_state,
@@ -222,9 +217,7 @@ fn test_trade_with_one_discount_on_all_resources() {
 #[test]
 fn test_trade_with_both_discounts_on_all_resources() {
     let f = |resource_cost_options: &'static [&'static [ResourceCost]]| -> TradingOptions {
-        let player_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let game_state = GameState {
-            neighbours: Neighbours::new(player_names),
             player_states: hashmap! {
                 "a".to_string() => PlayerState {
                     player: Player("a".to_string()),
@@ -253,7 +246,7 @@ fn test_trade_with_both_discounts_on_all_resources() {
                     ..Default::default()
                 },
             },
-            ..Default::default()
+            ..default_game_state()
         };
         try_trading(
             &game_state,
@@ -301,9 +294,7 @@ fn test_trade_with_both_discounts_on_all_resources() {
 #[test]
 fn test_trade_with_one_discount_on_some_resources() {
     let f = |resource_cost_options: &'static [&'static [ResourceCost]]| -> TradingOptions {
-        let player_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let game_state = GameState {
-            neighbours: Neighbours::new(player_names),
             player_states: hashmap! {
                 "a".to_string() => PlayerState {
                     player: Player("a".to_string()),
@@ -338,7 +329,7 @@ fn test_trade_with_one_discount_on_some_resources() {
                     ..Default::default()
                 },
             },
-            ..Default::default()
+            ..default_game_state()
         };
         try_trading(
             &game_state,
@@ -386,9 +377,7 @@ fn test_trade_with_one_discount_on_some_resources() {
 #[test]
 fn test_trade_without_discount_repeating_resources() {
     let f = |resource_cost_options: &'static [&'static [ResourceCost]]| -> TradingOptions {
-        let player_names = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let game_state = GameState {
-            neighbours: Neighbours::new(player_names),
             player_states: hashmap! {
                 "a".to_string() => PlayerState {
                     player: Player("a".to_string()),
@@ -404,7 +393,7 @@ fn test_trade_without_discount_repeating_resources() {
                 "b".to_string() => PlayerState {
                     player: Player("b".to_string()),
                     ..Default::default()
-                },
+                }.add_trade_action_move(Box::new(|_, _| 2)),
                 "c".to_string() => PlayerState {
                     player: Player("c".to_string()),
                     resources_produced: ResourcesProduced {
@@ -416,7 +405,7 @@ fn test_trade_without_discount_repeating_resources() {
                     ..Default::default()
                 },
             },
-            ..Default::default()
+            ..default_game_state()
         };
         try_trading(
             &game_state,

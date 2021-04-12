@@ -4,27 +4,27 @@ use std::collections::{HashMap, HashSet};
 use std::iter;
 
 pub mod types;
+use std::fmt;
 use types::*;
 pub use types::{
     diff_resource_costs, resource_cost_map_to_resource_costs, ResourceCost, ResourceCosts,
     ResourceCount, ResourceType, ResourceTypes,
 };
 
-#[derive(Default)]
 pub struct ResourcesProduced {
     pub single_resources: HashMap<ResourceType, ResourceCount>,
     pub any_resources: Vec<ResourceTypes<'static>>,
 }
 
 impl ResourcesProduced {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let mut single_resources: HashMap<ResourceType, ResourceCount> = Default::default();
         for resource_type in all_resource_types() {
             single_resources.insert(resource_type, 0);
         }
         Self {
             single_resources,
-            ..Default::default()
+            any_resources: Default::default(),
         }
     }
     pub fn add_all_resources(&mut self, resource_types: ResourceTypes) {
@@ -40,7 +40,6 @@ impl ResourcesProduced {
     }
     pub fn cover_resource_costs(&self, resource_costs: Vec<ResourceCost>) -> ResourceCostOptions {
         if resource_costs.len() == 0 {
-            println!("here");
             return Default::default();
         }
         let costs_remaining = match_single_resources(self.single_resources.clone(), resource_costs);
@@ -51,6 +50,21 @@ impl ResourcesProduced {
             self.any_resources.iter().map(|r| r.to_vec()).collect(),
             costs_remaining,
         )
+    }
+}
+
+impl Default for ResourcesProduced {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Debug for ResourcesProduced {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ResourcesProduced")
+            .field("single_resources", &self.single_resources)
+            .field("any_resources", &self.any_resources)
+            .finish()
     }
 }
 

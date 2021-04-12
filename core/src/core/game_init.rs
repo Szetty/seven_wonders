@@ -24,5 +24,7 @@ pub fn init_with_random_wonders(players: Vec<Player>) -> GameState {
 pub fn init(players_with_wonders: PlayersWithWonders) -> GameState {
     let players_count = players_with_wonders.len();
     let deck = generate_deck(players_count);
-    GameState::new(deck, players_with_wonders)
+    let mut game_state = GameState::new(deck, players_with_wonders);
+    game_state.init();
+    game_state
 }

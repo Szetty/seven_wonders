@@ -11,7 +11,7 @@ pub enum PointCategory {
     CivilianP,
     ScientificP,
     CommercialP,
-    GuildsP,
+    GuildP,
 }
 #[rustfmt::skip]
 pub fn all_point_categories() -> impl Iterator<Item = PointCategory> { PointCategory::iter() }

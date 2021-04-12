@@ -18,3 +18,6 @@ pub use supply::*;
 
 pub mod wonder;
 pub use wonder::*;
+
+pub mod structure_builder;
+pub use structure_builder::*;
