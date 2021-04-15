@@ -4,7 +4,7 @@ use std::iter::FromIterator;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-#[derive(Display, Default)]
+#[derive(Display, Default, Debug, PartialEq)]
 pub struct Player(pub PName);
 
 impl Player {
@@ -15,7 +15,7 @@ impl Player {
 
 pub type PName = String;
 
-#[derive(Default)]
+#[derive(Default, Debug, serde::Serialize)]
 pub struct Neighbours {
     data: HashMap<PName, (PName, PName)>,
 }

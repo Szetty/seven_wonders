@@ -14,7 +14,7 @@ defmodule Backend.MixProject do
       rustler_crates: [
         core: [
           path: "../core",
-          mode: (if Mix.env() == :prod, do: :release, else: :debug)
+          mode: if(Mix.env() == :prod, do: :release, else: :debug)
         ]
       ]
     ]

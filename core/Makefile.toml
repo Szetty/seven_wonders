@@ -1,0 +1,5 @@
+[tasks.gen_proto]
+description = "Generates the proto modules needed to communicate with the backend."
+script = [
+ "protoc -I ../proto --rust_out=./src/api $1"
+]

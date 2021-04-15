@@ -6,7 +6,9 @@ use strum_macros::EnumIter;
 
 pub type ResourceTypes<'a> = &'a [ResourceType];
 
-#[derive(Display, Debug, EnumIter, PartialEq, Clone, Copy, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Display, Debug, EnumIter, PartialEq, Clone, Copy, Eq, Hash, PartialOrd, Ord, serde::Serialize,
+)]
 pub enum ResourceType {
     Wood,
     Stone,

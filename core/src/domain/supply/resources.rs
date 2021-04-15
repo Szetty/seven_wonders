@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use maplit::hashset;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::{HashMap, HashSet};
 use std::iter;
 
@@ -11,6 +12,7 @@ pub use types::{
     ResourceCount, ResourceType, ResourceTypes,
 };
 
+#[derive(PartialEq)]
 pub struct ResourcesProduced {
     pub single_resources: HashMap<ResourceType, ResourceCount>,
     pub any_resources: Vec<ResourceTypes<'static>>,
@@ -65,6 +67,19 @@ impl fmt::Debug for ResourcesProduced {
             .field("single_resources", &self.single_resources)
             .field("any_resources", &self.any_resources)
             .finish()
+    }
+}
+
+impl Serialize for ResourcesProduced {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("ResourcesProduced", 3)?;
+        s.serialize_field("type", "ResourcesProduced")?;
+        s.serialize_field("single_resources", &self.single_resources)?;
+        s.serialize_field("any_resources", &self.any_resources)?;
+        s.end()
     }
 }
 

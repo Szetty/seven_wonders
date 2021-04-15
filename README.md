@@ -64,3 +64,21 @@ elm-app start
 bin/build.sh
 bin/run.sh
 ```
+
+## Generate Protobuf modules
+
+The communication between the backend and core happens using binary encoding using Protobuf.
+
+### Backend
+
+To generate protobuf modules, use the Mix task provided:
+```shell script
+mix gen_proto ping.proto
+```
+
+### Core
+
+To generate protobuf modules, use the Cargo make task provided:
+```shell script
+cargo make gen_proto start_game.proto
+```

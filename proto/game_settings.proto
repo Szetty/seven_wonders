@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+package core.api.game_settings;
+option go_package = "core";
+
+message Reply {
+  optional string version = 1;
+  repeated string supported_wonders = 2;
+}

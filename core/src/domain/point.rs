@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 pub type Point = i16;
-#[derive(PartialEq, Eq, Hash, Clone, Debug, EnumIter)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, EnumIter, serde::Serialize)]
 pub enum PointCategory {
     MilitaryP,
     TreasuryP,

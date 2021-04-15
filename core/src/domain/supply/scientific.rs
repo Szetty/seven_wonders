@@ -1,12 +1,13 @@
 use super::super::point::Point;
 use derive_more::Display;
 use itertools::Itertools;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::HashSet;
 use std::fmt;
 
 pub type ScientificSymbols<'a> = &'a [ScientificSymbol];
 
-#[derive(Display, Copy, Clone, Debug, PartialEq)]
+#[derive(Display, Copy, Clone, Debug, PartialEq, serde::Serialize)]
 pub enum ScientificSymbol {
     Tablet,
     Compass,
@@ -18,7 +19,7 @@ type ScientificSymbolCount = u8;
 
 #[derive(Default)]
 pub struct ScientificSymbolsProduced {
-    pub actions: Vec<Box<dyn Fn(&Self, &mut ScientificSymbolCounts) + Sync>>,
+    pub actions: Vec<Box<dyn Fn(&Self, &mut ScientificSymbolCounts) + Sync + Send>>,
     pub tablet: ScientificSymbolCount,
     pub compass: ScientificSymbolCount,
     pub gears: ScientificSymbolCount,
@@ -68,6 +69,32 @@ impl fmt::Debug for ScientificSymbolsProduced {
             .field("actions_size", &self.actions.len())
             .field("any_symbols", &self.any_symbols)
             .finish()
+    }
+}
+
+impl PartialEq for ScientificSymbolsProduced {
+    fn eq(&self, other: &Self) -> bool {
+        self.actions.len() == other.actions.len()
+            && self.any_symbols == other.any_symbols
+            && self.tablet == other.tablet
+            && self.compass == other.compass
+            && self.any_symbols == other.any_symbols
+    }
+}
+
+impl Serialize for ScientificSymbolsProduced {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("ScientificSymbolsProduced", 6)?;
+        s.serialize_field("type", "ScientificSymbolsProduced")?;
+        s.serialize_field("tablet", &self.tablet)?;
+        s.serialize_field("compass", &self.compass)?;
+        s.serialize_field("gears", &self.gears)?;
+        s.serialize_field("actions_size", &self.actions.len())?;
+        s.serialize_field("any_symbols", &self.any_symbols)?;
+        s.end()
     }
 }
 

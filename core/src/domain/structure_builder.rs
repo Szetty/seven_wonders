@@ -1,8 +1,9 @@
 use super::structure::{Age, Categories, Category, SName, Structure};
 use maplit::hashset;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct StructureBuilder {
     pub ages_can_build_free_in: HashSet<Age>,
     pub built_structures: HashMap<Category, HashSet<SName<'static>>>,
@@ -62,5 +63,18 @@ impl StructureBuilder {
     }
     pub fn apply_used_construct_for_free_for_age(&mut self, age: &Age) {
         self.ages_can_build_free_in.remove(age);
+    }
+}
+
+impl Serialize for StructureBuilder {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("StructureBuilder", 3)?;
+        s.serialize_field("type", "StructureBuilder")?;
+        s.serialize_field("ages_can_build_free_in", &self.ages_can_build_free_in)?;
+        s.serialize_field("built_structures", &self.built_structures)?;
+        s.end()
     }
 }

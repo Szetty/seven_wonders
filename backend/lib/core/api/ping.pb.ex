@@ -8,7 +8,7 @@ defmodule Core.Api.Ping.PingRequest do
 
   defstruct [:name]
 
-  field :name, 1, optional: true, type: :string
+  field(:name, 1, optional: true, type: :string)
 end
 
 defmodule Core.Api.Ping.PingReply do
@@ -21,5 +21,5 @@ defmodule Core.Api.Ping.PingReply do
 
   defstruct [:message]
 
-  field :message, 1, optional: true, type: :string
+  field(:message, 1, optional: true, type: :string)
 end

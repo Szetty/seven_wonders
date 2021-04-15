@@ -1,6 +1,7 @@
 use super::effects::Effects;
 use super::supply::ResourceCosts;
 use derive_more::Display;
+use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
 use std::fmt;
 
 #[derive(Display)]
@@ -19,6 +20,9 @@ impl<'a, T> Wonder<'a, T> {
 pub struct WonderSide<'a, T>(pub &'a str, pub Effects<T>, pub WonderStages<'a, T>);
 
 impl<'a, T> WonderSide<'a, T> {
+    pub fn name(&self) -> &'a str {
+        &self.0
+    }
     pub fn initial_effects(&self) -> &Effects<T> {
         &self.1
     }
@@ -31,6 +35,17 @@ impl<'a, T> WonderSide<'a, T> {
 impl<'a, T> fmt::Debug for WonderSide<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("WonderSide").field("name", &self.0).finish()
+    }
+}
+
+impl<'a, T> Serialize for WonderSide<'a, T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_tuple_struct("WonderSide", 1)?;
+        s.serialize_field(&self.name())?;
+        s.end()
     }
 }
 

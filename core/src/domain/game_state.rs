@@ -22,10 +22,11 @@ use super::supply::{
 use super::wonder::{Wonder, WonderSide, WonderStage};
 use lazy_static::lazy_static;
 use maplit::hashset;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct GameState {
     pub deck: Deck,
     pub player_states: HashMap<PName, PlayerState>,
@@ -56,8 +57,18 @@ impl GameState {
         }
     }
     pub fn init(&mut self) {
-        unimplemented!()
-        // coins, trade actions, wonder effects
+        let mut effects: Vec<(&Effect, PName)> = Default::default();
+        for player_state in self.player_states.values_mut() {
+            effects.extend(
+                player_state
+                    .init()
+                    .iter()
+                    .map(|e| (e, player_state.player_name())),
+            );
+        }
+        for (effect, player_name) in effects {
+            (*effect)(self, player_name);
+        }
     }
     pub fn get_neighbour_player_states(&self, player_name: &PName) -> (&PlayerState, &PlayerState) {
         let (west, east) = self.neighbours.get_neighbours(player_name);
@@ -123,9 +134,28 @@ impl GameState {
     }
 }
 
+impl Serialize for GameState {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("GameState", 9)?;
+        s.serialize_field("type", "GameState")?;
+        s.serialize_field("deck", &self.deck)?;
+        s.serialize_field("player_states", &self.player_states)?;
+        s.serialize_field("neighbours", &self.neighbours)?;
+        s.serialize_field("cards_discarded", &self.cards_discarded)?;
+        s.serialize_field("current_age", &self.current_age)?;
+        s.serialize_field("current_age_cards", &self.current_age_cards)?;
+        s.serialize_field("events", &self.events)?;
+        s.serialize_field("points", &self.calculate_points())?;
+        s.end()
+    }
+}
+
 pub type Deck = (Cards, Cards, Cards);
 pub type Cards = Vec<Card>;
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, serde::Serialize)]
 pub struct Card(pub &'static Structure<'static, Effect>);
 pub type PlayersWithWonders = Vec<(Player, &'static WonderSide<'static, Effect>)>;
 pub enum PlayerDecision {
@@ -145,8 +175,8 @@ pub struct PlayerState {
     pub scientific_symbols_produced: ScientificSymbolsProduced,
     pub resources_produced: ResourcesProduced,
     pub structure_builder: StructureBuilder,
-    pub point_actions: Actions<dyn Fn(&GameState, &mut PointsMap) + Sync>,
-    pub trade_actions: Actions<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync>,
+    pub point_actions: Actions<dyn Fn(&GameState, &mut PointsMap) + Sync + Send>,
+    pub trade_actions: Actions<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync + Send>,
     pub can_play_last_card: bool,
     pub can_copy_guild: bool,
 }
@@ -168,6 +198,15 @@ impl PlayerState {
             can_play_last_card: false,
             can_copy_guild: false,
         }
+    }
+    pub fn init(&mut self) -> &'static Effects<Effect> {
+        // coins, trade actions, wonder effects
+        self.coins = 3;
+        self.trade_actions.push(Box::new(|_, _| 2));
+        self.wonder.initial_effects()
+    }
+    pub fn player_name(&self) -> PName {
+        self.player.name().clone()
     }
     pub fn calculate_points(&self, game_state: &GameState) -> HashMap<PointCategory, Point> {
         let mut points_map = PointsMap::new();
@@ -195,14 +234,14 @@ impl PlayerState {
     }
     pub fn add_trade_action_mut(
         &mut self,
-        action: Action<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync>,
+        action: Action<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync + Send>,
     ) -> &Self {
         self.trade_actions.push(action);
         self
     }
     pub fn add_trade_action_move(
         mut self,
-        action: Action<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync>,
+        action: Action<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync + Send>,
     ) -> Self {
         self.trade_actions.push(action);
         self
@@ -251,6 +290,33 @@ impl fmt::Debug for PlayerState {
     }
 }
 
+impl Serialize for PlayerState {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("PlayerState", 13)?;
+        s.serialize_field("type", "PlayerState")?;
+        s.serialize_field("name", &self.player.name())?;
+        s.serialize_field("wonder", &self.wonder)?;
+        s.serialize_field("coins", &self.coins)?;
+        s.serialize_field("military_symbols", &self.military_symbols)?;
+        s.serialize_field("battle_tokens", &self.battle_tokens)?;
+        s.serialize_field(
+            "scientific_symbols_produced",
+            &self.scientific_symbols_produced,
+        )?;
+        s.serialize_field("structure_builder", &self.structure_builder)?;
+        s.serialize_field("resources_produced", &self.resources_produced)?;
+        s.serialize_field("wonder_stages_built", &self.wonder_stages_built)?;
+        s.serialize_field("point_actions_len", &self.point_actions.len())?;
+        s.serialize_field("trade_actions_len", &self.trade_actions.len())?;
+        s.serialize_field("can_play_last_card", &self.can_play_last_card)?;
+        s.serialize_field("can_copy_guild", &self.can_copy_guild)?;
+        s.end()
+    }
+}
+
 type WonderStagesBuilt = u8;
 
 type Actions<T> = Vec<Action<T>>;
@@ -260,6 +326,7 @@ pub type Effect = Box<dyn Fn(&mut GameState, PName) + Sync>;
 
 pub type Events = Vec<Event>;
 pub type Event = (PName, EventType);
+#[derive(PartialEq, Debug, serde::Serialize)]
 pub enum EventType {
     ConstructFromDiscarded,
     PlayLastCard,
@@ -542,6 +609,7 @@ lazy_static! {
         )
     ];
     pub static ref WONDERS_BY_NAME: HashMap<String, &'static Wonder<'static, Effect>> = WONDERS.iter().map(|s| (s.0.to_string(), s)).collect();
+    pub static ref WONDER_NAMES: Vec<String> = WONDERS.iter().map(|s| s.0.to_string()).collect();
 }
 
 fn all_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {
@@ -744,7 +812,7 @@ fn build_free_from_discarded_cards_effect() -> Effect {
     })
 }
 
-fn apply_player_effect(player_state_mapper: Box<dyn Fn(&mut PlayerState) + Sync>) -> Effect {
+fn apply_player_effect(player_state_mapper: Box<dyn Fn(&mut PlayerState) + Sync + Send>) -> Effect {
     Box::new(move |game_state: &mut GameState, player_name: String| {
         player_state_mapper(game_state.get_mut_player_state(&player_name));
     })

@@ -1,6 +1,7 @@
 use super::effects::Effects;
 use super::supply::{Coin, ResourceCosts};
 use derive_more::Display;
+use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
 use std::fmt;
 
 #[derive(Display)]
@@ -46,11 +47,22 @@ impl<'a, T> PartialEq for Structure<'a, T> {
     }
 }
 
+impl<'a, T> Serialize for Structure<'a, T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_tuple_struct("Structure", 1)?;
+        s.serialize_field(&self.name())?;
+        s.end()
+    }
+}
+
 pub type SName<'a> = &'a str;
 
 pub type Categories<'a> = &'a [Category];
 
-#[derive(Display, PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(Display, PartialEq, Eq, Hash, Clone, Debug, serde::Serialize)]
 pub enum Category {
     Civilian,
     Commercial,
@@ -61,7 +73,7 @@ pub enum Category {
     Scientific,
 }
 
-#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Age {
     None,
     I,
