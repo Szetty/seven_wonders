@@ -53,6 +53,8 @@ jobs:
         - ../backend_old/backend_old & npm test
         - kill %1
     - name: Backend
+      os: linux
+      dist: bionic
       language: elixir
       stage: test
       elixir:
