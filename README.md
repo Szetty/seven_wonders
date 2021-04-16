@@ -1,6 +1,6 @@
 # Seven Wonders Digital version
 
-[![Build Status](https://travis-ci.com/Szetty/seven_wonders.svg?branch=master)](https://travis-ci.com/Szetty/seven_wonders)
+![CI](https://github.com/Szetty/seven_wonders/actions/workflows/ci.yml/badge.svg)
 ![Heroku](https://heroku-badge.herokuapp.com/?app=seven-wonders-szetty)
 
 ## Prerequisites
