@@ -55,6 +55,10 @@ jobs:
     - name: Backend
       language: elixir
       stage: test
+      elixir:
+        - "1.11"
+      otp_release:
+        - "22"
       before_install:
         - cd backend/
     - stage: deploy

@@ -5,7 +5,7 @@ defmodule Backend.MixProject do
     [
       app: :backend,
       version: "0.1.0",
-      elixir: "~> 1.7",
+      elixir: "~> 1.11.0",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: [:phoenix, :rustler] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
