@@ -75,7 +75,7 @@ jobs:
         elm-version: 0.19.1
     - uses: actions/checkout@v2
     - run: npm install
-    - run: npm install elm-github-install create-elm-app@4.2.16 --unsafe-perm=true
+    - run: sudo npm install -g elm-github-install create-elm-app@4.2.16 --unsafe-perm=true
     - run: elm-app build
     - run: elm-app test
   integration-tests:
@@ -94,4 +94,3 @@ jobs:
       - run: cd ../backend_old && go build && cd ../integration-tests
       - run: npm install
       - run: ../backend_old/backend_old & npm test
-      - run: kill %1
