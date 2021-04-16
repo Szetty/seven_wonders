@@ -10,6 +10,9 @@ jobs:
   build:
     name: Build and test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
     - uses: actions/checkout@v2
@@ -18,8 +21,6 @@ jobs:
       with:
         elixir-version: '1.11.0' # Define the elixir version [required]
         otp-version: '22.3' # Define the OTP version [required]
-    - name: Change directory
-      run: cd backend/
     - name: Restore dependencies cache
       uses: actions/cache@v2
       with:
