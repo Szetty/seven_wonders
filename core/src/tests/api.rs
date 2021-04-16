@@ -1,7 +1,7 @@
 use crate::api;
 use crate::api::start_game;
 use crate::domain::{
-    BattleTokens, Cards, Events, GameState, Player, PlayerState, ResourceType::*, WONDER_NAMES,
+    BattleTokens, Cards, Events, GameState, Player, PlayerState, ResourceType::*, WONDER_NAMES, WonderStagesBuilt, MilitarySymbolCount
 };
 use protobuf::RepeatedField;
 
@@ -112,7 +112,7 @@ fn test_start_game_with_invalid_length() {
     let error_type = api::start_game(start_game_request).unwrap_err();
     assert_eq!(
         error_type,
-        api::ErrorType::InvalidPlayersAndWonderSideLength
+        api::ErrorType::InvalidPlayersAndWonderSideLength("3 != 1".to_string())
     );
 }
 
@@ -144,15 +144,15 @@ fn test_game_state(game_state: &GameState) {
 }
 
 fn test_player_state(player_state: &PlayerState) {
-    assert_eq!(player_state.wonder_stages_built, Default::default());
+    assert_eq!(player_state.wonder_stages_built, WonderStagesBuilt::default());
     assert_eq!(player_state.coins, 3);
-    assert_eq!(player_state.military_symbols, Default::default());
+    assert_eq!(player_state.military_symbols, MilitarySymbolCount::default());
     assert_eq!(player_state.battle_tokens, BattleTokens::default());
     assert_eq!(player_state.scientific_symbols_produced, Default::default());
     assert_ne!(player_state.resources_produced, Default::default());
     assert_eq!(player_state.structure_builder, Default::default());
-    assert_eq!(player_state.point_actions.len(), Default::default());
+    assert_eq!(player_state.point_actions.len(), 0);
     assert_eq!(player_state.trade_actions.len(), 1);
-    assert_eq!(player_state.can_play_last_card, Default::default());
-    assert_eq!(player_state.can_copy_guild, Default::default());
+    assert_eq!(player_state.can_play_last_card, false);
+    assert_eq!(player_state.can_copy_guild, false);
 }

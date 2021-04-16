@@ -317,7 +317,7 @@ impl Serialize for PlayerState {
     }
 }
 
-type WonderStagesBuilt = u8;
+pub type WonderStagesBuilt = u8;
 
 type Actions<T> = Vec<Action<T>>;
 type Action<T> = Box<T>;

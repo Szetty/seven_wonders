@@ -3,7 +3,8 @@ sudo: false
 os: osx
 jobs:
   include:
-    - language: elm
+    - name: Frontend
+      language: elm
       stage: test
       before_install:
         - cd frontend/
@@ -13,7 +14,8 @@ jobs:
         - elm-app build
       script:
         - elm-app test
-    - language: rust
+    - name: Core
+      language: rust
       stage: test
       env:
         - RUSTLER_NIF_VERSION=2.15
@@ -27,14 +29,16 @@ jobs:
         allow_failures:
           - rust: nightly
         fast_finish: true
-    - language: go
+    - name: Old Backend
+      language: go
       stage: test
       env:
         - ACCESS_TOKEN="TEST"
         - JWT_SECRET="test"
       go:
         - "1.16"
-    - language: generic
+    - name: Integration Tests
+      language: generic
       stage: test
       env:
         - ACCESS_TOKEN="TEST"
@@ -48,6 +52,11 @@ jobs:
       script:
         - ../backend_old/backend_old & npm test
         - kill %1
+    - name: Backend
+      language: elixir
+      stage: test
+      before_install:
+        - cd backend/
     - stage: deploy
       if: branch == master AND (NOT (type IN (push, pull_request)))
       install:
