@@ -1,6 +1,7 @@
 sudo: false
 
 os: osx
+osx_image: xcode12.2
 jobs:
   include:
     - name: Frontend
@@ -53,16 +54,15 @@ jobs:
         - ../backend_old/backend_old & npm test
         - kill %1
     - name: Backend
-      os: linux
-      dist: bionic
-      language: elixir
+      language: minimal
       stage: test
-      elixir:
-        - "1.11"
-      otp_release:
-        - "22"
       before_install:
         - cd backend/
+        - brew install elixir
+      install:
+        - mix local.rebar --force; mix local.hex --force; mix deps.get
+      script:
+        - mix test
     - stage: deploy
       if: branch == master AND (NOT (type IN (push, pull_request)))
       install:
