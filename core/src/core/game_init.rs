@@ -1,5 +1,6 @@
+use crate::core::data::WONDERS;
 use crate::core::deck::generate_deck;
-use crate::domain::{Effect, GameState, Player, PlayersWithWonders, Wonder, WONDERS};
+use crate::domain::{Effect, GameState, Player, PlayersWithWonders, Wonder};
 use itertools::zip;
 use rand::random;
 use rand::seq::SliceRandom;

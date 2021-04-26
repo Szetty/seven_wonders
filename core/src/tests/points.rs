@@ -1,3 +1,4 @@
+use super::helpers::default_player_state;
 use crate::domain::{
     GameState, PlayerState,
     PointCategory::{CivilianP, CommercialP, GuildP, MilitaryP, ScientificP, TreasuryP, WonderP},
@@ -29,7 +30,7 @@ fn test_calculate_points() {
                         tablet: 1,
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
                 "b".to_string() => PlayerState{
                     coins: 9,
@@ -47,7 +48,7 @@ fn test_calculate_points() {
                         any_symbols: vec![&[Tablet, Gears, Compass]],
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
                 "c".to_string() => PlayerState{
                     coins: 4,
@@ -59,7 +60,7 @@ fn test_calculate_points() {
                             points_map.add(&GuildP, 10);
                         }),
                     ],
-                    ..Default::default()
+                    ..default_player_state()
                 }
             },
             ..Default::default()

@@ -78,7 +78,7 @@ impl PartialEq for ScientificSymbolsProduced {
             && self.any_symbols == other.any_symbols
             && self.tablet == other.tablet
             && self.compass == other.compass
-            && self.any_symbols == other.any_symbols
+            && self.gears == other.gears
     }
 }
 
@@ -102,7 +102,7 @@ fn apply_any_symbols(
     symbol_counts: &mut ScientificSymbolCounts,
     any_symbols: &Vec<ScientificSymbols<'static>>,
 ) {
-    if any_symbols.len() > 0 {
+    if !any_symbols.is_empty() {
         let symbols_and_points = combination_of_symbols_and_points(symbol_counts, any_symbols);
         let ([tablet, gears, compass], _) = symbols_and_points
             .into_iter()
@@ -130,9 +130,9 @@ fn combination_of_symbols_and_points(
     symbol_counts: &ScientificSymbolCounts,
     any_symbols: &Vec<ScientificSymbols<'static>>,
 ) -> HashSet<(ScientificSymbolCounts, Point)> {
-    let [tablet, gears, compass] = symbol_counts.clone();
+    let [tablet, gears, compass] = *symbol_counts;
     any_symbols
-        .into_iter()
+        .iter()
         .map(|symbols| symbols.iter())
         .multi_cartesian_product()
         .map(|symbol_product| {

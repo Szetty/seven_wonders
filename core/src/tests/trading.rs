@@ -1,11 +1,9 @@
-use super::helpers::default_game_state;
+use super::helpers::{default_game_state, default_player_state};
 use crate::core::trading::{try_trading, TradingOptions};
 use crate::domain::{
-    GameState, Neighbours, Player, PlayerState, ResourceCost, ResourceCostOptions, ResourceCosts,
-    ResourceCount, ResourceType, ResourceType::*, ResourceTypes, ResourcesProduced,
+    GameState, Player, PlayerState, ResourceCost, ResourceType::*, ResourcesProduced,
 };
 use maplit::{hashmap, hashset};
-use std::collections::HashMap;
 
 #[test]
 fn test_nothing_to_trade() {
@@ -14,15 +12,15 @@ fn test_nothing_to_trade() {
             player_states: hashmap! {
                 "a".to_string() => PlayerState {
                     player: Player("a".to_string()),
-                    ..Default::default()
+                    ..default_player_state()
                 },
                 "b".to_string() => PlayerState {
                     player: Player("b".to_string()),
-                    ..Default::default()
+                    ..default_player_state()
                 }.add_trade_action_move(Box::new(|_, _| 2)),
                 "c".to_string() => PlayerState {
                     player: Player("c".to_string()),
-                    ..Default::default()
+                    ..default_player_state()
                 },
             },
             ..default_game_state()
@@ -68,11 +66,11 @@ fn test_trade_without_discount() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
                 "b".to_string() => PlayerState {
                     player: Player("b".to_string()),
-                    ..Default::default()
+                    ..default_player_state()
                 }.add_trade_action_move(Box::new(|_, _| 2)),
                 "c".to_string() => PlayerState {
                     player: Player("c".to_string()),
@@ -83,7 +81,7 @@ fn test_trade_without_discount() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
             },
             ..default_game_state()
@@ -145,11 +143,11 @@ fn test_trade_with_one_discount_on_all_resources() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
                 "b".to_string() => PlayerState {
                     player: Player("b".to_string()),
-                    ..Default::default()
+                    ..default_player_state()
                 }.add_trade_action_move(Box::new(|player_name, _| {
                     if player_name == "a" {
                         1
@@ -166,7 +164,7 @@ fn test_trade_with_one_discount_on_all_resources() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
             },
             ..default_game_state()
@@ -228,11 +226,11 @@ fn test_trade_with_both_discounts_on_all_resources() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
                 "b".to_string() => PlayerState {
                     player: Player("b".to_string()),
-                    ..Default::default()
+                    ..default_player_state()
                 }.add_trade_action_move(Box::new(|_, _| 1)),
                 "c".to_string() => PlayerState {
                     player: Player("c".to_string()),
@@ -243,7 +241,7 @@ fn test_trade_with_both_discounts_on_all_resources() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
             },
             ..default_game_state()
@@ -305,11 +303,11 @@ fn test_trade_with_one_discount_on_some_resources() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
                 "b".to_string() => PlayerState {
                     player: Player("b".to_string()),
-                    ..Default::default()
+                    ..default_player_state()
                 }.add_trade_action_move(Box::new(|player_name, resource_type| {
                     if player_name == "a" && *resource_type == Clay {
                         1
@@ -326,7 +324,7 @@ fn test_trade_with_one_discount_on_some_resources() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
             },
             ..default_game_state()
@@ -388,11 +386,11 @@ fn test_trade_without_discount_repeating_resources() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
                 "b".to_string() => PlayerState {
                     player: Player("b".to_string()),
-                    ..Default::default()
+                    ..default_player_state()
                 }.add_trade_action_move(Box::new(|_, _| 2)),
                 "c".to_string() => PlayerState {
                     player: Player("c".to_string()),
@@ -402,7 +400,7 @@ fn test_trade_without_discount_repeating_resources() {
                         },
                         ..Default::default()
                     },
-                    ..Default::default()
+                    ..default_player_state()
                 },
             },
             ..default_game_state()

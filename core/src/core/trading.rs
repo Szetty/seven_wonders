@@ -43,11 +43,11 @@ fn apply_trading_setup(
     resource_costs: ResourceCostOption,
 ) -> TradingOptions {
     let resource_cost_options1 = player_state1.cover_resource_costs(resource_costs.clone());
-    if resource_cost_options1.len() == 0 {
+    if resource_cost_options1.is_empty() {
         return hashset![build_trade_option(
             current,
             player_state1,
-            resource_costs.clone()
+            resource_costs
         )];
     }
     let mut trading_options: TradingOptions = Default::default();
@@ -59,7 +59,7 @@ fn apply_trading_setup(
         );
         let resource_cost_options2 =
             player_state2.cover_resource_costs(resource_cost_option.clone());
-        if resource_cost_options2.len() == 0 {
+        if resource_cost_options2.is_empty() {
             trading_option.extend(build_trade_option(
                 current,
                 player_state2,

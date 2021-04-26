@@ -1,7 +1,7 @@
-use crate::domain::{
-    Card, Cards, Deck, Effect, Structure, AGE_III_STRUCTURES, AGE_II_STRUCTURES, AGE_I_STRUCTURES,
-    GUILD_STRUCTURES,
+use crate::core::data::{
+    AGE_III_STRUCTURES, AGE_II_STRUCTURES, AGE_I_STRUCTURES, GUILD_STRUCTURES,
 };
+use crate::domain::{Card, Cards, Deck, Effect, Structure};
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;

@@ -27,7 +27,7 @@ impl PointsMap {
         for category in all_point_categories() {
             data.insert(category, 0);
         }
-        Self { data: data }
+        Self { data }
     }
     pub fn add(&mut self, key: &PointCategory, value: Point) {
         *(self.data.get_mut(&key).unwrap()) += value;

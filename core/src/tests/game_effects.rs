@@ -1,17 +1,15 @@
-use super::helpers::default_game_state;
+use super::helpers::{default_game_state, default_player_state};
+use crate::core::data::{STRUCTURES_BY_NAME, WONDERS_BY_NAME};
 use crate::domain::{
     Age, Card,
     Category::{Commercial, Guild, Military, Scientific, MG, RM},
     GameState, Neighbours, Player, PlayerDecision, PlayerState,
     PointCategory::*,
-    ResourceCost, ResourceCostOptions, ResourceCosts, ResourceCount, ResourceType,
     ResourceType::*,
-    ResourceTypes, ResourcesProduced,
     ScientificSymbol::*,
-    ScientificSymbolsProduced, StructureBuilder, STRUCTURES_BY_NAME, WONDERS_BY_NAME,
+    ScientificSymbolsProduced, StructureBuilder,
 };
 use maplit::{hashmap, hashset};
-use std::collections::HashMap;
 
 #[test]
 fn test_card_dismissed() {
@@ -64,7 +62,7 @@ fn test_bazar() {
                     },
                     ..Default::default()
                 },
-                ..Default::default()
+                ..default_player_state()
             },
             "b".to_string() => PlayerState {
                 player: Player("b".to_string()),
@@ -74,7 +72,7 @@ fn test_bazar() {
                     },
                     ..Default::default()
                 },
-                ..Default::default()
+                ..default_player_state()
             },
             "c".to_string() => PlayerState {
                 player: Player("c".to_string()),
@@ -84,7 +82,7 @@ fn test_bazar() {
                     },
                     ..Default::default()
                 },
-                ..Default::default()
+                ..default_player_state()
             },
         },
         ..default_game_state()
@@ -121,7 +119,7 @@ fn test_guilds() {
                     },
                     ..Default::default()
                 },
-                ..Default::default()
+                ..default_player_state()
             },
             "b".to_string() => PlayerState {
                 player: Player("b".to_string()),
@@ -141,7 +139,7 @@ fn test_guilds() {
                     gears: 1,
                     ..Default::default()
                 },
-                ..Default::default()
+                ..default_player_state()
             },
             "c".to_string() => PlayerState {
                 player: Player("c".to_string()),
@@ -158,7 +156,7 @@ fn test_guilds() {
                     },
                     ..Default::default()
                 },
-                ..Default::default()
+                ..default_player_state()
             },
         },
         ..default_game_state()
@@ -484,15 +482,15 @@ fn test_construct_free_once_per_age() {
             "a".to_string() => PlayerState {
                 player: Player("a".to_string()),
                 wonder: wonder.get_wonder_side_a(),
-                ..Default::default()
+                ..default_player_state()
             },
             "b".to_string() => PlayerState {
                 player: Player("b".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
             "c".to_string() => PlayerState {
                 player: Player("c".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
         },
         ..default_game_state()
@@ -566,19 +564,19 @@ fn test_trade_raw_materials_from_both_neighbours() {
             "a".to_string() => PlayerState {
                 player: Player("a".to_string()),
                 wonder: wonder.get_wonder_side_b(),
-                ..Default::default()
+                ..default_player_state()
             },
             "b".to_string() => PlayerState {
                 player: Player("b".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
             "c".to_string() => PlayerState {
                 player: Player("c".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
             "d".to_string() => PlayerState {
                 player: Player("d".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
         },
         ..default_game_state()
@@ -624,15 +622,15 @@ fn test_scientific_any() {
             "a".to_string() => PlayerState {
                 player: Player("a".to_string()),
                 wonder: wonder.get_wonder_side_a(),
-                ..Default::default()
+                ..default_player_state()
             },
             "b".to_string() => PlayerState {
                 player: Player("b".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
             "c".to_string() => PlayerState {
                 player: Player("c".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
         },
         ..default_game_state()
@@ -677,16 +675,16 @@ fn test_alexandria() {
             "a".to_string() => PlayerState {
                 player: Player("a".to_string()),
                 wonder: wonder.get_wonder_side_a(),
-                ..Default::default()
+                ..default_player_state()
             },
             "b".to_string() => PlayerState {
                 player: Player("b".to_string()),
                 wonder: wonder.get_wonder_side_b(),
-                ..Default::default()
+                ..default_player_state()
             },
             "c".to_string() => PlayerState {
                 player: Player("c".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
         },
         ..default_game_state()
@@ -794,16 +792,16 @@ fn test_rhodos() {
             "a".to_string() => PlayerState {
                 player: Player("a".to_string()),
                 wonder: wonder.get_wonder_side_a(),
-                ..Default::default()
+                ..default_player_state()
             },
             "b".to_string() => PlayerState {
                 player: Player("b".to_string()),
                 wonder: wonder.get_wonder_side_b(),
-                ..Default::default()
+                ..default_player_state()
             },
             "c".to_string() => PlayerState {
                 player: Player("c".to_string()),
-                ..Default::default()
+                ..default_player_state()
             },
         },
         ..default_game_state()

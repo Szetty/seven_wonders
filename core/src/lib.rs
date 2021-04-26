@@ -35,7 +35,7 @@ mod atoms {
 }
 use crate::atoms::*;
 
-static VERSION: &'static str = env!("CARGO_PKG_VERSION");
+static VERSION: &str = env!("CARGO_PKG_VERSION");
 
 rustler::rustler_export_nifs! {
     "Elixir.Core.Api",
@@ -95,7 +95,7 @@ pub fn debug_game<'a>(env: Env<'a>, args: &[Term<'a>]) -> Result<Term<'a>, Error
     Ok((ok(), serde_json::to_string(&*game_state).unwrap()).encode(env))
 }
 
-fn handle_error_type<'a>(env: Env<'a>, error_type: api::ErrorType) -> Term<'a> {
+fn handle_error_type(env: Env, error_type: api::ErrorType) -> Term {
     match error_type {
         api::ErrorType::InvalidPlayersNumber(number) => {
             (error(), (invalid_players_number(), number)).encode(env)

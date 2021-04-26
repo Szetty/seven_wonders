@@ -1,5 +1,6 @@
+use crate::core::data::{WONDERS_BY_NAME, WONDER_NAMES};
 use crate::core::game_init;
-use crate::domain::{GameState, Player, PlayersWithWonders, WONDERS_BY_NAME, WONDER_NAMES};
+use crate::domain::{GameState, Player, PlayersWithWonders};
 use crate::VERSION;
 use protobuf::RepeatedField;
 use std::sync::Mutex;
@@ -35,7 +36,7 @@ pub fn start_game(request: start_game::Request) -> Result<SafeGameState, ErrorTy
     let wonder_sides = request.get_wonder_sides();
     let game_state = if players.len() < 3 || players.len() > 7 {
         return Err(ErrorType::InvalidPlayersNumber(players.len()));
-    } else if wonder_sides.len() == 0 {
+    } else if wonder_sides.is_empty() {
         game_init::init_with_random_wonders(
             players
                 .iter()
@@ -44,7 +45,7 @@ pub fn start_game(request: start_game::Request) -> Result<SafeGameState, ErrorTy
         )
     } else if players.len() == wonder_sides.len() {
         let mut players_with_wonders: PlayersWithWonders = Default::default();
-        for (player_name, wonder_side) in players.into_iter().zip(wonder_sides.into_iter()) {
+        for (player_name, wonder_side) in players.iter().zip(wonder_sides.iter()) {
             let wonder_name = wonder_side.get_wonder_name();
             let is_side_b = wonder_side.get_is_side_b();
             let wonder = match WONDERS_BY_NAME.get(wonder_name) {

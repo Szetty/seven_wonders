@@ -1,7 +1,9 @@
 use crate::api;
 use crate::api::start_game;
+use crate::core::data::WONDER_NAMES;
 use crate::domain::{
-    BattleTokens, Cards, Events, GameState, Player, PlayerState, ResourceType::*, WONDER_NAMES, WonderStagesBuilt, MilitarySymbolCount
+    BattleTokens, Cards, Events, GameState, MilitarySymbolCount, Player, PlayerState,
+    ResourceType::*, WonderStagesBuilt,
 };
 use protobuf::RepeatedField;
 
@@ -144,9 +146,15 @@ fn test_game_state(game_state: &GameState) {
 }
 
 fn test_player_state(player_state: &PlayerState) {
-    assert_eq!(player_state.wonder_stages_built, WonderStagesBuilt::default());
+    assert_eq!(
+        player_state.wonder_stages_built,
+        WonderStagesBuilt::default()
+    );
     assert_eq!(player_state.coins, 3);
-    assert_eq!(player_state.military_symbols, MilitarySymbolCount::default());
+    assert_eq!(
+        player_state.military_symbols,
+        MilitarySymbolCount::default()
+    );
     assert_eq!(player_state.battle_tokens, BattleTokens::default());
     assert_eq!(player_state.scientific_symbols_produced, Default::default());
     assert_ne!(player_state.resources_produced, Default::default());

@@ -36,7 +36,7 @@ impl StructureBuilder {
     }
     pub fn can_build_structure_for_free<T>(
         &self,
-        structure: &'static Structure<'static, T>,
+        _structure: &'static Structure<'static, T>,
         current_age: Age,
     ) -> bool {
         self.ages_can_build_free_in.contains(&current_age)

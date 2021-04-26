@@ -41,11 +41,11 @@ impl ResourcesProduced {
         self.any_resources.push(resource_types);
     }
     pub fn cover_resource_costs(&self, resource_costs: Vec<ResourceCost>) -> ResourceCostOptions {
-        if resource_costs.len() == 0 {
+        if resource_costs.is_empty() {
             return Default::default();
         }
         let costs_remaining = match_single_resources(self.single_resources.clone(), resource_costs);
-        if costs_remaining.len() == 0 {
+        if costs_remaining.is_empty() {
             return Default::default();
         }
         apply_any_resources(
@@ -111,17 +111,17 @@ fn apply_any_resources(
     any_resources: Vec<Vec<ResourceType>>,
     resource_costs: Vec<ResourceCost>,
 ) -> ResourceCostOptions {
-    if resource_costs.len() == 0 {
+    if resource_costs.is_empty() {
         return Default::default();
     }
-    if any_resources.len() == 0 {
-        return hashset![resource_costs.clone()];
+    if any_resources.is_empty() {
+        return hashset![resource_costs];
     }
     let combinations = compute_combinations(any_resources, resource_costs);
     let mut resource_cost_options: ResourceCostOptions = Default::default();
     for (any_resources, resource_costs) in combinations {
         match match_any_resource(any_resources, resource_costs) {
-            costs_remaining if costs_remaining.len() == 0 => {
+            costs_remaining if costs_remaining.is_empty() => {
                 return Default::default();
             }
             costs_remaining => {
@@ -146,7 +146,7 @@ fn compute_combinations(
         .into_iter()
         .map(|r| r.to_vec())
         .permutations(any_resources_len)
-        .filter(|r| r.len() > 0)
+        .filter(|r| !r.is_empty())
         .unique()
         .cartesian_product(
             resource_costs
@@ -156,7 +156,7 @@ fn compute_combinations(
                 })
                 .into_iter()
                 .permutations(resources_costs_len)
-                .filter(|r| r.len() > 0),
+                .filter(|r| !r.is_empty()),
         )
         .unique()
 }
