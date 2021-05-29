@@ -28,6 +28,10 @@ defmodule BackendWeb.ConnCase do
 
       # The default endpoint for testing
       @endpoint BackendWeb.Endpoint
+
+      defp api_spec() do
+        BackendWeb.ApiSpec.spec()
+      end
     end
   end
 

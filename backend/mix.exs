@@ -5,7 +5,7 @@ defmodule Backend.MixProject do
     [
       app: :backend,
       version: "0.1.0",
-      elixir: "~> 1.11.0",
+      elixir: "~> 1.11",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: [:phoenix, :rustler] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
@@ -40,13 +40,21 @@ defmodule Backend.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.5.8"},
+      {:phoenix_html, "~> 2.11"},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:phoenix_live_dashboard, "~> 0.4"},
       {:telemetry_metrics, "~> 0.4"},
       {:telemetry_poller, "~> 0.4"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
       {:protobuf, "~> 0.7.1"},
       {:elixir_uuid, "~> 1.2"},
-      {:rustler, "~> 0.21.1"}
+      {:rustler, "~> 0.21.1"},
+      {:vapor, "~> 0.10"},
+      {:open_api_spex, "~> 3.10"},
+      {:rexbug, ">= 1.0.0"},
+      {:uuid, "~> 1.1"},
+      {:joken, "~> 2.3"}
     ]
   end
 
@@ -58,7 +66,7 @@ defmodule Backend.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get"],
+      setup: ["deps.get", "cmd npm install --prefix assets"],
       gen_proto: [
         "cmd protoc -I ../proto --elixir_out=./lib/core/api $1"
       ]

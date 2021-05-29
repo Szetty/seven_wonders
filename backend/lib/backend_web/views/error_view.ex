@@ -13,4 +13,12 @@ defmodule BackendWeb.ErrorView do
   def template_not_found(template, _assigns) do
     %{errors: %{detail: Phoenix.Controller.status_message_from_template(template)}}
   end
+
+  def render("error.json", assigns) do
+    %{
+      "error_message" => assigns.error_message,
+      "error_type" => assigns.error_type,
+      "errors" => assigns[:errors] || []
+    }
+  end
 end

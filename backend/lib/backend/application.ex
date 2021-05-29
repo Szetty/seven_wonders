@@ -3,18 +3,20 @@ defmodule Backend.Application do
   # for more information on OTP Applications
   @moduledoc false
 
+  alias Backend.Crux
+  alias BackendWeb.{Endpoint, Telemetry}
+
   use Application
 
   def start(_type, _args) do
+    Vapor.load!([%Vapor.Provider.Dotenv{}])
+    load_system_env()
+
     children = [
-      # Start the Telemetry supervisor
-      BackendWeb.Telemetry,
-      # Start the PubSub system
+      Telemetry,
       {Phoenix.PubSub, name: Backend.PubSub},
-      # Start the Endpoint (http/https)
-      BackendWeb.Endpoint
-      # Start a worker by calling: Backend.Worker.start_link(arg)
-      # {Backend.Worker, arg}
+      Endpoint,
+      Crux.Supervisor
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -28,5 +30,22 @@ defmodule Backend.Application do
   def config_change(changed, _new, removed) do
     BackendWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp load_system_env() do
+    access_token =
+      case System.get_env("ACCESS_TOKEN") do
+        nil -> raise("Environment variable ACCESS_TOKEN must be set")
+        value -> value
+      end
+
+    jwt_secret =
+      case System.get_env("JWT_SECRET") do
+        nil -> raise("Environment variable JWT_SECRET must be set")
+        value -> value
+      end
+
+    Application.put_env(:backend, :access_token, access_token)
+    Application.put_env(:backend, :jwt_secret, jwt_secret)
   end
 end
