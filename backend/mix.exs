@@ -53,7 +53,6 @@ defmodule Backend.MixProject do
       {:vapor, "~> 0.10"},
       {:open_api_spex, "~> 3.10"},
       {:rexbug, ">= 1.0.0"},
-      {:uuid, "~> 1.1"},
       {:joken, "~> 2.3"}
     ]
   end
