@@ -34,6 +34,9 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    env:
+      ACCESS_TOKEN: "TEST"
+      JWT_SECRET: "test"
     defaults:
       run:
         working-directory: backend
