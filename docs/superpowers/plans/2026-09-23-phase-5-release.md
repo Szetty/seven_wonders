@@ -1042,6 +1042,7 @@ Expected: `200`. If any README command fails, fix `README.md` in the main repo, 
 **Files:**
 - Modify: `.gitignore`
 - Modify: `MIGRATION.md`
+- Modify: `AGENTS.md` (root)
 - Rewrite: `core/README.md`
 - Modify: any other tracked file reported by Step 1 (outside `docs/` and `MIGRATION.md`)
 
@@ -1115,6 +1116,20 @@ Insert these two lines at the very top of `MIGRATION.md` (above `# Migration Pla
 
 ```
 
+- [ ] **Step 5b: Update the root `AGENTS.md` for the finished migration**
+
+In `AGENTS.md` (repo root; not `helios/AGENTS.md`):
+1. In "Repository layout", change the line `Target layout (see ...):` to `Layout (design: docs/superpowers/specs/2026-09-23-migration-overview-design.md):`, and delete the paragraph starting `Legacy folders —` entirely.
+2. Replace the whole "## Migration in progress" section (heading and paragraph) with:
+```markdown
+## History
+
+The repo was consolidated from a Go backend, an Elm SPA and a custom websocket protocol into `helios/` + `core/` + `e2e/` in 2026. Design specs and implementation plans for that migration live in `docs/superpowers/`; `MIGRATION.md` is the historical inventory.
+```
+3. Keep every other section unchanged.
+
+Check: `git grep -nE "backend_old|websocket-client|integration-tests|frontend/|proto/|Migration in progress" -- AGENTS.md; echo "exit=$?"` prints nothing and `exit=1`.
+
 - [ ] **Step 6: Delete stray root artifacts**
 
 Run:
@@ -1122,7 +1137,7 @@ Run:
 rm -f erl_crash.dump helios/erl_crash.dump
 git status --short
 ```
-Expected: no `erl_crash.dump` anywhere; `git status --short` shows only `.gitignore`, `MIGRATION.md`, `core/README.md` and any Step 4 files as modified (plus the user's own untracked/unstaged files, which you leave alone).
+Expected: no `erl_crash.dump` anywhere; `git status --short` shows only `.gitignore`, `MIGRATION.md`, `AGENTS.md`, `core/README.md` and any Step 4 files as modified (plus the user's own untracked/unstaged files, which you leave alone).
 
 - [ ] **Step 7: Re-run the reference checks**
 
@@ -1137,14 +1152,15 @@ Expected: both greps print nothing and `exit=1` (git grep's "no match"); the fir
 - [ ] **Step 8: Commit**
 
 ```bash
-git add .gitignore MIGRATION.md core/README.md
+git add .gitignore MIGRATION.md AGENTS.md core/README.md
 # plus every file changed in Step 4, listed explicitly, e.g.:
 # git add e2e/tests/lobby.spec.ts
 git commit -m "$(cat <<'EOF'
 Remove references to deleted legacy folders
 
 Drop .gitignore entries for backend/frontend/websocket-client, rewrite the
-stale core README, and mark MIGRATION.md as completed.
+stale core README, mark MIGRATION.md as completed, and update the root
+AGENTS.md for the finished layout.
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 EOF
