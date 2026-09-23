@@ -28,7 +28,21 @@ defmodule HeliosWeb.Endpoint do
     raise_on_missing_only: code_reloading?
 
   if Mix.env() == :dev do
-    plug Tidewave, team: [id: "octoscreen", token: ""]
+    # Tidewave team config is read at request time so changing TIDEWAVE_TOKEN
+    # never requires recompiling the endpoint. When unset this is plain
+    # `plug Tidewave`. It must stay before the code_reloading? block.
+    plug :tidewave
+
+    defp tidewave(conn, _opts) do
+      opts =
+        case System.get_env("TIDEWAVE_TOKEN") do
+          nil -> []
+          "" -> []
+          token -> [team: [id: "octoscreen", token: token]]
+        end
+
+      Tidewave.call(conn, Tidewave.init(opts))
+    end
   end
 
   # Code reloading can be explicitly enabled under the
