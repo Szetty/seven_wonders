@@ -94,3 +94,9 @@ New `e2e` job: checkout → `jdx/mise-action` → hex/rebar → `cd helios && mi
 ## Acceptance criteria
 - `mix precommit` green; `cd e2e && npx playwright test` green locally and in CI.
 - No daisyUI references remain (`grep -ri daisy helios/assets helios/lib` empty).
+
+## Amendments from planning (2026-09-23)
+- Presence keys are strings in `Presence.list/1` and diffs: track `to_string(user.id)`; `HeliosWeb.Presence` exposes `online_topic/0`, `track_user/2`, `user_online?/1`.
+- `config/runtime.exs` sets the port for every env; it must default to 4004 when `MIX_ENV=e2e`.
+- Playwright `webServer` order is `assets.build + ecto.reset + phx.server` (seeds would start the endpoint before assets exist otherwise). CI pre-compiles the e2e env before Playwright to stay under the server timeout.
+- `Scope.for_user(nil)` returns `nil`; guests have `current_scope == nil`.

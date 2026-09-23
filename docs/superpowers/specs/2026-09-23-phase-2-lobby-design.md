@@ -92,3 +92,9 @@ Ports of all legacy scenarios (`integration-tests/src/{protocol,lobby}.test.ts`)
 ## Acceptance criteria
 - `mix precommit` and the full Playwright suite green locally and in CI.
 - All 9 legacy scenarios have a Playwright equivalent (1–9 above).
+
+## Amendments from planning (2026-09-23)
+- The Notifications hook fully owns `{:uninvited, lobby_id}` (flash + redirect when the current LiveView shows that lobby); LobbyLive does not handle it. `Lobbies.owner_name/1` added for the message.
+- Scenario 9: B remains a member after returning home, so B is not in A's invite select. The test instead asserts B shows as disconnected in A's table and that no "got offline" notification appears.
+- Grace timer message carries a token (`{:confirm_offline, user_id, token}`) so stale timers are ignored.
+- `decline` only applies to pending invites; `accept` is idempotent. "FREE" rows are shown only in the owner's view.

@@ -94,3 +94,10 @@ The e2e env configures `Helios.Games` with `fixed_seed` and explicit wonders wit
 ## Acceptance criteria
 - `mix precommit`, `cargo test`, full Playwright suite green locally and in CI.
 - `frontend/` deleted; no references to it remain.
+
+## Amendments from planning (2026-09-23)
+- `games.wonders` (nullable map; nil = random) persists the wonder selection so replay never depends on config.
+- Choice resolution happens inside the GameServer via `Games.submit_choice/3` (option index resolved atomically against the current view).
+- No shield token artwork exists: shields use `<.icon name="hero-shield-check">`; `token_path` gains `:pyramid`.
+- SQLite reports the partial unique index by column; the changeset declares both constraint names.
+- `frontend/` deletion needs `git rm -r -f frontend` (the user's local `Login.elm` edit) and only after explicit human confirmation; `frontend/public/cards/.gitattributes` (git-crypt filter) is not carried over.

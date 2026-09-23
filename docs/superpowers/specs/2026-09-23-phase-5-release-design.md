@@ -44,3 +44,9 @@ Jobs: `core`, `helios`, `e2e` (as built in Phases 0–2) plus `docker`: `docker 
 - `bin/build.sh` succeeds locally; `bin/run.sh bin/.env.example`-style run serves `/login`, a user can log in, and data persists across container restarts (volume).
 - CI: `core`, `helios`, `e2e`, `docker` all green.
 - README instructions work from a clean clone.
+
+## Amendments from planning (2026-09-23)
+- Build order in the Dockerfile is `mix compile` before `mix assets.deploy` (colocated hooks are emitted at compile time).
+- `/data` is pre-created and owned by `nobody` in the runtime image so a named volume is writable.
+- `bin/build.sh` passes the Rust version from `mise.toml` as a build arg; `bin/smoke.sh` (added) runs the login + persistence smoke test for both CI and manual verification.
+- `config/prod.exs` redirects non-localhost hosts to https; README documents running behind a TLS proxy.

@@ -148,3 +148,10 @@ Locking: NIFs take the mutex with `lock()` (not `try_lock`); calls are serialize
 ## Acceptance criteria
 - All tests above pass; Helios `Helios.Core` tests pass against the new NIF.
 - A full random game for 3–7 players completes via the NIF from Elixir (ExUnit test mirroring the simulation for n = 3 and 7).
+
+## Amendments from planning (2026-09-23)
+- Payment options are no longer derived from `cover_resource_costs` + `try_trading` (factorial and incomplete). New `ResourcesProduced::can_produce` (bipartite matching) + `game::payment` enumeration; the legacy trading code and its tests are replaced, scenarios ported.
+- The RNG lives only in `Game::new`; shuffle/sampling implemented locally over `ChaCha8Rng::next_u64` so dependency upgrades never change replays. `rand` is removed.
+- Additional data fixes: Magistrates Guild is 1 VP per neighbouring blue card; Courthouse has no dependents (Senate chains only from Library).
+- End of age with two extra turns: Babylon B's play-last-card resolves before Halikarnassós's build-from-discard.
+- Elixir shapes: `{:unavailable, reason_atom}`, bare `:invalid_players_number`, flat `phase` map; final scores sorted by rank; `debug_game` JSON nests the state under `"state"`.
