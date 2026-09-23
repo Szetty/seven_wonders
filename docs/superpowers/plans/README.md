@@ -12,7 +12,7 @@ Each plan's header lists Global Constraints (apply to every task) and Review Foc
 
 | Step | Plan | Notes |
 |---|---|---|
-| 1 | `2026-09-23-phase-0-foundation.md` | Must run in the main checkout (not a worktree): `helios/` and `mise.toml` are untracked until Task 1. |
+| 1 | `2026-09-23-phase-0-foundation.md` | Starts from `b283ab3` (helios/, mise.toml already committed). |
 | 2a | `2026-09-23-phase-1-auth.md` → `2026-09-23-phase-2-lobby.md` | Sequential. |
 | 2b | `2026-09-23-phase-3-engine.md` | Depends only on Phase 0; may run in parallel with 2a. Tasks 18 and 19 are one deployable unit — don't push between them. |
 | 3 | `2026-09-23-phase-4-game.md` | Needs Phases 2 and 3. Task 1 pins the Phase 3 NIF shapes; if it fails, stop and reconcile. |
@@ -20,8 +20,8 @@ Each plan's header lists Global Constraints (apply to every task) and Review Foc
 
 ## Human checkpoints (the executor must stop and ask)
 
-- Phase 0, Task 7 — before deleting `backend/`: the untracked personal file `backend/assets/static/Ai căutat Gigabyte … eMAG.r.html` and untracked `backend/.env` / `config/prod.secret.exs` are not recoverable from git.
-- Phase 4, Task 15 — before `git rm -r -f frontend`: the uncommitted edit to `frontend/src/elm/Pages/Login.elm` will be lost (the plan offers to save it as a patch).
+- Phase 0, Task 7 — before deleting `backend/`: untracked `backend/.env` / `config/prod.secret.exs` are not recoverable from git.
+- Phase 4, Task 15 — before deleting `frontend/` (untracked leftovers such as `elm-stuff/` are removed with `rm -rf`).
 - Any push, PR, or CI-dependent acceptance step.
 - Never stage with `git add -A` / `git add .`.
 

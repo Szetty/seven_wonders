@@ -25,7 +25,7 @@
 - Ecto code stays portable (no SQLite-only SQL). Migrations are created with `mix ecto.gen.migration <name>` (AGENTS.md).
 - No new dependencies (Elixir or npm).
 - Each task ends green on `cd helios && mix precommit` (Playwright tasks additionally on `cd e2e && npx playwright test`).
-- Git: stage files **by explicit path only** — never `git add -A` / `git add .`. The user's uncommitted `frontend/src/elm/Pages/Login.elm` change must never be staged. Every commit message ends with the line `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
+- Git: stage files **by explicit path only** — never `git add -A` / `git add .`. Every commit message ends with the line `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
 
 ## Review Focus
 
@@ -490,7 +490,7 @@ Expected: compile with no warnings, formatter applied, all tests pass.
 git add helios/priv/repo/migrations/*_create_lobbies.exs helios/priv/repo/migrations/*_create_lobby_invites.exs \
   helios/lib/helios/lobbies.ex helios/lib/helios/lobbies/lobby.ex helios/lib/helios/lobbies/invite.ex \
   helios/test/support/fixtures/lobbies_fixtures.ex helios/test/helios/lobbies_test.exs
-git status --short   # frontend/src/elm/Pages/Login.elm must still show " M" (unstaged)
+git status --short
 git commit -m "feat(lobby): add lobbies/invites schema and read-side context
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -923,7 +923,7 @@ Expected: PASS, no warnings.
 
 ```bash
 git add helios/lib/helios/lobbies.ex helios/test/support/fixtures/lobbies_fixtures.ex helios/test/helios/lobbies_test.exs
-git status --short   # Login.elm still unstaged
+git status --short
 git commit -m "feat(lobby): invite, uninvite, accept, decline with PubSub broadcasts
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -1233,7 +1233,7 @@ Expected: PASS.
 
 ```bash
 git add helios/lib/helios_web/online_tracker.ex helios/test/helios_web/online_tracker_test.exs helios/config/config.exs helios/config/e2e.exs
-git status --short   # Login.elm still unstaged
+git status --short
 git commit -m "feat(lobby): add debounced OnlineTracker with configurable grace period
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -1906,7 +1906,7 @@ git add helios/lib/helios_web/live/lobby_live.ex helios/lib/helios_web/router.ex
   helios/test/helios_web/controllers/page_controller_test.exs \
   e2e/tests/support/auth.ts e2e/tests/auth.spec.ts
 # plus, by explicit path, every Phase 1 test file edited in Step 6 (see `git status --short`)
-git status --short   # the stub deletions are already staged by git rm; Login.elm still unstaged
+git status --short   # the stub deletions are already staged by git rm
 git commit -m "feat(lobby): add LobbyLive at /lobby/:game_id and redirect / to own table
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -2527,7 +2527,7 @@ Expected: PASS (whole suite, no warnings; `grep -rn daisy helios/lib` still empt
 git add helios/lib/helios_web/notifications.ex helios/lib/helios_web/components/layouts.ex \
   helios/lib/helios_web/router.ex helios/lib/helios_web/live/lobby_live.ex \
   helios/test/helios_web/notifications_test.exs
-git status --short   # Login.elm still unstaged
+git status --short
 git commit -m "feat(lobby): add notifications hook for invites and presence events
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -2698,7 +2698,7 @@ Expected: 3 passed. (The behaviour was built in Tasks 3–5; a failure here is a
 
 ```bash
 git add e2e/tests/support/lobby.ts e2e/tests/presence.spec.ts
-git status --short   # Login.elm still unstaged
+git status --short
 git commit -m "test(e2e): add lobby helpers and presence scenarios
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -2876,7 +2876,7 @@ Expected: all specs pass (`auth.spec.ts`, `presence.spec.ts`, `lobby.spec.ts`).
 
 ```bash
 git add e2e/tests/lobby.spec.ts
-git status --short   # Login.elm still unstaged
+git status --short
 git commit -m "test(e2e): port legacy lobby scenarios to Playwright
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
@@ -2937,7 +2937,7 @@ git add .github/workflows/ci.yml
 git diff --cached --name-only | grep -vE '^(backend_old|websocket-client|integration-tests)/|^\.github/workflows/ci\.yml$'
 ```
 
-Expected: the second command prints nothing (only the deletions and `ci.yml` are staged). `git status --short` still shows ` M frontend/src/elm/Pages/Login.elm` (unstaged) and the untracked files untouched.
+Expected: the second command prints nothing (only the deletions and `ci.yml` are staged). `git status --short` shows the untracked files untouched.
 
 - [ ] **Step 6: Commit**
 

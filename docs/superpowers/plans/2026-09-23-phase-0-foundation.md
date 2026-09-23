@@ -17,11 +17,11 @@
 - Crate identity: package and lib name `seven_wonders_core`, `edition = "2021"`, `crate-type = ["cdylib", "rlib"]` (in that order; see Task 5 for why the order matters). The internal module formerly named `core` is `engine` (`core/src/engine/`). NIF module name: `"Elixir.Helios.Core.Native"`.
 - **No rule changes** in this phase. Legacy engine code is only edited mechanically (renames, dependency API changes, lint fixes). If a legacy test fails for a reason other than an API rename, STOP and report. Do not change game logic to make it pass.
 - Gates: `cd core && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` passes after Task 4 and again after Task 5. `cd helios && mix precommit` passes after Task 2 and again after Task 5.
-- Execute in the **main checkout** at `/Users/arnoldszederjesi/Projects/seven_wonders` on branch `game_ui`, **not in a git worktree**: `helios/` and `mise.toml` are untracked until Task 1 commits them, so a worktree would not contain them.
+- Starting state: the user committed `helios/`, `mise.toml`, the `Login.elm` edit and a `*.DS_Store` ignore rule in `b283ab3` ("Save version before migration") and pushed it. Execute on branch `game_ui` (or a worktree branched from it); the working tree starts clean.
 - Commands: all paths are relative to the repo root. Every tool runs through mise: `(cd core && mise exec -- cargo test)`, `(cd helios && mise exec -- mix test)`. `sed` is BSD sed on macOS (`sed -i ''`).
-- Git hygiene: stage with explicit paths only. Never use `git add -A`, `git add .`, `git add -u` or `git commit -a`. **Never stage `frontend/src/elm/Pages/Login.elm`**: it is the user's uncommitted work and must still show as ` M` in `git status --short` after every commit.
-- **Never touch** `backend/assets/static/Ai căutat Gigabyte X570 AORUS ULTRA in Placi de baza Rating minim 4 CPU Socket AM4 Format ATX eMAG.r.html` (the user's untracked personal file). Never `rm -rf` any untracked leftover without explicit human confirmation in the conversation (Task 7).
-- No secrets in committed source. Never write the old Tidewave token value anywhere, including commit messages and this plan's follow-ups.
+- Git hygiene: stage with explicit paths only. Never use `git add -A`, `git add .`, `git add -u` or `git commit -a`.
+- Never `rm -rf` any untracked leftover without explicit human confirmation in the conversation (Task 7). Untracked `backend/.env` and `backend/config/prod.secret.exs` may contain secrets.
+- No secrets in committed source. Never write the old Tidewave token value anywhere, including commit messages and this plan's follow-ups. The old token is already in the public history (`b283ab3`); Task 1 removes it from HEAD and the human revokes it. Do not rewrite git history unless the human asks.
 - CI actions use current major versions: `actions/checkout@v7`, `actions/cache@v6`, `jdx/mise-action@v4`.
 - Every commit message ends with the line `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
 
@@ -73,19 +73,19 @@ Known limitations deliberately **not** changed here (they are rule/validation ch
 
 ---
 
-### Task 1: Repo hygiene, toolchain bootstrap, commit the Helios baseline
+### Task 1: Repo hygiene, toolchain bootstrap, remove the hardcoded Tidewave token
 
 **Files:**
 - Modify: `.gitignore` (append at end; the file currently has no trailing newline)
 - Modify: `helios/lib/helios_web/endpoint.ex:30-32`
 - Modify: `mise.toml`
-- Commit: `helios/**` (non-ignored files), `mise.toml`, `.gitignore`
+- Commit: `helios/lib/helios_web/endpoint.ex`, `mise.toml`, `.gitignore`
 
 **Interfaces:**
 - Consumes: nothing.
 - Produces:
   - A working toolchain for all later tasks: `mise exec -- cargo|rustc|mix` resolve to Rust 1.98.1 (with clippy + rustfmt) and Elixir 1.19.5-otp-28 with Hex/Rebar.
-  - A tracked `helios/` tree. The dev endpoint plugs Tidewave through the private function plug `tidewave/2`.
+  - The dev endpoint plugs Tidewave through the private function plug `tidewave/2` (no literal token in source).
 
 - [ ] **Step 1: Preflight — confirm location and working-tree state**
 
@@ -95,10 +95,10 @@ cd /Users/arnoldszederjesi/Projects/seven_wonders && git rev-parse --show-toplev
 ```
 Expected:
 - The top level is `/Users/arnoldszederjesi/Projects/seven_wonders` and the branch is `game_ui`.
-- Status contains ` M frontend/src/elm/Pages/Login.elm`.
-- Status contains `?? helios/`, `?? mise.toml`, `?? .DS_Store`, `?? erl_crash.dump` and the `?? "backend/assets/static/Ai c…eMAG.r.html"` line.
+- Status is empty, or lists only untracked `erl_crash.dump` files (`.DS_Store` is ignored since `b283ab3`).
+- `git ls-files mise.toml helios/mix.exs` prints both paths (already tracked).
 
-If the top level is a worktree path or the branch differs, STOP and ask the human.
+If the branch is neither `game_ui` nor a branch created from it, or tracked files are modified, STOP and ask the human.
 
 - [ ] **Step 2: Ignore macOS and BEAM crash artifacts repo-wide**
 
@@ -215,25 +215,22 @@ Expected: `6 tests, 1 failure`. The failure is `test handles login attempt (Heli
 
 Run:
 ```bash
-git add .gitignore mise.toml helios
+git add .gitignore mise.toml helios/lib/helios_web/endpoint.ex
 git diff --cached --name-only | grep -v '^helios/'
 git diff --cached --name-only | grep -E '\.db|erl_crash|DS_Store|priv/static/assets|/deps/|/_build/' ; echo "forbidden-matches-exit=$?"
-git status --short | grep Login.elm
 ```
 Expected:
 - The first `grep` prints exactly `.gitignore`, `mise.toml`.
 - The second prints only `forbidden-matches-exit=1`.
-- The last prints ` M frontend/src/elm/Pages/Login.elm` (unstaged, leading space).
 
-About 50 `helios/` paths are staged, including `helios/assets/vendor/*.js`, `helios/priv/static/images/7_wonders.jpg` and `helios/mix.lock`.
+The only staged `helios/` path is `helios/lib/helios_web/endpoint.ex`.
 
 - [ ] **Step 12: Commit**
 
 ```bash
 git commit -m "$(cat <<'EOF'
-chore: commit Helios app, pin Rust in mise, ignore OS artifacts
+chore: drop hardcoded Tidewave token, pin Rust in mise, ignore crash dumps
 
-- Import the Phoenix 1.8 Helios app (previously untracked).
 - Read the Tidewave team token from TIDEWAVE_TOKEN at request time
   instead of a hardcoded literal; plain `plug Tidewave` when unset.
 - Pin rust 1.98.1 (clippy, rustfmt) in mise.toml.
@@ -244,9 +241,8 @@ Known failing test: LoginLiveTest "handles login attempt" (fixed next).
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 EOF
 )"
-git status --short | grep Login.elm
 ```
-Expected: the commit succeeds, and `git status` still shows ` M frontend/src/elm/Pages/Login.elm`.
+Expected: the commit succeeds and `git status --short` is empty (apart from untracked crash dumps).
 
 ---
 
@@ -466,9 +462,8 @@ phx-change to the form, and rely on native Enter-to-submit.
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 EOF
 )"
-git status --short | grep Login.elm
 ```
-Expected: the commit succeeds, and ` M frontend/src/elm/Pages/Login.elm` is still unstaged.
+Expected: the commit succeeds.
 
 ---
 
@@ -1036,13 +1031,13 @@ Expected: `fmt-exit=0`.
 
 - [ ] **Step 3: Apply machine-applicable fixes**
 
-Run (`--allow-dirty` is required because the user's `Login.elm` edit makes the repo dirty; `cargo fix` only rewrites files of this crate):
+Run (`--allow-dirty` lets `cargo fix` run with this task's uncommitted edits; it only rewrites files of this crate):
 ```bash
 (cd core && mise exec -- cargo clippy --fix --allow-dirty --allow-staged --all-targets && mise exec -- cargo fmt)
 (cd core && mise exec -- cargo clippy --all-targets -- -D warnings 2>&1 | grep -E "^(error|warning)" | sort | uniq -c)
-git status --short -- . ':!core' ':!frontend/src/elm/Pages/Login.elm' ':!backend'
+git status --short -- . ':!core' ':!backend'
 ```
-Expected: the remaining list is shorter, and the last command prints nothing (nothing outside `core/` changed; `backend/` is excluded because the user's untracked file still lives there until Task 7).
+Expected: the remaining list is shorter, and the last command prints nothing (nothing outside `core/` changed; `backend/` is excluded because untracked leftovers such as `.env` live there until Task 7).
 
 This typically auto-fixes:
 - `needless_borrow` / `needless_borrows_for_generic_args` (e.g. `&player_name` in `domain/player.rs:44`, `&effect_directions` / `&categories` in `domain/game_state.rs`)
@@ -1741,13 +1736,13 @@ EOF
 - Consumes: green gates from Tasks 5–6. Nothing in `core/`, `helios/` or CI references `backend/` or `proto/` any more.
 - Produces: a repo without `backend/` and `proto/` in git. Phase 2 then deletes `backend_old/`, `websocket-client/` and `integration-tests/`.
 
-- [ ] **Step 1: STOP — ask the human about the personal file before touching `backend/`**
+- [ ] **Step 1: STOP — confirm with the human before touching `backend/`**
 
 Do not run any command in this task until the human answers. Ask verbatim:
 
-> "Before I remove `backend/`: the untracked file `backend/assets/static/Ai căutat Gigabyte X570 AORUS ULTRA in Placi de baza Rating minim 4 CPU Socket AM4 Format ATX eMAG.r.html` is yours and git cannot recover it. Have you moved it out of `backend/`? I will only run `git rm -r backend proto`, which removes tracked files only. I will not delete any untracked leftovers without your explicit go-ahead."
+> "Before I remove `backend/`: it contains untracked files git cannot recover (e.g. `backend/.env`, `backend/config/prod.secret.exs`). Have you saved anything you want to keep? I will only run `git rm -r backend proto`, which removes tracked files only. I will not delete any untracked leftovers without your explicit go-ahead."
 
-Continue only after an explicit "yes, moved" or "yes, proceed".
+Continue only after an explicit "yes, proceed".
 
 - [ ] **Step 2: Remove tracked files only**
 
@@ -1756,7 +1751,7 @@ Run:
 git rm -r -q backend proto
 git status --short | grep -vE '^D  (backend|proto)/' 
 ```
-Expected: `git status` shows only the staged `D` deletions plus pre-existing entries: ` M frontend/src/elm/Pages/Login.elm`, and possibly `?? backend/...` leftovers.
+Expected: `git status` shows only the staged `D` deletions plus possibly `?? backend/...` leftovers.
 
 - [ ] **Step 3: Inspect untracked leftovers — do not delete them**
 
@@ -1767,7 +1762,7 @@ ls proto 2>&1
 ```
 Expected:
 - `proto`: `No such file or directory`.
-- `backend/` probably still exists with ignored/untracked leftovers: `deps/`, `_build/` or `priv/`, `.env`, `config/prod.secret.exs`, `erl_crash.dump`, `.DS_Store` files, and the personal HTML file if it was not moved.
+- `backend/` probably still exists with ignored/untracked leftovers: `deps/`, `_build/` or `priv/`, `.env`, `config/prod.secret.exs`, `erl_crash.dump`, and `.DS_Store` files.
 
 Show this listing to the human and ask:
 
@@ -1818,7 +1813,7 @@ Expected:
 - `secrets-exit=1`.
 - `token:` appears only on the `token -> [team: [id: "octoscreen", token: token]]` line.
 - `40 passed` and `21 tests, 0 failures`.
-- `git status` shows the staged `D` lines, ` M README.md`, ` M frontend/src/elm/Pages/Login.elm`, and possibly `?? backend/` if the human kept the leftovers.
+- `git status` shows the staged `D` lines, ` M README.md`, and possibly `?? backend/` if the human kept the leftovers.
 
 The references check is scoped to `core`, `helios`, `README.md` and `.github`. `backend_old/` and `websocket-client/` legitimately use protobuf until Phase 2 deletes them, and `docs/` specs mention it historically.
 
@@ -1837,9 +1832,8 @@ sections.
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 EOF
 )"
-git status --short | grep Login.elm
 ```
-Expected: `unexpected-staged-exit=1`, the commit succeeds, and ` M frontend/src/elm/Pages/Login.elm` is still unstaged.
+Expected: `unexpected-staged-exit=1` and the commit succeeds.
 
 - [ ] **Step 7: STOP — ask the human how to get CI green**
 
@@ -1878,7 +1872,7 @@ Expected: the `Core` and `Helios` jobs are green. `Old Backend`, `Frontend` and 
 | 0.1 `.gitignore` | Task 1 Step 2 |
 | 0.1 Tidewave token | Task 1 Steps 3–4, 9 |
 | 0.1 mise rust | Task 1 Step 5 |
-| 0.1 commit helios/mise.toml; Login.elm untouched | Task 1 Steps 11–12 |
+| 0.1 token removed from HEAD, Rust pinned (helios/mise.toml already committed in b283ab3) | Task 1 Steps 11–12 |
 | 0.2 `mise install`, hex/rebar, `mix deps.get && mix compile` | Task 1 Steps 6–8 |
 | 0.3 `to_form(..., as: :login)`, `%{"login" => ...}`, hook dropped, tests updated, `mix precommit` | Task 2 |
 | 0.4 Cargo.toml (edition, name, crate-type, deps, no protobuf) | Task 3 Step 2 |

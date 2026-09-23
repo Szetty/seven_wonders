@@ -16,7 +16,7 @@ A committed, building, CI-verified baseline: Helios in git, a modernized `core` 
 - `core/src/api/{ping,game_settings,start_game}.rs` are protobuf-generated; `core/src/api/mod.rs` holds `ErrorType`, `ping`, `game_settings`, `start_game`, `SafeGameState = Mutex<GameState>`.
 - 37 Rust tests exist (`core/src/tests/*` + inline); never run on a modern toolchain.
 - CI (`.github/workflows/ci.yml`) pins Rust 1.51, Elixir 1.11, OTP 22.3; has jobs `core`, `backend`, `old_backend`, `frontend`, `integration-tests`; no helios job.
-- An untracked personal file `backend/assets/static/Ai căutat Gigabyte X570 … eMAG.r.html` exists. **It must not be touched by automation**; the user is warned it will disappear with `backend/` deletion (it is untracked, so git cannot recover it).
+- Update: the user committed `helios/`, `mise.toml` and the `Login.elm` edit in `b283ab3` (pushed to the public repo), including the hardcoded Tidewave token — it must be revoked by the user and removed from HEAD in 0.1.
 
 ## Design
 
@@ -24,7 +24,7 @@ A committed, building, CI-verified baseline: Helios in git, a modernized `core` 
 - Root `.gitignore`: add `.DS_Store`, `erl_crash.dump`.
 - Replace the hardcoded Tidewave token with `System.get_env("TIDEWAVE_TOKEN")`; when unset, do not plug Tidewave's team config (plain `plug Tidewave`).
 - `mise.toml`: add `rust = "<current stable>"` (pinned exact version).
-- Commit `helios/`, `mise.toml`. The user's uncommitted `frontend/src/elm/Pages/Login.elm` edit is left untouched (not staged).
+- Commit the token removal, `mise.toml` Rust pin and `.gitignore` change (helios/ itself is already tracked).
 
 ### 0.2 Toolchain bootstrap
 - Document and run `mise install` and `mise exec -- mix local.hex --force && mix local.rebar --force`.

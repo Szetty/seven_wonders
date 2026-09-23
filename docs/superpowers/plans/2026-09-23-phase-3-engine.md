@@ -93,7 +93,7 @@ Everything else matches the rulebook: all 68 non-guild cards, 10 guilds and 14 w
 - `src/game/` has **no rustler imports**. `src/nif/` holds DTOs with `#[derive(NifMap | NifTaggedEnum | NifUnitEnum)]` and `From` conversions; the resource is `GameResource(Mutex<Game>)`. NIFs use `lock()` (not `try_lock`) and no dirty schedulers.
 - Elixir module name `Elixir.Helios.Core.Native`. Resource atoms are `:wood, :stone, :ore, :clay, :glass, :loom, :papyrus`. Category atoms are `:civilian, :commercial, :guild, :manufactured_good, :military, :raw_material, :scientific`. `ActionError` atoms are the snake_case variant names.
 - `rand_chacha = "0.10.0"`: latest stable on crates.io (released 2026-02-02; `rand_core ^0.10`). Verify with `cargo search rand_chacha`. Its `rand_core` re-export provides `Rng::next_u64` and `SeedableRng::seed_from_u64`.
-- Commit messages end with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`. Always `git add <explicit paths>` (never `-A`/`.`). Never stage `frontend/src/elm/Pages/Login.elm`, `.DS_Store` files, or anything under `backend/`.
+- Commit messages end with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`. Always `git add <explicit paths>` (never `-A`/`.`). Never stage `.DS_Store` files or anything under `backend/`.
 
 ## Review Focus
 
