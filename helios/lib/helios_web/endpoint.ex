@@ -28,7 +28,7 @@ defmodule HeliosWeb.Endpoint do
     raise_on_missing_only: code_reloading?
 
   if Mix.env() == :dev do
-    plug Tidewave, team: [id: "octoscreen", token: "kga5zavjkcjmivhpv7rxihuzmnqfv35ds7puizy"]
+    plug Tidewave, team: [id: "octoscreen", token: ""]
   end
 
   # Code reloading can be explicitly enabled under the
