@@ -24,7 +24,7 @@ A committed, building, CI-verified baseline: Helios in git, a modernized `core` 
 - Root `.gitignore`: add `.DS_Store`, `erl_crash.dump`.
 - Replace the hardcoded Tidewave token with `System.get_env("TIDEWAVE_TOKEN")`; when unset, do not plug Tidewave's team config (plain `plug Tidewave`).
 - `mise.toml`: add `rust = "<current stable>"` (pinned exact version).
-- Commit `helios/`, `mise.toml`, `MIGRATION.md`. The user's uncommitted `frontend/src/elm/Pages/Login.elm` edit is left untouched (not staged).
+- Commit `helios/`, `mise.toml`. The user's uncommitted `frontend/src/elm/Pages/Login.elm` edit is left untouched (not staged).
 
 ### 0.2 Toolchain bootstrap
 - Document and run `mise install` and `mise exec -- mix local.hex --force && mix local.rebar --force`.

@@ -12,7 +12,7 @@ Each plan's header lists Global Constraints (apply to every task) and Review Foc
 
 | Step | Plan | Notes |
 |---|---|---|
-| 1 | `2026-09-23-phase-0-foundation.md` | Must run in the main checkout (not a worktree): `helios/`, `mise.toml`, `MIGRATION.md` are untracked until Task 1. |
+| 1 | `2026-09-23-phase-0-foundation.md` | Must run in the main checkout (not a worktree): `helios/` and `mise.toml` are untracked until Task 1. |
 | 2a | `2026-09-23-phase-1-auth.md` → `2026-09-23-phase-2-lobby.md` | Sequential. |
 | 2b | `2026-09-23-phase-3-engine.md` | Depends only on Phase 0; may run in parallel with 2a. Tasks 18 and 19 are one deployable unit — don't push between them. |
 | 3 | `2026-09-23-phase-4-game.md` | Needs Phases 2 and 3. Task 1 pins the Phase 3 NIF shapes; if it fails, stop and reconcile. |

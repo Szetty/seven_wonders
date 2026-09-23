@@ -17,7 +17,7 @@
 - Crate identity: package and lib name `seven_wonders_core`, `edition = "2021"`, `crate-type = ["cdylib", "rlib"]` (in that order; see Task 5 for why the order matters). The internal module formerly named `core` is `engine` (`core/src/engine/`). NIF module name: `"Elixir.Helios.Core.Native"`.
 - **No rule changes** in this phase. Legacy engine code is only edited mechanically (renames, dependency API changes, lint fixes). If a legacy test fails for a reason other than an API rename, STOP and report. Do not change game logic to make it pass.
 - Gates: `cd core && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test` passes after Task 4 and again after Task 5. `cd helios && mix precommit` passes after Task 2 and again after Task 5.
-- Execute in the **main checkout** at `/Users/arnoldszederjesi/Projects/seven_wonders` on branch `game_ui`, **not in a git worktree**: `helios/`, `mise.toml` and `MIGRATION.md` are untracked until Task 1 commits them, so a worktree would not contain them.
+- Execute in the **main checkout** at `/Users/arnoldszederjesi/Projects/seven_wonders` on branch `game_ui`, **not in a git worktree**: `helios/` and `mise.toml` are untracked until Task 1 commits them, so a worktree would not contain them.
 - Commands: all paths are relative to the repo root. Every tool runs through mise: `(cd core && mise exec -- cargo test)`, `(cd helios && mise exec -- mix test)`. `sed` is BSD sed on macOS (`sed -i ''`).
 - Git hygiene: stage with explicit paths only. Never use `git add -A`, `git add .`, `git add -u` or `git commit -a`. **Never stage `frontend/src/elm/Pages/Login.elm`**: it is the user's uncommitted work and must still show as ` M` in `git status --short` after every commit.
 - **Never touch** `backend/assets/static/Ai căutat Gigabyte X570 AORUS ULTRA in Placi de baza Rating minim 4 CPU Socket AM4 Format ATX eMAG.r.html` (the user's untracked personal file). Never `rm -rf` any untracked leftover without explicit human confirmation in the conversation (Task 7).
@@ -46,7 +46,6 @@ Known limitations deliberately **not** changed here (they are rule/validation ch
 |---|---|---|
 | `.gitignore` | Modify (append) | Ignore `.DS_Store`, `erl_crash.dump` repo-wide |
 | `mise.toml` | Modify, then commit (untracked today) | Pin Rust alongside Erlang/Elixir |
-| `MIGRATION.md` | Commit as-is | Historical inventory |
 | `helios/**` | Commit (untracked today) | Phoenix app |
 | `helios/lib/helios_web/endpoint.ex` | Modify L30-32 | Tidewave token from `TIDEWAVE_TOKEN` at request time |
 | `helios/lib/helios_web/live/login_live.ex` | Rewrite | Namespaced `:login` form, no custom Enter hook |
@@ -80,7 +79,7 @@ Known limitations deliberately **not** changed here (they are rule/validation ch
 - Modify: `.gitignore` (append at end; the file currently has no trailing newline)
 - Modify: `helios/lib/helios_web/endpoint.ex:30-32`
 - Modify: `mise.toml`
-- Commit: `helios/**` (non-ignored files), `mise.toml`, `MIGRATION.md`, `.gitignore`
+- Commit: `helios/**` (non-ignored files), `mise.toml`, `.gitignore`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -97,7 +96,7 @@ cd /Users/arnoldszederjesi/Projects/seven_wonders && git rev-parse --show-toplev
 Expected:
 - The top level is `/Users/arnoldszederjesi/Projects/seven_wonders` and the branch is `game_ui`.
 - Status contains ` M frontend/src/elm/Pages/Login.elm`.
-- Status contains `?? helios/`, `?? mise.toml`, `?? MIGRATION.md`, `?? .DS_Store`, `?? erl_crash.dump` and the `?? "backend/assets/static/Ai c…eMAG.r.html"` line.
+- Status contains `?? helios/`, `?? mise.toml`, `?? .DS_Store`, `?? erl_crash.dump` and the `?? "backend/assets/static/Ai c…eMAG.r.html"` line.
 
 If the top level is a worktree path or the branch differs, STOP and ask the human.
 
@@ -216,13 +215,13 @@ Expected: `6 tests, 1 failure`. The failure is `test handles login attempt (Heli
 
 Run:
 ```bash
-git add .gitignore mise.toml MIGRATION.md helios
+git add .gitignore mise.toml helios
 git diff --cached --name-only | grep -v '^helios/'
 git diff --cached --name-only | grep -E '\.db|erl_crash|DS_Store|priv/static/assets|/deps/|/_build/' ; echo "forbidden-matches-exit=$?"
 git status --short | grep Login.elm
 ```
 Expected:
-- The first `grep` prints exactly `.gitignore`, `MIGRATION.md`, `mise.toml`.
+- The first `grep` prints exactly `.gitignore`, `mise.toml`.
 - The second prints only `forbidden-matches-exit=1`.
 - The last prints ` M frontend/src/elm/Pages/Login.elm` (unstaged, leading space).
 
@@ -1879,7 +1878,7 @@ Expected: the `Core` and `Helios` jobs are green. `Old Backend`, `Frontend` and 
 | 0.1 `.gitignore` | Task 1 Step 2 |
 | 0.1 Tidewave token | Task 1 Steps 3–4, 9 |
 | 0.1 mise rust | Task 1 Step 5 |
-| 0.1 commit helios/mise.toml/MIGRATION.md; Login.elm untouched | Task 1 Steps 11–12 |
+| 0.1 commit helios/mise.toml; Login.elm untouched | Task 1 Steps 11–12 |
 | 0.2 `mise install`, hex/rebar, `mix deps.get && mix compile` | Task 1 Steps 6–8 |
 | 0.3 `to_form(..., as: :login)`, `%{"login" => ...}`, hook dropped, tests updated, `mix precommit` | Task 2 |
 | 0.4 Cargo.toml (edition, name, crate-type, deps, no protobuf) | Task 3 Step 2 |

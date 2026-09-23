@@ -1,6 +1,6 @@
 # Migration Overview — Helios + Core (+ e2e)
 
-Status: approved design (brainstorming 2026-09-23). Supersedes the phase list in `MIGRATION.md`; that file remains the historical inventory.
+Status: approved design (brainstorming 2026-09-23). Supersedes the original `MIGRATION.md` draft (since removed); this spec set is the source of truth.
 
 ## Goal
 

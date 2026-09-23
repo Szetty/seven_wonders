@@ -23,7 +23,7 @@
 - Required env: `SECRET_KEY_BASE`, `DATABASE_PATH` (e.g. `/data/helios.db` on a mounted volume), `ACCESS_TOKEN`, `PHX_HOST`; optional `PORT`, `POOL_SIZE`.
 - `bin/build.sh`: `docker build -t seven_wonders:$(cat VERSION) .` behaviour. `bin/run.sh`: `docker run -p 4000:4000 -v seven_wonders_data:/data --env-file "$1" seven_wonders:$(cat VERSION)` behaviour.
 - CI jobs: exactly `core`, `helios`, `e2e`, `docker`. `docker` builds without pushing and polls `GET /login` for HTTP 200 within 60 s.
-- Cleanup check: `grep -rE "backend_old|websocket-client|integration-tests|frontend/|proto/"` outside `docs/` and `MIGRATION.md` returns nothing.
+- Cleanup check: `grep -rE "backend_old|websocket-client|integration-tests|frontend/|proto/"` outside `docs/` returns nothing.
 - Commits: explicit `git add <paths>` only; every message ends with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
 - Never stage the user's untracked personal files or `.DS_Store` files.
 
@@ -54,7 +54,6 @@
 | `.github/workflows/ci.yml` | Modify | Add `docker` job; ensure only `core`/`helios`/`e2e`/`docker` |
 | `README.md` | Rewrite | Project, architecture, setup, tests, Docker, env vars |
 | `core/README.md` | Rewrite | Replace stale "NIF for Elixir.Core" text |
-| `MIGRATION.md` | Modify | Prepend completed-status note |
 | `.gitignore` | Modify | Drop lines for deleted folders |
 
 ---
@@ -337,7 +336,6 @@ Replace the whole file with:
 .git
 .github
 docs/
-MIGRATION.md
 
 # Not part of the image
 e2e/
@@ -1037,25 +1035,24 @@ Expected: `200`. If any README command fails, fix `README.md` in the main repo, 
 
 ---
 
-### Task 6: Reference cleanup, `MIGRATION.md` status, stale docs, stray files
+### Task 6: Reference cleanup, `AGENTS.md` update, stale docs, stray files
 
 **Files:**
 - Modify: `.gitignore`
-- Modify: `MIGRATION.md`
 - Modify: `AGENTS.md` (root)
 - Rewrite: `core/README.md`
-- Modify: any other tracked file reported by Step 1 (outside `docs/` and `MIGRATION.md`)
+- Modify: any other tracked file reported by Step 1 (outside `docs/`)
 
 **Interfaces:**
 - Consumes: final tree from Tasks 1–5.
-- Produces: `git grep -nE "backend_old|websocket-client|integration-tests|frontend/|proto/" -- . ':!docs' ':!MIGRATION.md'` prints nothing.
+- Produces: `git grep -nE "backend_old|websocket-client|integration-tests|frontend/|proto/" -- . ':!docs'` prints nothing.
 
 - [ ] **Step 1: List remaining references (failing check)**
 
 Run:
 ```bash
-git grep -nE "backend_old|websocket-client|integration-tests|frontend/|proto/" -- . ':!docs' ':!MIGRATION.md'
-git grep -nE "backend/|JWT_SECRET|[Hh]eroku|[Tt]ravis|elm-app|protobuf|Elixir\.Core\b" -- . ':!docs' ':!MIGRATION.md'
+git grep -nE "backend_old|websocket-client|integration-tests|frontend/|proto/" -- . ':!docs'
+git grep -nE "backend/|JWT_SECRET|[Hh]eroku|[Tt]ravis|elm-app|protobuf|Elixir\.Core\b" -- . ':!docs'
 ```
 Expected: hits including at least these `.gitignore` lines:
 ```
@@ -1106,17 +1103,9 @@ cargo test
 
 - [ ] **Step 4: Fix any other hits from Step 1**
 
-For each remaining hit outside `docs/` and `MIGRATION.md`, apply this rule: if the line only concerns a deleted folder or the old Go/Elm/protobuf/Heroku setup, delete it; if it describes something that still exists under a new home, rewrite it to name `helios/`, `core/` or `e2e/` (e.g. a comment "ported from integration-tests/src/lobby.test.ts" becomes "ported from the legacy lobby integration tests"). Do not edit files under `docs/`.
+For each remaining hit outside `docs/`, apply this rule: if the line only concerns a deleted folder or the old Go/Elm/protobuf/Heroku setup, delete it; if it describes something that still exists under a new home, rewrite it to name `helios/`, `core/` or `e2e/` (e.g. a comment "ported from integration-tests/src/lobby.test.ts" becomes "ported from the legacy lobby integration tests"). Do not edit files under `docs/`.
 
-- [ ] **Step 5: Prepend the status note to `MIGRATION.md`**
-
-Insert these two lines at the very top of `MIGRATION.md` (above `# Migration Plan: Consolidating on Helios + Core`):
-```markdown
-> **Status: completed** — see docs/superpowers/specs/2026-09-23-migration-overview-design.md. This file is kept as the historical inventory; its phase list was superseded by the specs in `docs/superpowers/specs/`.
-
-```
-
-- [ ] **Step 5b: Update the root `AGENTS.md` for the finished migration**
+- [ ] **Step 5: Update the root `AGENTS.md` for the finished migration**
 
 In `AGENTS.md` (repo root; not `helios/AGENTS.md`):
 1. In "Repository layout", change the line `Target layout (see ...):` to `Layout (design: docs/superpowers/specs/2026-09-23-migration-overview-design.md):`, and delete the paragraph starting `Legacy folders —` entirely.
@@ -1124,7 +1113,7 @@ In `AGENTS.md` (repo root; not `helios/AGENTS.md`):
 ```markdown
 ## History
 
-The repo was consolidated from a Go backend, an Elm SPA and a custom websocket protocol into `helios/` + `core/` + `e2e/` in 2026. Design specs and implementation plans for that migration live in `docs/superpowers/`; `MIGRATION.md` is the historical inventory.
+The repo was consolidated from a Go backend, an Elm SPA and a custom websocket protocol into `helios/` + `core/` + `e2e/` in 2026. Design specs and implementation plans for that migration live in `docs/superpowers/`.
 ```
 3. Keep every other section unchanged.
 
@@ -1137,30 +1126,28 @@ Run:
 rm -f erl_crash.dump helios/erl_crash.dump
 git status --short
 ```
-Expected: no `erl_crash.dump` anywhere; `git status --short` shows only `.gitignore`, `MIGRATION.md`, `AGENTS.md`, `core/README.md` and any Step 4 files as modified (plus the user's own untracked/unstaged files, which you leave alone).
+Expected: no `erl_crash.dump` anywhere; `git status --short` shows only `.gitignore`, `AGENTS.md`, `core/README.md` and any Step 4 files as modified (plus the user's own untracked/unstaged files, which you leave alone).
 
 - [ ] **Step 7: Re-run the reference checks**
 
 Run:
 ```bash
-git grep -nE "backend_old|websocket-client|integration-tests|frontend/|proto/" -- . ':!docs' ':!MIGRATION.md'; echo "exit=$?"
-git grep -nE "backend/|JWT_SECRET|[Hh]eroku|[Tt]ravis|elm-app|protobuf|Elixir\.Core\b" -- . ':!docs' ':!MIGRATION.md'; echo "exit=$?"
-head -n 1 MIGRATION.md
+git grep -nE "backend_old|websocket-client|integration-tests|frontend/|proto/" -- . ':!docs'; echo "exit=$?"
+git grep -nE "backend/|JWT_SECRET|[Hh]eroku|[Tt]ravis|elm-app|protobuf|Elixir\.Core\b" -- . ':!docs'; echo "exit=$?"
 ```
-Expected: both greps print nothing and `exit=1` (git grep's "no match"); the first line of `MIGRATION.md` is the status note.
+Expected: both greps print nothing and `exit=1` (git grep's "no match").
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add .gitignore MIGRATION.md AGENTS.md core/README.md
+git add .gitignore AGENTS.md core/README.md
 # plus every file changed in Step 4, listed explicitly, e.g.:
 # git add e2e/tests/lobby.spec.ts
 git commit -m "$(cat <<'EOF'
 Remove references to deleted legacy folders
 
 Drop .gitignore entries for backend/frontend/websocket-client, rewrite the
-stale core README, mark MIGRATION.md as completed, and update the root
-AGENTS.md for the finished layout.
+stale core README, and update the root AGENTS.md for the finished layout.
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 EOF

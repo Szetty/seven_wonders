@@ -2928,7 +2928,7 @@ Expected: exactly the `core:`, `helios:` and `e2e:` job keys.
 - [ ] **Step 4: Check nothing still depends on the deleted directories**
 
 Run: `grep -rnE "backend_old|websocket-client|integration-tests" helios/lib helios/test helios/config helios/mix.exs e2e --exclude-dir=node_modules`
-Expected: no output. (Remaining mentions in `README.md`, `.gitignore`, `frontend/`, `MIGRATION.md` and `docs/` are cleaned up by Phases 4–5.)
+Expected: no output. (Remaining mentions in `README.md`, `.gitignore`, `frontend/` and `docs/` are cleaned up by Phases 4–5.)
 
 - [ ] **Step 5: Stage the CI change and verify the index**
 

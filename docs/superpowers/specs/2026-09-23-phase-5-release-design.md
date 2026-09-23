@@ -36,8 +36,8 @@ A reproducible production image, accurate documentation, and final CI for the th
 Jobs: `core`, `helios`, `e2e` (as built in Phases 0–2) plus `docker`: `docker build .` (no push) and a smoke run: start the container with test env vars and a temp volume, poll `GET /login` for HTTP 200 within 60 s.
 
 ### Cleanup
-- Remove any remaining references to deleted folders (`grep -rE "backend_old|websocket-client|integration-tests|frontend/|proto/"` outside `docs/` and `MIGRATION.md` returns nothing).
-- `MIGRATION.md`: prepend a "Status: completed — see docs/superpowers/specs/2026-09-23-migration-overview-design.md" note.
+- Remove any remaining references to deleted folders (`grep -rE "backend_old|websocket-client|integration-tests|frontend/|proto/"` outside `docs/` returns nothing).
+- Root `AGENTS.md`: drop the legacy-folders paragraph and replace "Migration in progress" with a short history note.
 - Delete stray root files that are artifacts (`erl_crash.dump` is already ignored; delete if present).
 
 ## Acceptance criteria
