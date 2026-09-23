@@ -1,4 +1,4 @@
-use crate::core::deck::generate_deck;
+use crate::engine::deck::generate_deck;
 use crate::domain::Deck;
 
 #[test]

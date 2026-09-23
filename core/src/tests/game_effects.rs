@@ -1,5 +1,5 @@
 use super::helpers::{default_game_state, default_player_state};
-use crate::core::data::{STRUCTURES_BY_NAME, WONDERS_BY_NAME};
+use crate::engine::data::{STRUCTURES_BY_NAME, WONDERS_BY_NAME};
 use crate::domain::{
     Age, Card,
     Category::{Commercial, Guild, Military, Scientific, MG, RM},

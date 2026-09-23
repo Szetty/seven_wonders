@@ -1,61 +1,59 @@
-use crate::core::data::{WONDERS_BY_NAME, WONDER_NAMES};
-use crate::core::game_init;
+//! Plain-Rust API consumed by the NIF layer in `lib.rs`. No rustler types here.
+
 use crate::domain::{GameState, Player, PlayersWithWonders};
-use crate::VERSION;
-use protobuf::RepeatedField;
+use crate::engine::data::{WONDERS_BY_NAME, WONDER_NAMES};
+use crate::engine::game_init;
 use std::sync::Mutex;
 
-pub mod game_settings;
-pub mod ping;
-pub mod start_game;
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GameSettings {
+    pub version: String,
+    pub wonders: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WonderSideChoice {
+    pub wonder_name: String,
+    pub side_b: bool,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum ErrorType {
     InvalidPlayersNumber(usize),
     InvalidPlayersAndWonderSideLength(String),
     InvalidWonder(String),
 }
 
-pub fn ping(ping_request: ping::PingRequest) -> ping::PingReply {
-    let mut ping_reply = ping::PingReply::new();
-    ping_reply.set_message(format!("Hello, {}", ping_request.get_name()));
-    ping_reply
-}
-
-pub fn game_settings() -> game_settings::Reply {
-    let mut reply = game_settings::Reply::new();
-    reply.set_version(VERSION.to_string());
-    reply.set_supported_wonders(RepeatedField::from_vec(WONDER_NAMES.to_vec()));
-    reply
-}
-
 pub type SafeGameState = Mutex<GameState>;
 
-pub fn start_game(request: start_game::Request) -> Result<SafeGameState, ErrorType> {
-    let players = request.get_players();
-    let wonder_sides = request.get_wonder_sides();
-    let game_state = if players.len() < 3 || players.len() > 7 {
+pub fn game_settings() -> GameSettings {
+    GameSettings {
+        version: VERSION.to_string(),
+        wonders: WONDER_NAMES.to_vec(),
+    }
+}
+
+/// Starts a game for 3..=7 players. An empty `wonder_sides` assigns random
+/// wonders and sides; otherwise it must have one entry per player, in seat order.
+pub fn start_game(
+    players: Vec<String>,
+    wonder_sides: Vec<WonderSideChoice>,
+) -> Result<SafeGameState, ErrorType> {
+    if !(3..=7).contains(&players.len()) {
         return Err(ErrorType::InvalidPlayersNumber(players.len()));
-    } else if wonder_sides.is_empty() {
-        game_init::init_with_random_wonders(
-            players
-                .iter()
-                .map(|player_name| Player(player_name.clone()))
-                .collect(),
-        )
+    }
+    let game_state = if wonder_sides.is_empty() {
+        game_init::init_with_random_wonders(players.into_iter().map(Player).collect())
     } else if players.len() == wonder_sides.len() {
-        let mut players_with_wonders: PlayersWithWonders = Default::default();
-        for (player_name, wonder_side) in players.iter().zip(wonder_sides.iter()) {
-            let wonder_name = wonder_side.get_wonder_name();
-            let is_side_b = wonder_side.get_is_side_b();
-            let wonder = match WONDERS_BY_NAME.get(wonder_name) {
-                Some(wonder) => wonder,
-                None => {
-                    return Err(ErrorType::InvalidWonder(wonder_name.to_string()));
-                }
-            };
-            let wonder_side = if is_side_b { &wonder.2 } else { &wonder.1 };
-            players_with_wonders.push((Player(player_name.clone()), wonder_side))
+        let mut players_with_wonders: PlayersWithWonders = Vec::with_capacity(players.len());
+        for (player_name, choice) in players.into_iter().zip(wonder_sides) {
+            let wonder = WONDERS_BY_NAME
+                .get(&choice.wonder_name)
+                .ok_or_else(|| ErrorType::InvalidWonder(choice.wonder_name.clone()))?;
+            let wonder_side = if choice.side_b { &wonder.2 } else { &wonder.1 };
+            players_with_wonders.push((Player(player_name), wonder_side));
         }
         game_init::init(players_with_wonders)
     } else {

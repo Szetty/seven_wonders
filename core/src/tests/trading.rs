@@ -1,5 +1,5 @@
 use super::helpers::{default_game_state, default_player_state};
-use crate::core::trading::{try_trading, TradingOptions};
+use crate::engine::trading::{try_trading, TradingOptions};
 use crate::domain::{
     GameState, Player, PlayerState, ResourceCost, ResourceType::*, ResourcesProduced,
 };

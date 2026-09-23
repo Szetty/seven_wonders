@@ -24,7 +24,7 @@ pub fn all_resource_types() -> impl Iterator<Item = ResourceType> { ResourceType
 pub type ResourceCosts<'a> = &'a [ResourceCost];
 
 #[derive(Display, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[display(fmt = "ResourceCost({}, {})", _0, _1)]
+#[display("ResourceCost({_0}, {_1})")]
 pub struct ResourceCost(pub ResourceType, pub ResourceCount);
 
 pub fn diff_resource_costs(

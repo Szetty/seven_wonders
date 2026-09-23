@@ -5,7 +5,7 @@ use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
 use std::fmt;
 
 #[derive(Display)]
-#[display(fmt = "Structure({})", _0)]
+#[display("Structure({_0})")]
 pub struct Structure<'a, T>(
     pub SName<'a>,
     pub Category,
