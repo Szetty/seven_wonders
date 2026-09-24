@@ -18,7 +18,8 @@ config :helios, HeliosWeb.Endpoint,
   code_reloader: false,
   debug_errors: false,
   server: true,
-  secret_key_base: "e2e-only-secret-key-base-not-for-production-0123456789abcdefghijklmnopqrstuvwxyz"
+  secret_key_base:
+    "e2e-only-secret-key-base-not-for-production-0123456789abcdefghijklmnopqrstuvwxyz"
 
 config :helios, access_token: "e2e"
 

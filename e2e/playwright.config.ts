@@ -6,6 +6,8 @@ const baseURL = `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
+  // SQLite write contention under parallel logins (SQLITE_BUSY) — serialize workers.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
