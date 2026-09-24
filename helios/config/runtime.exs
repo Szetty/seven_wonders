@@ -20,8 +20,11 @@ if System.get_env("PHX_SERVER") do
   config :helios, HeliosWeb.Endpoint, server: true
 end
 
+# The e2e environment (config/e2e.exs) serves on 4004 unless PORT is set.
+default_port = if config_env() == :e2e, do: "4004", else: "4000"
+
 config :helios, HeliosWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+  http: [port: String.to_integer(System.get_env("PORT", default_port))]
 
 if config_env() == :dev do
   if access_token = System.get_env("ACCESS_TOKEN") do

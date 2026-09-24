@@ -1,0 +1,15 @@
+{
+  "name": "seven-wonders-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright end-to-end tests driving a running Helios server",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}
