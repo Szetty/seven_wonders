@@ -2,29 +2,20 @@ defmodule HeliosWeb.CoreComponents do
   @moduledoc """
   Provides core UI components.
 
-  At first glance, this module may seem daunting, but its goal is to provide
-  core building blocks for your application, such as tables, forms, and
-  inputs. The components consist mostly of markup and are well-documented
-  with doc strings and declarative assigns. You may customize and style
-  them in any way you want, based on your application growth and needs.
+  Everything is styled with plain Tailwind CSS v4 utility classes: no
+  component library and no `@apply`. The Helios theme tokens (`antique`,
+  `header-from`, `header-to`, `disconnected`, `font-sans`) live in the
+  `@theme` block of `assets/css/app.css`.
 
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
+  Useful references:
 
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
-
-    * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
-      we build on. You will use it for layout, sizing, flexbox, grid, and
-      spacing.
+    * [Tailwind CSS](https://tailwindcss.com) - the utility classes used here.
 
     * [Heroicons](https://heroicons.com) - see `icon/1` for usage.
 
     * [Phoenix.Component](https://hexdocs.pm/phoenix_live_view/Phoenix.Component.html) -
       the component system used by Phoenix. Some components, such as `<.link>`
       and `<.form>`, are defined there.
-
   """
   use Phoenix.Component
 
@@ -62,50 +53,45 @@ defmodule HeliosWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class={[
+        "flex w-full cursor-pointer items-start gap-3 rounded-xl p-4 text-sm shadow-lg ring-1",
+        "transition hover:shadow-xl",
+        @kind == :info && "bg-emerald-50 text-emerald-900 ring-emerald-200",
+        @kind == :error && "bg-rose-50 text-rose-900 ring-rose-200"
+      ]}
       {@rest}
     >
-      <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
-      ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
-          <p :if={@title} class="font-semibold">{@title}</p>
-          <p>{msg}</p>
-        </div>
-        <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label="close">
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
-        </button>
+      <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
+      <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
+      <div class="flex-1 text-wrap">
+        <p :if={@title} class="font-semibold">{@title}</p>
+        <p>{msg}</p>
       </div>
+      <button type="button" class="group cursor-pointer self-start" aria-label="close">
+        <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
+      </button>
     </div>
     """
   end
 
   @doc """
-  Renders a button with navigation support.
+  Renders a dark button, or a link styled as one when `href`, `navigate` or
+  `patch` is given. Extra `class` values are appended to the defaults.
 
   ## Examples
 
       <.button>Send!</.button>
-      <.button phx-click="go" variant="primary">Send!</.button>
+      <.button phx-click="go" class="w-full">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :any
-  attr :variant, :string, values: ~w(primary)
+  attr :rest, :global,
+    include: ~w(href navigate patch method download name value disabled type form)
+
+  attr :class, :any, default: nil, doc: "extra classes appended to the default styles"
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
-
-    assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+    assigns = assign(assigns, :class, [button_classes(), assigns.class])
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
@@ -120,6 +106,16 @@ defmodule HeliosWeb.CoreComponents do
       </button>
       """
     end
+  end
+
+  defp button_classes do
+    [
+      "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2",
+      "bg-zinc-900 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-700",
+      "active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2",
+      "focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-50",
+      "phx-submit-loading:opacity-75"
+    ]
   end
 
   @doc """
@@ -211,8 +207,8 @@ defmodule HeliosWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
-      <label for={@id}>
+    <div class="mb-2">
+      <label for={@id} class="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
         <input
           type="hidden"
           name={@name}
@@ -220,17 +216,15 @@ defmodule HeliosWeb.CoreComponents do
           disabled={@rest[:disabled]}
           form={@rest[:form]}
         />
-        <span class="label">
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
-            {@rest}
-          />{@label}
-        </span>
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={@class || "size-4 rounded border-zinc-300 accent-zinc-900"}
+          {@rest}
+        />{@label}
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -239,13 +233,13 @@ defmodule HeliosWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-2">
+      <label for={@id} class="block">
+        <span :if={@label} class={label_classes()}>{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[@class || field_classes(@errors), @errors != [] && @error_class]}
           multiple={@multiple}
           {@rest}
         >
@@ -260,16 +254,13 @@ defmodule HeliosWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-2">
+      <label for={@id} class="block">
+        <span :if={@label} class={label_classes()}>{@label}</span>
         <textarea
           id={@id}
           name={@name}
-          class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
-          ]}
+          class={[@class || field_classes(@errors), @errors != [] && @error_class]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
       </label>
@@ -281,18 +272,15 @@ defmodule HeliosWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+    <div class="mb-2">
+      <label for={@id} class="block">
+        <span :if={@label} class={label_classes()}>{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-          class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
-          ]}
+          class={[@class || field_classes(@errors), @errors != [] && @error_class]}
           {@rest}
         />
       </label>
@@ -301,10 +289,23 @@ defmodule HeliosWeb.CoreComponents do
     """
   end
 
+  defp label_classes, do: "mb-1 block text-sm font-semibold text-zinc-800"
+
+  defp field_classes(errors) do
+    [
+      "block w-full rounded-lg border bg-white px-3 py-2 text-zinc-900 shadow-sm transition",
+      "placeholder:text-zinc-400 focus:outline-none focus:ring-4",
+      if(errors == [],
+        do: "border-zinc-300 focus:border-zinc-900 focus:ring-zinc-900/15",
+        else: "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20"
+      )
+    ]
+  end
+
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
+    <p class="mt-1.5 flex items-center gap-2 text-sm text-rose-600">
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -322,10 +323,10 @@ defmodule HeliosWeb.CoreComponents do
     ~H"""
     <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
       <div>
-        <h1 class="text-lg font-semibold leading-8">
+        <h1 class="text-lg font-semibold leading-8 text-zinc-900">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
+        <p :if={@subtitle != []} class="text-sm text-zinc-600">
           {render_slot(@subtitle)}
         </p>
       </div>
@@ -366,34 +367,40 @@ defmodule HeliosWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th :for={col <- @col}>{col[:label]}</th>
-          <th :if={@action != []}>
-            <span class="sr-only">Actions</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
-          <td
-            :for={col <- @col}
-            phx-click={@row_click && @row_click.(row)}
-            class={@row_click && "hover:cursor-pointer"}
-          >
-            {render_slot(col, @row_item.(row))}
-          </td>
-          <td :if={@action != []} class="w-0 font-semibold">
-            <div class="flex gap-4">
-              <%= for action <- @action do %>
-                {render_slot(action, @row_item.(row))}
-              <% end %>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
+      <table class="w-full text-left text-sm text-zinc-800">
+        <thead class="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+          <tr>
+            <th :for={col <- @col} class="px-4 py-3 font-semibold">{col[:label]}</th>
+            <th :if={@action != []} class="px-4 py-3">
+              <span class="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody
+          id={@id}
+          phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}
+          class="divide-y divide-zinc-100"
+        >
+          <tr :for={row <- @rows} id={@row_id && @row_id.(row)} class="transition hover:bg-zinc-50">
+            <td
+              :for={col <- @col}
+              phx-click={@row_click && @row_click.(row)}
+              class={["px-4 py-3", @row_click && "hover:cursor-pointer"]}
+            >
+              {render_slot(col, @row_item.(row))}
+            </td>
+            <td :if={@action != []} class="w-0 px-4 py-3 font-semibold">
+              <div class="flex gap-4">
+                <%= for action <- @action do %>
+                  {render_slot(action, @row_item.(row))}
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     """
   end
 
@@ -413,12 +420,10 @@ defmodule HeliosWeb.CoreComponents do
 
   def list(assigns) do
     ~H"""
-    <ul class="list">
-      <li :for={item <- @item} class="list-row">
-        <div class="list-col-grow">
-          <div class="font-bold">{item.title}</div>
-          <div>{render_slot(item)}</div>
-        </div>
+    <ul class="divide-y divide-zinc-200">
+      <li :for={item <- @item} class="py-3">
+        <div class="font-semibold text-zinc-900">{item.title}</div>
+        <div class="text-zinc-700">{render_slot(item)}</div>
       </li>
     </ul>
     """

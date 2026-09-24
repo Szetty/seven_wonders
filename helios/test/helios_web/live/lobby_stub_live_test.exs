@@ -8,10 +8,12 @@ defmodule HeliosWeb.LobbyStubLiveTest do
   describe "logged in" do
     setup :register_and_log_in_user
 
-    test "greets the user and marks them online", %{conn: conn, user: user} do
+    test "greets the user, shows the header and marks them online", %{conn: conn, user: user} do
       {:ok, view, _html} = live(conn, ~p"/lobby")
 
       assert has_element?(view, "#lobby-greeting", "Welcome, #{user.name}")
+      assert has_element?(view, "#site-header #current-user-name", user.name)
+      assert has_element?(view, "#site-header #logout-link[href='/session']")
       assert Presence.user_online?(user.id)
 
       # Untrack synchronously so a later test that reuses this (rolled-back)

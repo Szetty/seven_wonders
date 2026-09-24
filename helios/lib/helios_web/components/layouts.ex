@@ -12,15 +12,12 @@ defmodule HeliosWeb.Layouts do
   embed_templates "layouts/*"
 
   @doc """
-  Renders your app layout.
-
-  This function is typically invoked from every template,
-  and it often contains your application menu, sidebar,
-  or similar.
+  Renders the app layout: the site header (logged-in users only), a
+  full-bleed `<main>` and the flash group.
 
   ## Examples
 
-      <Layouts.app flash={@flash}>
+      <Layouts.app flash={@flash} current_scope={@current_scope}>
         <h1>Content</h1>
       </Layouts.app>
 
@@ -35,24 +32,43 @@ defmodule HeliosWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex items-center">
-          <img src={~p"/images/7_wonders.jpg"} class="h-10 w-auto" />
-        </a>
+    <div class="min-h-screen">
+      <div :if={@current_scope && @current_scope.user} class="px-4 pt-4 sm:px-6 lg:px-8">
+        <.site_header current_scope={@current_scope} />
       </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center"></ul>
-      </div>
-    </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
+      <main class="w-full">
         {render_slot(@inner_block)}
-      </div>
-    </main>
+      </main>
 
-    <.flash_group flash={@flash} />
+      <.flash_group flash={@flash} />
+    </div>
+    """
+  end
+
+  @doc """
+  The rounded teal→blue header bar: username on the left, Logout on the right.
+  """
+  attr :current_scope, :map, required: true
+
+  def site_header(assigns) do
+    ~H"""
+    <header
+      id="site-header"
+      class="flex items-center justify-between rounded-2xl bg-linear-to-b from-header-from to-header-to px-6 py-3 text-white shadow-md"
+    >
+      <span id="current-user-name" class="text-lg font-semibold tracking-wide">
+        {@current_scope.user.name}
+      </span>
+      <.link
+        id="logout-link"
+        href={~p"/session"}
+        method="delete"
+        class="rounded-lg px-3 py-1.5 font-medium text-white/90 transition hover:bg-white/15 hover:text-white"
+      >
+        Logout
+      </.link>
+    </header>
     """
   end
 
@@ -68,7 +84,11 @@ defmodule HeliosWeb.Layouts do
 
   def flash_group(assigns) do
     ~H"""
-    <div id={@id} aria-live="polite">
+    <div
+      id={@id}
+      aria-live="polite"
+      class="fixed top-4 right-4 z-50 flex w-80 flex-col gap-2 sm:w-96"
+    >
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />
 
@@ -95,43 +115,6 @@ defmodule HeliosWeb.Layouts do
         Attempting to reconnect
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
-    </div>
-    """
-  end
-
-  @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
-
-  See <head> in root.html.heex which applies the theme before page load.
-  """
-  def theme_toggle(assigns) do
-    ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="system"
-      >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="light"
-      >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="dark"
-      >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
     </div>
     """
   end
