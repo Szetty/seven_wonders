@@ -8,7 +8,8 @@ defmodule HeliosWeb.Endpoint do
     store: :cookie,
     key: "_helios_key",
     signing_salt: "P90hz7n1",
-    same_site: "Lax"
+    same_site: "Lax",
+    secure: Mix.env() == :prod
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
