@@ -26,7 +26,7 @@ impl StructureBuilder {
         structure: &'static Structure<'static, T>,
     ) -> bool {
         let all_structure_names_built: HashSet<SName<'static>> =
-            self.built_structures.values().cloned().flatten().collect();
+            self.built_structures.values().flatten().cloned().collect();
         for dependency in structure.dependencies() {
             if all_structure_names_built.contains(dependency) {
                 return true;
@@ -53,7 +53,7 @@ impl StructureBuilder {
         self.built_structures
             .iter()
             .map(|(category, structures)| {
-                if categories.contains(&category) {
+                if categories.contains(category) {
                     structures.len()
                 } else {
                     0

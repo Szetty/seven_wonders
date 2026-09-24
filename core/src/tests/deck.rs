@@ -1,5 +1,5 @@
-use crate::engine::deck::generate_deck;
 use crate::domain::Deck;
+use crate::engine::deck::generate_deck;
 
 #[test]
 fn test_generate_deck() {

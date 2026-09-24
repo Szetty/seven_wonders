@@ -361,7 +361,6 @@ fn casr(
     ResourcesProduced {
         any_resources: any_resources.to_vec(),
         single_resources,
-        ..Default::default()
     }
     .cover_resource_costs(resource_costs.to_vec())
 }

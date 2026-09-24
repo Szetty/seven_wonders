@@ -18,7 +18,7 @@ pub struct Structure<'a, T>(
 );
 
 impl<'a, T> Structure<'a, T> {
-    pub fn name(&self) -> SName {
+    pub fn name(&self) -> SName<'_> {
         self.0
     }
     pub fn category(&self) -> Category {
@@ -27,7 +27,7 @@ impl<'a, T> Structure<'a, T> {
     pub fn effects(&self) -> &Effects<T> {
         &self.3
     }
-    pub fn dependencies(&self) -> Dependencies {
+    pub fn dependencies(&self) -> Dependencies<'_> {
         self.4
     }
     pub fn thresholds(&self) -> PlayerThresholds<'a> {
@@ -73,8 +73,9 @@ pub enum Category {
     Scientific,
 }
 
-#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, Default)]
 pub enum Age {
+    #[default]
     None,
     I,
     II,
@@ -89,12 +90,6 @@ impl Age {
             Self::II => vec![Self::II, Self::III],
             Self::III => vec![Self::III],
         }
-    }
-}
-
-impl Default for Age {
-    fn default() -> Self {
-        Self::None
     }
 }
 

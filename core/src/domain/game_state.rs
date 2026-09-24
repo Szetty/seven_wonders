@@ -201,8 +201,8 @@ pub struct PlayerState {
     pub scientific_symbols_produced: ScientificSymbolsProduced,
     pub resources_produced: ResourcesProduced,
     pub structure_builder: StructureBuilder,
-    pub point_actions: Actions<dyn Fn(&GameState, &mut PointsMap) + Sync + Send>,
-    pub trade_actions: Actions<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync + Send>,
+    pub point_actions: Actions<PointAction>,
+    pub trade_actions: Actions<TradeAction>,
     pub can_play_last_card: bool,
     pub can_copy_guild: bool,
 }
@@ -258,17 +258,11 @@ impl PlayerState {
             .min()
             .unwrap()
     }
-    pub fn add_trade_action_mut(
-        &mut self,
-        action: Action<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync + Send>,
-    ) -> &Self {
+    pub fn add_trade_action_mut(&mut self, action: Action<TradeAction>) -> &Self {
         self.trade_actions.push(action);
         self
     }
-    pub fn add_trade_action_move(
-        mut self,
-        action: Action<dyn Fn(&PName, &ResourceType) -> TradeValue + Sync + Send>,
-    ) -> Self {
+    pub fn add_trade_action_move(mut self, action: Action<TradeAction>) -> Self {
         self.trade_actions.push(action);
         self
     }
@@ -341,6 +335,8 @@ pub type WonderStagesBuilt = u8;
 
 type Actions<T> = Vec<Action<T>>;
 type Action<T> = Box<T>;
+type PointAction = dyn Fn(&GameState, &mut PointsMap) + Sync + Send;
+type TradeAction = dyn Fn(&PName, &ResourceType) -> TradeValue + Sync + Send;
 
 pub type Effect = Box<dyn Fn(&mut GameState, PName) + Sync>;
 
@@ -413,7 +409,7 @@ pub fn trade_effect(
     Box::new(move |game_state, player_name| {
         let affected_players: HashSet<PName> = game_state
             .neighbours
-            .get_player_names_from_directions(&player_name, &effect_directions);
+            .get_player_names_from_directions(&player_name, effect_directions);
         let action = Box::new(move |pname: &PName, resource_type: &ResourceType| {
             if affected_players.contains(pname) && resource_types.contains(resource_type) {
                 1
@@ -435,7 +431,7 @@ pub fn dynamic_coin_effect(
     Box::new(move |game_state, player_name| {
         let affected_players: HashSet<PName> = game_state
             .neighbours
-            .get_player_names_from_directions(&player_name, &effect_directions);
+            .get_player_names_from_directions(&player_name, effect_directions);
         let structures_count =
             game_state.count_structures_for_players(&categories, &affected_players);
         game_state.get_mut_player_state(&player_name).coins += coins * structures_count as u8;
@@ -451,7 +447,7 @@ pub fn dynamic_point_effect(
     Box::new(move |game_state, player_name| {
         let affected_players: HashSet<PName> = game_state
             .neighbours
-            .get_player_names_from_directions(&player_name, &effect_directions);
+            .get_player_names_from_directions(&player_name, effect_directions);
         let point_category = point_category.clone();
         let action = Box::new(
             move |gs: &GameState, points_by_categories: &mut PointsMap| {
@@ -474,7 +470,7 @@ pub fn dynamic_wonder_coin_effect(
     Box::new(move |game_state, player_name| {
         let affected_players: HashSet<PName> = game_state
             .neighbours
-            .get_player_names_from_directions(&player_name, &effect_directions);
+            .get_player_names_from_directions(&player_name, effect_directions);
         let wonder_stages_count = game_state.count_wonder_stages_for_players(&affected_players);
         game_state.get_mut_player_state(&player_name).coins += coins * wonder_stages_count as Coin;
     })
@@ -488,7 +484,7 @@ pub fn dynamic_wonder_point_effect(
     Box::new(move |game_state, player_name| {
         let affected_players: HashSet<PName> = game_state
             .neighbours
-            .get_player_names_from_directions(&player_name, &effect_directions);
+            .get_player_names_from_directions(&player_name, effect_directions);
         let point_category = point_category.clone();
         let action = Box::new(
             move |gs: &GameState, points_by_categories: &mut PointsMap| {
@@ -511,7 +507,7 @@ pub fn dynamic_battle_lost_point_effect(
     Box::new(move |game_state, player_name| {
         let affected_players: HashSet<PName> = game_state
             .neighbours
-            .get_player_names_from_directions(&player_name, &effect_directions);
+            .get_player_names_from_directions(&player_name, effect_directions);
         let point_category = point_category.clone();
         let action = Box::new(
             move |gs: &GameState, points_by_categories: &mut PointsMap| {
