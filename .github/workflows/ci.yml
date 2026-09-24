@@ -17,49 +17,60 @@ jobs:
       run:
         working-directory: core
     steps:
-    - name: Setup Rust
-      uses: ATiltedTree/setup-rust@v1
+    - uses: actions/checkout@v7
+    - name: Install Rust (mise.toml)
+      uses: jdx/mise-action@v4
       with:
-        rust-version: 1.51.0
-    - name: Set up Elixir
-      uses: erlef/setup-elixir@885971a72ed1f9240973bd92ab57af8c1aa68f24
+        install_args: rust
+    - name: Cache cargo registry and target
+      uses: actions/cache@v6
       with:
-        elixir-version: '1.11.0'
-        otp-version: '22.3'
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-  backend:
-    name: Backend
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          core/target
+        key: ${{ runner.os }}-core-${{ hashFiles('mise.toml', 'core/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-core-
+    - name: Check formatting
+      run: cargo fmt --check
+    - name: Clippy
+      run: cargo clippy --all-targets -- -D warnings
+    - name: Test
+      run: cargo test
+  helios:
+    name: Helios
     runs-on: ubuntu-latest
     env:
-      ACCESS_TOKEN: "TEST"
-      JWT_SECRET: "test"
+      MIX_ENV: test
     defaults:
       run:
-        working-directory: backend
+        working-directory: helios
     steps:
-    - name: Setup Rust
-      uses: ATiltedTree/setup-rust@v1
+    - uses: actions/checkout@v7
+    - name: Install Erlang, Elixir and Rust (mise.toml)
+      uses: jdx/mise-action@v4
+    - name: Cache deps, build and NIF target
+      uses: actions/cache@v6
       with:
-        rust-version: 1.51.0
-    - name: Set up Elixir
-      uses: erlef/setup-elixir@885971a72ed1f9240973bd92ab57af8c1aa68f24
-      with:
-        elixir-version: '1.11.0'
-        otp-version: '22.3'
-    - uses: actions/checkout@v2
-    - name: Restore dependencies cache
-      uses: actions/cache@v2
-      with:
-        path: deps
-        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-mix-
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          helios/deps
+          helios/_build
+          core/target
+        key: ${{ runner.os }}-helios-${{ hashFiles('mise.toml', 'helios/mix.lock', 'core/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-helios-
+    - name: Install Hex and Rebar
+      run: mix local.hex --force && mix local.rebar --force
     - name: Install dependencies
       run: mix deps.get
-    - name: Run tests
+    - name: Check for unused dependencies
+      run: mix deps.unlock --check-unused
+    - name: Compile (builds the NIF)
+      run: mix compile --warnings-as-errors
+    - name: Check formatting
+      run: mix format --check-formatted
+    - name: Test
       run: mix test
   old_backend:
     name: Old Backend

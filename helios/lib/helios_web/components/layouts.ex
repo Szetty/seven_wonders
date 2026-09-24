@@ -42,9 +42,7 @@ defmodule HeliosWeb.Layouts do
         </a>
       </div>
       <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-
-        </ul>
+        <ul class="flex flex-column px-1 space-x-4 items-center"></ul>
       </div>
     </header>
 
