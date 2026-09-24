@@ -21,6 +21,8 @@ defmodule HeliosWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    post "/session", UserSessionController, :create
+    delete "/session", UserSessionController, :delete
 
     live_session :guest, on_mount: [{HeliosWeb.UserAuth, :redirect_if_user}] do
       live "/login", LoginLive, :new
