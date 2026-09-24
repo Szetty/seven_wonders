@@ -9,7 +9,9 @@ import Config
 
 config :helios,
   ecto_repos: [Helios.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  # Shared secret every player must know to log in (overridden per env).
+  access_token: "dev"
 
 # Configure the endpoint
 config :helios, HeliosWeb.Endpoint,

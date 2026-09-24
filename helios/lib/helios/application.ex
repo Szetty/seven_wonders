@@ -14,6 +14,7 @@ defmodule Helios.Application do
        repos: Application.fetch_env!(:helios, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:helios, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Helios.PubSub},
+      HeliosWeb.Presence,
       # Start a worker by calling: Helios.Worker.start_link(arg)
       # {Helios.Worker, arg},
       # Start to serve requests, typically the last entry

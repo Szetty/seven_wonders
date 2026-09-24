@@ -23,6 +23,12 @@ end
 config :helios, HeliosWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if config_env() == :dev do
+  if access_token = System.get_env("ACCESS_TOKEN") do
+    config :helios, access_token: access_token
+  end
+end
+
 if config_env() == :prod do
   database_path =
     System.get_env("DATABASE_PATH") ||
@@ -34,6 +40,9 @@ if config_env() == :prod do
   config :helios, Helios.Repo,
     database: database_path,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
+
+  config :helios,
+    access_token: System.get_env("ACCESS_TOKEN") || raise("ACCESS_TOKEN is missing")
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
