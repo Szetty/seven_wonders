@@ -35,4 +35,42 @@ defmodule HeliosWeb.ConnCase do
     Helios.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Setup helper that creates a user and logs them in.
+
+      setup :register_and_log_in_user
+
+  Adds `conn`, `user`, `token` (raw session token) and `scope` to the context.
+  """
+  def register_and_log_in_user(%{conn: conn}) do
+    {:ok, user, token} =
+      Helios.Accounts.login(
+        Helios.AccountsFixtures.valid_access_token(),
+        Helios.AccountsFixtures.unique_user_name()
+      )
+
+    %{
+      conn: put_user_token(conn, token),
+      user: user,
+      token: token,
+      scope: Helios.Accounts.Scope.for_user(user)
+    }
+  end
+
+  @doc """
+  Logs the given (not currently online) user into `conn` with a fresh session.
+  """
+  def log_in_user(conn, user) do
+    {:ok, _user, token} =
+      Helios.Accounts.login(Helios.AccountsFixtures.valid_access_token(), user.name)
+
+    put_user_token(conn, token)
+  end
+
+  defp put_user_token(conn, token) do
+    conn
+    |> Phoenix.ConnTest.init_test_session(%{})
+    |> Plug.Conn.put_session(:user_token, token)
+  end
 end

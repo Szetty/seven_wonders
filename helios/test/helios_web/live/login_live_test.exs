@@ -3,7 +3,7 @@ defmodule HeliosWeb.LoginLiveTest do
   import Phoenix.LiveViewTest
 
   test "renders login page", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/")
+    {:ok, _view, html} = live(conn, ~p"/login")
 
     assert html =~ "7 WONDERS"
     assert html =~ "Access Token"
@@ -11,7 +11,7 @@ defmodule HeliosWeb.LoginLiveTest do
   end
 
   test "namespaces fields under login and attaches no custom Enter hook", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
+    {:ok, view, _html} = live(conn, ~p"/login")
 
     assert has_element?(view, "#login_form input[name='login[access_token]']")
     assert has_element?(view, "#login_form input[name='login[name]']")
@@ -19,7 +19,7 @@ defmodule HeliosWeb.LoginLiveTest do
   end
 
   test "handles login attempt", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
+    {:ok, view, _html} = live(conn, ~p"/login")
 
     result =
       view
@@ -30,7 +30,7 @@ defmodule HeliosWeb.LoginLiveTest do
   end
 
   test "shows an error per blank field, treating whitespace as blank", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
+    {:ok, view, _html} = live(conn, ~p"/login")
 
     view
     |> form("#login_form", login: %{access_token: "   ", name: ""})
@@ -42,7 +42,7 @@ defmodule HeliosWeb.LoginLiveTest do
   end
 
   test "validate keeps the typed values in the form", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/")
+    {:ok, view, _html} = live(conn, ~p"/login")
 
     view
     |> form("#login_form", login: %{access_token: "", name: "arnold"})

@@ -1,6 +1,8 @@
 defmodule HeliosWeb.Router do
   use HeliosWeb, :router
 
+  import HeliosWeb.UserAuth, only: [fetch_current_scope: 2]
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -8,6 +10,7 @@ defmodule HeliosWeb.Router do
     plug :put_root_layout, html: {HeliosWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :fetch_current_scope
   end
 
   pipeline :api do
@@ -17,21 +20,21 @@ defmodule HeliosWeb.Router do
   scope "/", HeliosWeb do
     pipe_through :browser
 
-    live "/", LoginLive, :index
-  end
+    get "/", PageController, :home
 
-  # Other scopes may use custom stacks.
-  # scope "/api", HeliosWeb do
-  #   pipe_through :api
-  # end
+    live_session :guest, on_mount: [{HeliosWeb.UserAuth, :redirect_if_user}] do
+      live "/login", LoginLive, :new
+    end
+
+    live_session :authenticated, on_mount: [{HeliosWeb.UserAuth, :require_user}] do
+      live "/lobby", LobbyStubLive, :show
+    end
+  end
 
   # Enable LiveDashboard in development
   if Application.compile_env(:helios, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put
     # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
     import Phoenix.LiveDashboard.Router
 
     scope "/dev" do
