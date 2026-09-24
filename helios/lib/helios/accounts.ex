@@ -34,10 +34,10 @@ defmodule Helios.Accounts do
   end
 
   @doc """
-  Logs in: re-runs `check_login/2`, then in one transaction gets or inserts the
-  user by (trimmed) name, deletes that user's existing session tokens and
-  inserts a new one. After commit, every revoked session's LiveViews are told
-  to disconnect.
+  Logs in: re-runs the login validation (the same checks as `check_login/2`), then in one
+  transaction gets or inserts the user by (trimmed) name, deletes that user's existing
+  session tokens and inserts a new one. After commit, every revoked session's LiveViews
+  are told to disconnect.
 
   Returns the raw session token (32 random bytes) to store in the session.
   """
