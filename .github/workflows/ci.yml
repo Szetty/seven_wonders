@@ -67,7 +67,12 @@ jobs:
     - name: Check for unused dependencies
       run: mix deps.unlock --check-unused
     - name: Compile (builds the NIF)
-      run: mix compile --warnings-as-errors
+      # --force recompiles native.ex so Rustler always refreshes the gitignored
+      # priv/native/*.so — a restored _build cache would otherwise skip it (Elixir
+      # 1.19 digests don't change when only core/ sources do, so touch is not enough).
+      run: |
+        mix compile --force --warnings-as-errors
+        test -f priv/native/seven_wonders_core.so || { echo "::error::NIF .so missing after compile"; exit 1; }
     - name: Check formatting
       run: mix format --check-formatted
     - name: Test
@@ -99,11 +104,16 @@ jobs:
         run: mix deps.get
       - name: Compile Helios for e2e
         # Pre-compiling (including the Rust NIF) keeps server boot inside
-        # Playwright's 180 s webServer timeout.
+        # Playwright's 180 s webServer timeout. --force recompiles native.ex so
+        # Rustler always refreshes the gitignored priv/native/*.so even when the
+        # _build cache is warm.
         working-directory: helios
         env:
           MIX_ENV: e2e
-        run: mix do compile + assets.setup
+        run: |
+          mix compile --force
+          mix assets.setup
+          test -f priv/native/seven_wonders_core.so || { echo "::error::NIF .so missing after compile"; exit 1; }
       - name: Install npm deps
         working-directory: e2e
         run: npm ci
