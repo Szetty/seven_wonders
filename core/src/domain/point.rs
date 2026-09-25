@@ -21,6 +21,12 @@ pub struct PointsMap {
     data: HashMap<PointCategory, Point>,
 }
 
+impl Default for PointsMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PointsMap {
     pub fn new() -> Self {
         let mut data: HashMap<PointCategory, Point> = Default::default();
@@ -30,7 +36,7 @@ impl PointsMap {
         Self { data }
     }
     pub fn add(&mut self, key: &PointCategory, value: Point) {
-        *(self.data.get_mut(&key).unwrap()) += value;
+        *(self.data.get_mut(key).unwrap()) += value;
     }
     pub fn to_hash_map(&self) -> HashMap<PointCategory, Point> {
         self.data.clone()

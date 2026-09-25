@@ -1,0 +1,5 @@
+[tools]
+elixir = "1.19.5-otp-28"
+erlang = "28"
+rust = { version = "1.98.1", components = "clippy,rustfmt" }
+node = "24"

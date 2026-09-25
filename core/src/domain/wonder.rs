@@ -5,7 +5,7 @@ use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
 use std::fmt;
 
 #[derive(Display)]
-#[display(fmt = "Wonder({}, {}, {})", _0, _1, _2)]
+#[display("Wonder({_0}, {_1}, {_2})")]
 pub struct Wonder<'a, T>(pub &'a str, pub WonderSide<'a, T>, pub WonderSide<'a, T>);
 
 impl<'a, T> Wonder<'a, T> {
@@ -21,7 +21,7 @@ pub struct WonderSide<'a, T>(pub &'a str, pub Effects<T>, pub WonderStages<'a, T
 
 impl<'a, T> WonderSide<'a, T> {
     pub fn name(&self) -> &'a str {
-        &self.0
+        self.0
     }
     pub fn initial_effects(&self) -> &Effects<T> {
         &self.1

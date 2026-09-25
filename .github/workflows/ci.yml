@@ -17,96 +17,117 @@ jobs:
       run:
         working-directory: core
     steps:
-    - name: Setup Rust
-      uses: ATiltedTree/setup-rust@v1
+    - uses: actions/checkout@v7
+    - name: Install Rust (mise.toml)
+      uses: jdx/mise-action@v4
       with:
-        rust-version: 1.51.0
-    - name: Set up Elixir
-      uses: erlef/setup-elixir@885971a72ed1f9240973bd92ab57af8c1aa68f24
+        install_args: rust
+    - name: Cache cargo registry and target
+      uses: actions/cache@v6
       with:
-        elixir-version: '1.11.0'
-        otp-version: '22.3'
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-  backend:
-    name: Backend
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          core/target
+        key: ${{ runner.os }}-core-${{ hashFiles('mise.toml', 'core/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-core-
+    - name: Check formatting
+      run: cargo fmt --check
+    - name: Clippy
+      run: cargo clippy --all-targets -- -D warnings
+    - name: Test
+      run: cargo test
+  helios:
+    name: Helios
     runs-on: ubuntu-latest
     env:
-      ACCESS_TOKEN: "TEST"
-      JWT_SECRET: "test"
+      MIX_ENV: test
     defaults:
       run:
-        working-directory: backend
+        working-directory: helios
     steps:
-    - name: Setup Rust
-      uses: ATiltedTree/setup-rust@v1
+    - uses: actions/checkout@v7
+    - name: Install Erlang, Elixir and Rust (mise.toml)
+      uses: jdx/mise-action@v4
+    - name: Cache deps, build and NIF target
+      uses: actions/cache@v6
       with:
-        rust-version: 1.51.0
-    - name: Set up Elixir
-      uses: erlef/setup-elixir@885971a72ed1f9240973bd92ab57af8c1aa68f24
-      with:
-        elixir-version: '1.11.0'
-        otp-version: '22.3'
-    - uses: actions/checkout@v2
-    - name: Restore dependencies cache
-      uses: actions/cache@v2
-      with:
-        path: deps
-        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
-        restore-keys: ${{ runner.os }}-mix-
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          helios/deps
+          helios/_build
+          core/target
+        key: ${{ runner.os }}-helios-${{ hashFiles('mise.toml', 'helios/mix.lock', 'core/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-helios-
+    - name: Install Hex and Rebar
+      run: mix local.hex --force && mix local.rebar --force
     - name: Install dependencies
       run: mix deps.get
-    - name: Run tests
-      run: mix test
-  old_backend:
-    name: Old Backend
-    runs-on: ubuntu-latest
-    env:
-      ACCESS_TOKEN: "TEST"
-      JWT_SECRET: "test"
-    defaults:
-      run:
-        working-directory: backend_old
-    steps:
-    - name: Install Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.16.x
-    - name: Checkout code
-      uses: actions/checkout@v2
+    - name: Check for unused dependencies
+      run: mix deps.unlock --check-unused
+    - name: Compile (builds the NIF)
+      # --force recompiles native.ex so Rustler always refreshes the gitignored
+      # priv/native/*.so — a restored _build cache would otherwise skip it (Elixir
+      # 1.19 digests don't change when only core/ sources do, so touch is not enough).
+      run: |
+        mix compile --force --warnings-as-errors
+        test -f priv/native/seven_wonders_core.so || { echo "::error::NIF .so missing after compile"; exit 1; }
+    - name: Check formatting
+      run: mix format --check-formatted
     - name: Test
-      run: go test ./...
-  frontend:
-    name: Frontend
+      run: mix test
+  e2e:
+    name: E2E
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
-    - uses: jorelali/setup-elm@v3
-      with:
-        elm-version: 0.19.1
-    - uses: actions/checkout@v2
-    - run: npm install
-    - run: sudo npm install -g elm-github-install create-elm-app@4.2.16 --unsafe-perm=true
-    - run: elm-app build
-    - run: elm-app test
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    env:
-      ACCESS_TOKEN: "TEST"
-      JWT_SECRET: "test"
-      LOG_LEVEL: "error"
-    defaults:
-      run:
-        working-directory: integration-tests
-    needs: [old_backend]
-    steps:
-      - uses: actions/checkout@v2
-      - run: cd ../backend_old && go build && cd ../integration-tests
-      - run: npm install
-      - run: ../backend_old/backend_old & npm test
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v4
+      - name: Install Hex and Rebar
+        run: mix local.hex --force && mix local.rebar --force
+      - name: Cache Mix and Cargo builds
+        uses: actions/cache@v6
+        with:
+          path: |
+            helios/deps
+            helios/_build
+            core/target
+          key: ${{ runner.os }}-e2e-${{ hashFiles('helios/mix.lock', 'core/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-e2e-
+      - name: Cache npm
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('e2e/package-lock.json') }}
+      - name: Install Elixir deps
+        working-directory: helios
+        run: mix deps.get
+      - name: Compile Helios for e2e
+        # Pre-compiling (including the Rust NIF) keeps server boot inside
+        # Playwright's 180 s webServer timeout. --force recompiles native.ex so
+        # Rustler always refreshes the gitignored priv/native/*.so even when the
+        # _build cache is warm.
+        working-directory: helios
+        env:
+          MIX_ENV: e2e
+        run: |
+          mix compile --force
+          mix assets.setup
+          test -f priv/native/seven_wonders_core.so || { echo "::error::NIF .so missing after compile"; exit 1; }
+      - name: Install npm deps
+        working-directory: e2e
+        run: npm ci
+      - name: Install Playwright browser
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright
+        working-directory: e2e
+        run: npx playwright test
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
+

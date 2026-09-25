@@ -1,7 +1,5 @@
 use derive_more::Display;
 use std::collections::{HashMap, HashSet};
-use std::iter::FromIterator;
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Display, Default, Debug, PartialEq)]
@@ -41,7 +39,7 @@ impl Neighbours {
     ) -> HashSet<PName> {
         directions
             .iter()
-            .map(|direction| self.get_player_name_from_direction(&player_name, direction))
+            .map(|direction| self.get_player_name_from_direction(player_name, direction))
             .collect()
     }
     fn get_player_name_from_direction(
@@ -77,6 +75,7 @@ fn test_build_neighbours() {
 
 #[test]
 fn test_get_player_names_from_directions() {
+    use strum::IntoEnumIterator;
     let players = vec!["a".to_string(), "b".to_string(), "c".to_string()];
     let neighbours = Neighbours::new(players.clone());
     let directions: Vec<PlayerDirection> = PlayerDirection::iter().collect();

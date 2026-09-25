@@ -17,9 +17,12 @@ use ScientificSymbol::{Compass, Gears, Tablet};
 
 type ScientificSymbolCount = u8;
 
+type ScientificAction =
+    dyn Fn(&ScientificSymbolsProduced, &mut ScientificSymbolCounts) + Sync + Send;
+
 #[derive(Default)]
 pub struct ScientificSymbolsProduced {
-    pub actions: Vec<Box<dyn Fn(&Self, &mut ScientificSymbolCounts) + Sync + Send>>,
+    pub actions: Vec<Box<ScientificAction>>,
     pub tablet: ScientificSymbolCount,
     pub compass: ScientificSymbolCount,
     pub gears: ScientificSymbolCount,

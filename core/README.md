@@ -1,22 +1,16 @@
-# NIF for Elixir.Core
+# seven_wonders_core
 
-## To build the NIF module:
+Rust 7 Wonders engine. Helios loads it as the Rustler NIF `Helios.Core.Native`
+(`helios/lib/helios/core/native.ex`); use the `Helios.Core` wrapper from Elixir.
 
-- Make sure your projects `mix.exs` has the `:rustler` compiler listed in the `project` function: `compilers: [:rustler] ++ Mix.compilers()` If there already is a `:compilers` list, you should append `:rustler` to it.
-- Add your crate to the `rustler_crates` attribute in the `project function. [See here](https://hexdocs.pm/rustler/basics.html#crate-configuration).
-- Your NIF will now build along with your project.
+## Development
 
-## To load the NIF:
+The toolchain is pinned in the repo-root `mise.toml`. From this folder:
 
-```elixir
-defmodule Core do
-    use Rustler, otp_app: <otp-app>, crate: "core"
-
-    # When your NIF is loaded, it will override this function.
-    def add(_a, _b), do: :erlang.nif_error(:nif_not_loaded)
-end
+```shell
+mise exec -- cargo fmt --check
+mise exec -- cargo clippy --all-targets -- -D warnings
+mise exec -- cargo test
 ```
 
-## Examples
-
-[This](https://github.com/hansihe/NifIo) is a complete example of a NIF written in Rust.
+Helios compiles this crate automatically on `mix compile` (`path: "../core"`).

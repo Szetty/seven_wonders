@@ -2,7 +2,6 @@ use itertools::Itertools;
 use maplit::hashset;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::{HashMap, HashSet};
-use std::iter;
 
 pub mod types;
 use std::fmt;
@@ -152,9 +151,8 @@ fn compute_combinations(
             resource_costs
                 .into_iter()
                 .flat_map(|ResourceCost(resource_type, resource_count)| {
-                    iter::repeat(resource_type).take(resource_count.into())
+                    std::iter::repeat_n(resource_type, resource_count.into())
                 })
-                .into_iter()
                 .permutations(resources_costs_len)
                 .filter(|r| !r.is_empty()),
         )

@@ -256,4 +256,10 @@ websocket-client/build
 core.cabal
 
 *.iml
+*.DS_Store
 # End of https://www.gitignore.io/api/go,git,elm,node,intellij,visualstudiocode
+
+
+# Local OS / BEAM artifacts
+.DS_Store
+erl_crash.dump

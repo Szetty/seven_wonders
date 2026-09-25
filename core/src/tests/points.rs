@@ -46,7 +46,6 @@ fn test_calculate_points() {
                             })
                         ],
                         any_symbols: vec![&[Tablet, Gears, Compass]],
-                        ..Default::default()
                     },
                     ..default_player_state()
                 },
