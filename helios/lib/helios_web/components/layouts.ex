@@ -28,6 +28,10 @@ defmodule HeliosWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :notifications, :list,
+    default: [],
+    doc: "notifications from HeliosWeb.Notifications (authenticated pages)"
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -35,6 +39,7 @@ defmodule HeliosWeb.Layouts do
     <div class="min-h-screen">
       <div :if={@current_scope && @current_scope.user} class="px-4 pt-4 sm:px-6 lg:px-8">
         <.site_header current_scope={@current_scope} />
+        <.notifications items={@notifications} />
       </div>
 
       <main class="w-full">
@@ -42,6 +47,63 @@ defmodule HeliosWeb.Layouts do
       </main>
 
       <.flash_group flash={@flash} />
+    </div>
+    """
+  end
+
+  @doc """
+  Teal notification strip. Approve notifications carry Accept/Decline; simple
+  ones an OK button. Events are handled by `HeliosWeb.Notifications`.
+  """
+  attr :items, :list, required: true
+
+  def notifications(assigns) do
+    ~H"""
+    <div
+      id="notifications"
+      aria-live="polite"
+      class="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4"
+    >
+      <div
+        :for={n <- HeliosWeb.Notifications.visible(@items)}
+        id={"notification-#{n.id}"}
+        data-notification={Atom.to_string(n.kind)}
+        class="pointer-events-auto flex w-full max-w-xl items-center justify-between gap-4 rounded-lg bg-teal-600 px-4 py-2 text-white shadow-lg ring-1 ring-teal-900/30 transition"
+      >
+        <span class="text-sm font-medium">{n.message}</span>
+        <div class="flex shrink-0 gap-2">
+          <%= if n.kind == :approve do %>
+            <button
+              id={"accept-invite-#{n.lobby_id}"}
+              type="button"
+              phx-click="accept_invite"
+              phx-value-id={n.lobby_id}
+              class="rounded-md bg-white px-3 py-1 text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
+            >
+              Accept
+            </button>
+            <button
+              id={"decline-invite-#{n.lobby_id}"}
+              type="button"
+              phx-click="decline_invite"
+              phx-value-id={n.lobby_id}
+              class="rounded-md bg-zinc-900 px-3 py-1 text-sm font-semibold text-white transition hover:bg-zinc-700"
+            >
+              Decline
+            </button>
+          <% else %>
+            <button
+              id={"dismiss-#{n.id}"}
+              type="button"
+              phx-click="dismiss_notification"
+              phx-value-id={n.id}
+              class="rounded-md bg-zinc-900 px-3 py-1 text-sm font-semibold text-white transition hover:bg-zinc-700"
+            >
+              OK
+            </button>
+          <% end %>
+        </div>
+      </div>
     </div>
     """
   end

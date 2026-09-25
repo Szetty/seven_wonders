@@ -28,7 +28,8 @@ defmodule HeliosWeb.Router do
       live "/login", LoginLive, :new
     end
 
-    live_session :authenticated, on_mount: [{HeliosWeb.UserAuth, :require_user}] do
+    live_session :authenticated,
+      on_mount: [{HeliosWeb.UserAuth, :require_user}, HeliosWeb.Notifications] do
       live "/lobby/:game_id", LobbyLive, :show
     end
   end

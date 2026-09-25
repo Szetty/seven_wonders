@@ -6,6 +6,7 @@ defmodule HeliosWeb.LobbyLive do
   use HeliosWeb, :live_view
 
   alias Helios.Lobbies
+  alias HeliosWeb.Notifications
   alias HeliosWeb.OnlineTracker
   alias HeliosWeb.Presence
   alias Phoenix.Socket.Broadcast
@@ -52,7 +53,7 @@ defmodule HeliosWeb.LobbyLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app flash={@flash} current_scope={@current_scope} notifications={@notifications}>
       <section id="lobby" class="mx-auto w-full max-w-3xl space-y-6 px-4 py-10">
         <h1 id="lobby-title" class="text-2xl font-semibold tracking-tight text-zinc-900">
           {@page_title}
@@ -200,8 +201,8 @@ defmodule HeliosWeb.LobbyLive do
 
   @impl true
   def handle_info(%Broadcast{event: "presence_diff", topic: @online_topic, payload: diff}, socket) do
-    {online, _events} = OnlineTracker.handle_diff(socket.assigns.online, diff)
-    {:noreply, socket |> assign(:online, online) |> assign_derived()}
+    {online, events} = OnlineTracker.handle_diff(socket.assigns.online, diff)
+    {:noreply, socket |> assign(:online, online) |> notify_presence(events) |> assign_derived()}
   end
 
   def handle_info(%Broadcast{event: "presence_diff"}, socket) do
@@ -209,7 +210,7 @@ defmodule HeliosWeb.LobbyLive do
   end
 
   def handle_info({:confirm_offline, user_id, token}, socket) do
-    {online, _events} =
+    {online, events} =
       OnlineTracker.confirm_offline(
         socket.assigns.online,
         user_id,
@@ -217,14 +218,38 @@ defmodule HeliosWeb.LobbyLive do
         Presence.list(@online_topic)
       )
 
-    {:noreply, socket |> assign(:online, online) |> assign_derived()}
+    {:noreply, socket |> assign(:online, online) |> notify_presence(events) |> assign_derived()}
   end
 
   def handle_info({:members_changed}, socket), do: {:noreply, load_members(socket)}
 
-  def handle_info({:declined, _user}, socket), do: {:noreply, load_members(socket)}
+  def handle_info({:declined, user}, socket) do
+    socket = load_members(socket)
+
+    socket =
+      if socket.assigns.owner?,
+        do: Notifications.push_simple(socket, "User #{user.name} declined your invitation!"),
+        else: socket
+
+    {:noreply, socket}
+  end
 
   defp invite_form(user_id), do: to_form(%{"user_id" => user_id}, as: :invite)
+
+  defp notify_presence(socket, events) do
+    me = socket.assigns.current_scope.user.id
+
+    Enum.reduce(events, socket, fn
+      {_kind, ^me, _name}, acc ->
+        acc
+
+      {:came_online, _id, name}, acc ->
+        Notifications.push_simple(acc, "User #{name} got online!")
+
+      {:went_offline, _id, name}, acc ->
+        Notifications.push_simple(acc, "User #{name} got offline!")
+    end)
+  end
 
   defp load_members(socket) do
     members = Lobbies.members(socket.assigns.lobby)
