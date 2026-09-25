@@ -20,4 +20,9 @@ defmodule Helios.LobbiesFixtures do
   end
 
   def lobby_fixture(owner), do: Lobbies.get_or_create_own_lobby(owner)
+
+  def invite_fixture(lobby, owner, invitee) do
+    {:ok, invite} = Lobbies.invite(Helios.Accounts.Scope.for_user(owner), lobby, invitee.id)
+    invite
+  end
 end

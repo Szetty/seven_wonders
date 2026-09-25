@@ -3,6 +3,7 @@ defmodule Helios.LobbiesTest do
 
   import Helios.LobbiesFixtures
 
+  alias Helios.Accounts.Scope
   alias Helios.Accounts.User
   alias Helios.Lobbies
   alias Helios.Lobbies.Invite
@@ -115,5 +116,216 @@ defmodule Helios.LobbiesTest do
 
   test "max_players/0 is 7" do
     assert Lobbies.max_players() == 7
+  end
+
+  defp owner_and_lobby do
+    owner = player_fixture()
+    %{owner: owner, lobby: lobby_fixture(owner), scope: Scope.for_user(owner)}
+  end
+
+  describe "invite/3" do
+    test "creates a pending invite that authorizes the invitee" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+      guest = player_fixture()
+
+      assert {:ok, %Invite{status: "pending"}} = Lobbies.invite(scope, lobby, guest.id)
+      assert Lobbies.authorize(lobby, guest) == :ok
+    end
+
+    test "accepts the invitee id as a string (form params)" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+      guest = player_fixture()
+
+      assert {:ok, _} = Lobbies.invite(scope, lobby, Integer.to_string(guest.id))
+    end
+
+    test "broadcasts to the invitee (with the owner preloaded) and to the lobby" do
+      %{owner: owner, lobby: lobby, scope: scope} = owner_and_lobby()
+      guest = player_fixture()
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(guest.id))
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.lobby_topic(lobby.id))
+
+      {:ok, _invite} = Lobbies.invite(scope, lobby, guest.id)
+
+      lobby_id = lobby.id
+      owner_name = owner.name
+
+      assert_receive {:invited,
+                      %Invite{lobby_id: ^lobby_id, lobby: %Lobby{owner: %User{name: ^owner_name}}}}
+
+      assert_receive {:members_changed}
+    end
+
+    test "only the owner may invite" do
+      %{lobby: lobby} = owner_and_lobby()
+      other = player_fixture()
+
+      assert Lobbies.invite(Scope.for_user(other), lobby, player_fixture().id) ==
+               {:error, :not_leader}
+    end
+
+    test "the owner cannot invite themselves" do
+      %{owner: owner, lobby: lobby, scope: scope} = owner_and_lobby()
+
+      assert Lobbies.invite(scope, lobby, owner.id) == {:error, :self_invite}
+    end
+
+    test "inviting twice is :already_invited, whatever the status" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+      guest = player_fixture()
+      {:ok, _} = Lobbies.invite(scope, lobby, guest.id)
+
+      assert Lobbies.invite(scope, lobby, guest.id) == {:error, :already_invited}
+
+      :ok = Lobbies.accept(Scope.for_user(guest), lobby.id)
+      assert Lobbies.invite(scope, lobby, guest.id) == {:error, :already_invited}
+    end
+
+    test "unknown or malformed user ids are :invalid_user" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+
+      for id <- [0, -1, 9_999_999, "abc", "", "12abc", nil, 1.5] do
+        assert Lobbies.invite(scope, lobby, id) == {:error, :invalid_user}, "for #{inspect(id)}"
+      end
+    end
+
+    test "a table holds at most 7 players, owner included" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+
+      for _ <- 1..6 do
+        assert {:ok, _} = Lobbies.invite(scope, lobby, player_fixture().id)
+      end
+
+      assert Lobbies.invite(scope, lobby, player_fixture().id) == {:error, :lobby_full}
+      assert length(Lobbies.members(lobby)) == 7
+    end
+  end
+
+  describe "uninvite/3" do
+    test "removes authorization and broadcasts" do
+      %{owner: owner, lobby: lobby, scope: scope} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(guest.id))
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.lobby_topic(lobby.id))
+
+      assert Lobbies.uninvite(scope, lobby, Integer.to_string(guest.id)) == :ok
+      assert Lobbies.authorize(lobby, guest) == {:error, :unauthorized}
+
+      lobby_id = lobby.id
+      assert_receive {:uninvited, ^lobby_id}
+      assert_receive {:members_changed}
+    end
+
+    test "only the owner may uninvite" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+
+      assert Lobbies.uninvite(Scope.for_user(guest), lobby, guest.id) == {:error, :not_leader}
+      assert Lobbies.authorize(lobby, guest) == :ok
+    end
+
+    test "uninviting someone who is not invited is :not_invited" do
+      %{owner: owner, lobby: lobby, scope: scope} = owner_and_lobby()
+
+      assert Lobbies.uninvite(scope, lobby, player_fixture().id) == {:error, :not_invited}
+      assert Lobbies.uninvite(scope, lobby, owner.id) == {:error, :not_invited}
+      assert Lobbies.uninvite(scope, lobby, "abc") == {:error, :not_invited}
+    end
+  end
+
+  describe "accept/2" do
+    test "marks the invite accepted, keeps authorization, broadcasts :invite_resolved" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(guest.id))
+
+      assert Lobbies.accept(Scope.for_user(guest), lobby.id) == :ok
+
+      lobby_id = lobby.id
+      assert_receive {:invite_resolved, ^lobby_id}
+      assert Repo.get_by!(Invite, lobby_id: lobby.id, user_id: guest.id).status == "accepted"
+      assert Lobbies.authorize(lobby, guest) == :ok
+      assert Lobbies.pending_invites(guest) == []
+    end
+
+    test "is idempotent" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+
+      assert Lobbies.accept(Scope.for_user(guest), lobby.id) == :ok
+      assert Lobbies.accept(Scope.for_user(guest), lobby.id) == :ok
+    end
+
+    test "without an invite or with a malformed id it is :not_invited" do
+      %{lobby: lobby} = owner_and_lobby()
+      stranger = Scope.for_user(player_fixture())
+
+      assert Lobbies.accept(stranger, lobby.id) == {:error, :not_invited}
+      assert Lobbies.accept(stranger, "not-a-uuid") == {:error, :not_invited}
+      assert Lobbies.accept(stranger, nil) == {:error, :not_invited}
+    end
+  end
+
+  describe "decline/2" do
+    test "deletes the invite and broadcasts to the lobby and the invitee" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(guest.id))
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.lobby_topic(lobby.id))
+
+      assert Lobbies.decline(Scope.for_user(guest), lobby.id) == :ok
+      assert Lobbies.authorize(lobby, guest) == {:error, :unauthorized}
+
+      lobby_id = lobby.id
+      guest_id = guest.id
+      assert_receive {:declined, %User{id: ^guest_id}}
+      assert_receive {:invite_resolved, ^lobby_id}
+    end
+
+    test "an accepted invite can no longer be declined" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      :ok = Lobbies.accept(Scope.for_user(guest), lobby.id)
+
+      assert Lobbies.decline(Scope.for_user(guest), lobby.id) == {:error, :not_invited}
+      assert Lobbies.authorize(lobby, guest) == :ok
+    end
+
+    test "without an invite or with a malformed id it is :not_invited" do
+      %{lobby: lobby} = owner_and_lobby()
+      stranger = Scope.for_user(player_fixture())
+
+      assert Lobbies.decline(stranger, lobby.id) == {:error, :not_invited}
+      assert Lobbies.decline(stranger, "garbage") == {:error, :not_invited}
+    end
+  end
+
+  describe "pending_invites/1 and owner_name/1" do
+    test "lists pending invites newest first with the owner's name" do
+      guest = player_fixture()
+      first = owner_and_lobby()
+      second = owner_and_lobby()
+      invite_fixture(first.lobby, first.owner, guest)
+      invite_fixture(second.lobby, second.owner, guest)
+
+      assert Lobbies.pending_invites(guest) == [
+               %{lobby_id: second.lobby.id, owner_name: second.owner.name},
+               %{lobby_id: first.lobby.id, owner_name: first.owner.name}
+             ]
+    end
+
+    test "owner_name/1" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+
+      assert Lobbies.owner_name(lobby.id) == owner.name
+      assert Lobbies.owner_name(Ecto.UUID.generate()) == nil
+      assert Lobbies.owner_name("nope") == nil
+    end
   end
 end
