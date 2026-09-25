@@ -24,3 +24,5 @@ config :helios, HeliosWeb.Endpoint,
 config :helios, access_token: "e2e"
 
 config :logger, level: :warning
+
+config :helios, presence_grace_ms: 2_000

@@ -13,6 +13,10 @@ config :helios,
   # Shared secret every player must know to log in (overridden per env).
   access_token: "dev"
 
+# Grace period before a disconnected user is reported offline
+# (see HeliosWeb.OnlineTracker). The e2e env shortens it.
+config :helios, presence_grace_ms: 5_000
+
 # Configure the endpoint
 config :helios, HeliosWeb.Endpoint,
   url: [host: "localhost"],
