@@ -3,6 +3,10 @@ import { expect, type Page } from "@playwright/test";
 /** Access token configured for MIX_ENV=e2e (helios/config/e2e.exs). */
 export const ACCESS_TOKEN = "e2e";
 
+/** Matches `/lobby/<uuid>` — every logged-in user lands on their own table. */
+export const LOBBY_URL =
+  /\/lobby\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 /** A per-test unique user name: `<prefix>_<random>`, never longer than 24 characters. */
 export function uniqueName(prefix = "user"): string {
   const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;

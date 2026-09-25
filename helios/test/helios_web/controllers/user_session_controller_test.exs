@@ -19,7 +19,10 @@ defmodule HeliosWeb.UserSessionControllerTest do
       assert %{name: ^name} = Accounts.get_user_by_session_token(token)
       assert get_session(conn, :live_socket_id) == Accounts.live_socket_id(token)
 
-      conn = conn |> recycle() |> get(~p"/lobby")
+      conn = conn |> recycle() |> get(~p"/")
+      assert redirected_to(conn) =~ ~r"^/lobby/[0-9a-f-]{36}$"
+
+      conn = conn |> recycle() |> get(redirected_to(conn))
       assert html_response(conn, 200) =~ name
     end
 
@@ -69,7 +72,7 @@ defmodule HeliosWeb.UserSessionControllerTest do
       refute get_session(conn, :user_token)
       assert Accounts.get_user_by_session_token(token) == nil
 
-      conn = conn |> recycle() |> get(~p"/lobby")
+      conn = conn |> recycle() |> get(~p"/lobby/#{Ecto.UUID.generate()}")
       assert redirected_to(conn) == ~p"/login"
     end
   end

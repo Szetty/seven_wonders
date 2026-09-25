@@ -61,6 +61,13 @@ defmodule HeliosWeb.Layouts do
         {@current_scope.user.name}
       </span>
       <.link
+        href={~p"/"}
+        id="my-table-link"
+        class="rounded-md px-3 py-1.5 text-sm font-semibold text-white/90 transition hover:bg-white/15 hover:text-white"
+      >
+        My table
+      </.link>
+      <.link
         id="logout-link"
         href={~p"/session"}
         method="delete"

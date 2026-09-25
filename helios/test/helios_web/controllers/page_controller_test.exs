@@ -1,22 +1,22 @@
 defmodule HeliosWeb.PageControllerTest do
-  use HeliosWeb.ConnCase
+  use HeliosWeb.ConnCase, async: false
 
-  test "GET / sends guests to /login", %{conn: conn} do
-    assert redirected_to(get(conn, ~p"/")) == ~p"/login"
-  end
+  import Helios.LobbiesFixtures
 
-  test "GET / with a stale session token sends to /login and forgets the token", %{conn: conn} do
-    conn = conn |> init_test_session(%{user_token: "stale"}) |> get(~p"/")
+  alias Helios.Lobbies
+
+  test "GET / redirects guests to /login", %{conn: conn} do
+    conn = get(conn, ~p"/")
 
     assert redirected_to(conn) == ~p"/login"
-    refute get_session(conn, :user_token)
   end
 
-  describe "logged in" do
-    setup :register_and_log_in_user
+  test "GET / redirects a logged-in user to their own table", %{conn: conn} do
+    {conn, user} = log_in_player(conn)
 
-    test "GET / sends users to /lobby", %{conn: conn} do
-      assert redirected_to(get(conn, ~p"/")) == ~p"/lobby"
-    end
+    conn = get(conn, ~p"/")
+
+    lobby = Lobbies.get_or_create_own_lobby(user)
+    assert redirected_to(conn) == ~p"/lobby/#{lobby.id}"
   end
 end

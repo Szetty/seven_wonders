@@ -25,4 +25,10 @@ defmodule Helios.LobbiesFixtures do
     {:ok, invite} = Lobbies.invite(Helios.Accounts.Scope.for_user(owner), lobby, invitee.id)
     invite
   end
+
+  @doc "Creates a player and returns a conn whose session is logged in as them."
+  def log_in_player(conn, name \\ unique_player_name()) do
+    {user, token} = player_with_token_fixture(name)
+    {Plug.Test.init_test_session(conn, %{user_token: token}), user}
+  end
 end

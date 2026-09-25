@@ -29,7 +29,7 @@ defmodule HeliosWeb.Router do
     end
 
     live_session :authenticated, on_mount: [{HeliosWeb.UserAuth, :require_user}] do
-      live "/lobby", LobbyStubLive, :show
+      live "/lobby/:game_id", LobbyLive, :show
     end
   end
 

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, logout, uniqueName, waitForLiveView } from "./support/auth";
+import { LOBBY_URL, login, logout, uniqueName, waitForLiveView } from "./support/auth";
 
 test.describe("authentication", () => {
   test("login succeeds and lands on the lobby with the name in the header", async ({ page }) => {
@@ -7,7 +7,7 @@ test.describe("authentication", () => {
 
     await login(page, name);
 
-    await expect(page).toHaveURL(/\/lobby$/);
+    await expect(page).toHaveURL(LOBBY_URL);
     await expect(page.locator("#current-user-name")).toHaveText(name);
   });
 
@@ -35,7 +35,7 @@ test.describe("authentication", () => {
   test("a name held by an online user is rejected", async ({ page, browser }) => {
     const name = uniqueName("held");
     await login(page, name);
-    await expect(page).toHaveURL(/\/lobby$/);
+    await expect(page).toHaveURL(LOBBY_URL);
     await waitForLiveView(page);
 
     const other = await browser.newContext();
@@ -53,7 +53,7 @@ test.describe("authentication", () => {
   test("a name is freed when its user logs out", async ({ page, browser }) => {
     const name = uniqueName("reenter");
     await login(page, name);
-    await expect(page).toHaveURL(/\/lobby$/);
+    await expect(page).toHaveURL(LOBBY_URL);
     await waitForLiveView(page);
     await logout(page);
 
@@ -62,7 +62,7 @@ test.describe("authentication", () => {
       const otherPage = await other.newPage();
       await login(otherPage, name);
 
-      await expect(otherPage).toHaveURL(/\/lobby$/);
+      await expect(otherPage).toHaveURL(LOBBY_URL);
       await expect(otherPage.locator("#current-user-name")).toHaveText(name);
     } finally {
       await other.close();
@@ -70,7 +70,7 @@ test.describe("authentication", () => {
   });
 
   test("guests visiting the lobby are sent to login", async ({ page }) => {
-    await page.goto("/lobby");
+    await page.goto(`/lobby/${crypto.randomUUID()}`);
 
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.locator("#flash-error")).toContainText("You must log in to access this page.");
@@ -81,19 +81,19 @@ test.describe("authentication", () => {
 
   test("logged-in users visiting login are sent to the lobby", async ({ page }) => {
     await login(page, uniqueName("already"));
-    await expect(page).toHaveURL(/\/lobby$/);
+    await expect(page).toHaveURL(LOBBY_URL);
 
     await page.goto("/login");
-    await expect(page).toHaveURL(/\/lobby$/);
+    await expect(page).toHaveURL(LOBBY_URL);
   });
 
   test("logout returns to login and protects the lobby again", async ({ page }) => {
     await login(page, uniqueName("bye"));
-    await expect(page).toHaveURL(/\/lobby$/);
+    await expect(page).toHaveURL(LOBBY_URL);
 
     await logout(page);
 
-    await page.goto("/lobby");
+    await page.goto(`/lobby/${crypto.randomUUID()}`);
     await expect(page).toHaveURL(/\/login$/);
   });
 });
