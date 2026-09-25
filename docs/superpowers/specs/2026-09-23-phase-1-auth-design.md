@@ -100,3 +100,37 @@ New `e2e` job: checkout → `jdx/mise-action` → hex/rebar → `cd helios && mi
 - `config/runtime.exs` sets the port for every env; it must default to 4004 when `MIX_ENV=e2e`.
 - Playwright `webServer` order is `assets.build + ecto.reset + phx.server` (seeds would start the endpoint before assets exist otherwise). CI pre-compiles the e2e env before Playwright to stay under the server timeout.
 - `Scope.for_user(nil)` returns `nil`; guests have `current_scope == nil`.
+
+## Known shortcomings (found during implementation, 2026-09-24)
+
+### SQLite `Database busy` under concurrent writes
+
+**Symptom.** With the Playwright suite running at default parallelism (~6 workers), logins in parallel hit
+`Exqlite.Error) Database busy` on `INSERT INTO "users" ... ON CONFLICT ("name") DO NOTHING` inside
+`Accounts.get_or_insert_user!/1` → `start_session/1` → `login/2` (`Ecto.Repo.transact`). The `POST /session`
+request 500s (no redirect to `/lobby`). Observed over five default-parallel runs: `7/2`, `6/3`, `7/2`,
+`8/1`, `7/2` passed/failed — never fully green; `npx playwright test --workers=1` passes `9/9`.
+
+**Root cause.** SQLite has a single writer; Ecto holds `pool_size: 5` connections and `login/2` runs its
+writes in a transaction started with the default *deferred* mode. Under concurrent logins the deferred
+transactions conflict when upgrading to a write lock, and the driver's `busy_timeout` does not retry that
+upgrade — the statement fails with `SQLITE_BUSY` instead of waiting. This is app-side contention, not a
+test-harness bug: the scenarios are independent and serial execution proves the logic is correct.
+
+**Current mitigation.** `e2e/playwright.config.ts` sets `workers: 1` (with a comment). This is a recorded
+deviation from this plan's Global Constraint `fullyParallel: true`, approved because the alternative was
+a flaky suite (evidence and decision trail: commits `6c5233f`, `eabe363`). **Raising workers again will
+reintroduce the flakiness.**
+
+**Impact beyond e2e.** Any runtime path with concurrent writers can 500 the same way — a burst of logins
+today; Phase 2+ lobby/invite writes and concurrent game actions add more writers. At 3–7 players on one
+node the exposure is small but unproven; it is currently unmitigated outside the test harness.
+
+**Options for a follow-up fix (none chosen yet):**
+1. Single-writer discipline for SQLite (lower `pool_size`, or serialize writes through one process) — simplest, probably sufficient at this scale.
+2. Start write transactions in immediate mode (`BEGIN IMMEDIATE`) so writers queue on the file lock instead of upgrading — requires checking what `ecto_sqlite3` exposes for transaction begin.
+3. Application-level retry-on-busy around write transactions.
+4. Set `journal_mode=WAL` and an explicit `busy_timeout` pragma — good hygiene, but **not sufficient alone** for the deferred-upgrade case.
+
+**Acceptance for the eventual fix:** default-parallel `npx playwright test` is green repeatedly (≥5 runs)
+with `workers: 1` removed from `e2e/playwright.config.ts`.
