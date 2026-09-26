@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-pub type Point = i16;
+pub type Point = i32;
 #[derive(PartialEq, Eq, Hash, Clone, Debug, EnumIter, serde::Serialize)]
 pub enum PointCategory {
     MilitaryP,

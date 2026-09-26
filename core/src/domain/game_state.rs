@@ -434,7 +434,7 @@ pub fn dynamic_coin_effect(
             .get_player_names_from_directions(&player_name, effect_directions);
         let structures_count =
             game_state.count_structures_for_players(&categories, &affected_players);
-        game_state.get_mut_player_state(&player_name).coins += coins * structures_count as u8;
+        game_state.get_mut_player_state(&player_name).coins += coins * structures_count as Coin;
     })
 }
 

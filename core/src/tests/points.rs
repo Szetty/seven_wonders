@@ -96,3 +96,8 @@ fn test_calculate_points() {
         }
     )
 }
+
+#[test]
+fn test_treasury_points_for_large_coin_counts() {
+    assert_eq!(crate::domain::calculate_treasury_points(300), 100);
+}

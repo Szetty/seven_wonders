@@ -909,3 +909,30 @@ fn test_rhodos() {
         }
     );
 }
+
+#[test]
+fn test_coins_do_not_overflow_past_255() {
+    let mut game_state = GameState {
+        player_states: hashmap! {
+            "a".to_string() => PlayerState {
+                player: Player("a".to_string()),
+                coins: 254,
+                ..default_player_state()
+            },
+            "b".to_string() => PlayerState {
+                player: Player("b".to_string()),
+                ..default_player_state()
+            },
+            "c".to_string() => PlayerState {
+                player: Player("c".to_string()),
+                ..default_player_state()
+            },
+        },
+        ..default_game_state()
+    };
+    let tavern = STRUCTURES_BY_NAME.get("Tavern").unwrap();
+    game_state.apply_player_decisions(
+        hashmap! {"a".to_string() => PlayerDecision::BuildStructure(Card(tavern))},
+    );
+    assert_eq!(game_state.get_player_state(&"a".to_string()).coins, 259);
+}
