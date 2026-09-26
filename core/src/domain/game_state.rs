@@ -16,6 +16,7 @@ use std::fmt;
 
 #[derive(Default, Debug)]
 pub struct GameState {
+    pub seats: Vec<PName>,
     pub deck: Deck,
     pub player_states: HashMap<PName, PlayerState>,
     pub neighbours: Neighbours,
@@ -28,6 +29,10 @@ pub struct GameState {
 impl GameState {
     pub fn new(deck: Deck, players_with_wonders: PlayersWithWonders) -> Self {
         Self {
+            seats: players_with_wonders
+                .iter()
+                .map(|(player, _)| player.0.clone())
+                .collect(),
             deck,
             neighbours: Neighbours::new(
                 players_with_wonders
@@ -46,13 +51,9 @@ impl GameState {
     }
     pub fn init(&mut self) {
         let mut effects: Vec<(&Effect, PName)> = Default::default();
-        for player_state in self.player_states.values_mut() {
-            effects.extend(
-                player_state
-                    .init()
-                    .iter()
-                    .map(|e| (e, player_state.player_name())),
-            );
+        for name in self.seats.clone() {
+            let player_state = self.get_mut_player_state(&name);
+            effects.extend(player_state.init().iter().map(|e| (e, name.clone())));
         }
         for (effect, player_name) in effects {
             (*effect)(self, player_name);
@@ -168,8 +169,9 @@ impl Serialize for GameState {
     where
         S: Serializer,
     {
-        let mut s = serializer.serialize_struct("GameState", 9)?;
+        let mut s = serializer.serialize_struct("GameState", 10)?;
         s.serialize_field("type", "GameState")?;
+        s.serialize_field("seats", &self.seats)?;
         s.serialize_field("deck", &self.deck)?;
         s.serialize_field("player_states", &self.player_states)?;
         s.serialize_field("neighbours", &self.neighbours)?;
@@ -184,7 +186,7 @@ impl Serialize for GameState {
 
 pub type Deck = (Cards, Cards, Cards);
 pub type Cards = Vec<Card>;
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
 pub struct Card(pub &'static Structure<'static, Effect>);
 pub type PlayersWithWonders = Vec<(Player, &'static WonderSide<'static, Effect>)>;
 pub enum PlayerDecision {

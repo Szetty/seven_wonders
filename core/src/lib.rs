@@ -131,7 +131,9 @@ mod tests {
     pub mod data;
     pub mod deck;
     pub mod game_effects;
+    pub mod game_helpers;
     pub mod game_payment;
+    pub mod game_setup;
     pub mod helpers;
     pub mod points;
     pub mod production;
