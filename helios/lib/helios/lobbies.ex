@@ -108,7 +108,6 @@ defmodule Helios.Lobbies do
          :ok <- ensure_not_self(lobby, invitee_id),
          {:ok, invitee} <- fetch_user(invitee_id),
          :ok <- ensure_not_invited(lobby, invitee.id),
-         :ok <- ensure_capacity(lobby),
          {:ok, invite} <- insert_invite(lobby, invitee) do
       invite = %{invite | lobby: %{lobby | owner: user}, user: invitee}
       broadcast(user_topic(invitee.id), {:invited, invite})
@@ -245,14 +244,19 @@ defmodule Helios.Lobbies do
     if invites + 1 >= @max_players, do: {:error, :lobby_full}, else: :ok
   end
 
-  defp insert_invite(%Lobby{id: lobby_id}, %User{id: user_id}) do
-    %Invite{lobby_id: lobby_id, user_id: user_id}
-    |> Invite.create_changeset()
-    |> Repo.insert()
-    |> case do
-      {:ok, invite} -> {:ok, invite}
-      {:error, %Ecto.Changeset{}} -> {:error, :already_invited}
-    end
+  defp insert_invite(%Lobby{id: lobby_id} = lobby, %User{id: user_id}) do
+    Repo.transaction(fn ->
+      with :ok <- ensure_capacity(lobby),
+           {:ok, invite} <-
+             %Invite{lobby_id: lobby_id, user_id: user_id}
+             |> Invite.create_changeset()
+             |> Repo.insert() do
+        invite
+      else
+        {:error, %Ecto.Changeset{}} -> Repo.rollback(:already_invited)
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
   defp broadcast(topic, message), do: Phoenix.PubSub.broadcast(Helios.PubSub, topic, message)
