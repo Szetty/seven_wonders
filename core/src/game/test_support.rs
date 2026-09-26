@@ -94,6 +94,10 @@ impl Game {
             .collect()
     }
 
+    pub fn set_discard(&mut self, cards: &[&str]) {
+        self.state.cards_discarded = cards.iter().map(|name| card(name)).collect();
+    }
+
     pub fn built_names(&self, player: &str) -> Vec<String> {
         self.built[self.seat(player)]
             .iter()

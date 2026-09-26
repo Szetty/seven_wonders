@@ -1,9 +1,10 @@
 //! Turn resolution: all pending actions are applied at once, then the game
 //! moves on (pass hands / extra turns / end of age / game over).
-use super::types::{Kind, Phase, Resolved};
+use super::types::{ExtraTurnKind, Kind, Phase, Resolved};
 use super::Game;
 use crate::domain::{Card, EventType, PlayerDecision};
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 impl Game {
     pub(super) fn all_required_submitted(&self) -> bool {
@@ -19,10 +20,13 @@ impl Game {
     pub(super) fn resolve(&mut self) {
         let was_choosing = matches!(self.phase, Phase::ChoosingCards { .. });
         let batch = self.take_pending();
-        // Seats that must now build from the discard pile; wired up in Task 15.
-        let _build_from_discard = self.apply_batch(batch);
+        let build_from_discard = self.apply_batch(batch);
         if was_choosing && self.hands.iter().all(|hand| hand.len() == 1) {
-            self.discard_last_cards();
+            self.handle_last_cards();
+        }
+        for seat in build_from_discard {
+            self.extra_turns
+                .push_back((seat, ExtraTurnKind::BuildFromDiscard));
         }
         self.advance();
     }
@@ -94,16 +98,45 @@ impl Game {
         pile.remove(index)
     }
 
-    /// End of turn 6: every remaining (7th) card goes to the discard pile.
-    fn discard_last_cards(&mut self) {
-        for hand in &mut self.hands {
-            if let Some(card) = hand.pop() {
+    /// End of turn 6: Babylon B keeps its last card for an extra turn; all
+    /// other last cards are discarded. Queued before any Halikarnassós turn
+    /// so these discards are eligible for it.
+    fn handle_last_cards(&mut self) {
+        for seat in 0..self.seats.len() {
+            if self.player(seat).can_play_last_card {
+                self.extra_turns
+                    .push_back((seat, ExtraTurnKind::PlayLastCard));
+            } else if let Some(card) = self.hands[seat].pop() {
                 self.state.cards_discarded.push(card);
             }
         }
     }
 
+    /// Distinct names of discarded cards `seat` has not built, sorted.
+    pub(super) fn buildable_discard_names(&self, seat: usize) -> Vec<String> {
+        let names: BTreeSet<&str> = self
+            .state
+            .cards_discarded
+            .iter()
+            .filter(|card| !self.already_built(seat, **card))
+            .map(|card| card.0.name())
+            .collect();
+        names.into_iter().map(str::to_string).collect()
+    }
+
     fn advance(&mut self) {
+        while let Some((seat, kind)) = self.extra_turns.pop_front() {
+            if kind == ExtraTurnKind::BuildFromDiscard
+                && self.buildable_discard_names(seat).is_empty()
+            {
+                continue;
+            }
+            self.phase = Phase::ExtraTurn {
+                player: self.seats[seat].clone(),
+                kind,
+            };
+            return;
+        }
         if self.hands.iter().all(Vec::is_empty) {
             self.resolve_battles();
             if self.age == 3 {
