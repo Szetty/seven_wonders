@@ -109,6 +109,10 @@ impl Game {
         self.player(self.seat(player)).military_symbols
     }
 
+    pub fn tokens(&self, player: &str) -> Vec<i32> {
+        self.player(self.seat(player)).battle_tokens.clone()
+    }
+
     pub fn points(&self, player: &str) -> HashMap<PointCategory, Point> {
         self.player(self.seat(player)).calculate_points(&self.state)
     }

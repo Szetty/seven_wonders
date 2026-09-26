@@ -1,9 +1,14 @@
 //! Final scoring and ranking.
-use super::types::FinalScore;
+use super::types::{FinalScore, Phase};
 use super::Game;
 use crate::domain::PointCategory;
 
 impl Game {
+    pub(super) fn finish(&mut self) {
+        let scores = self.compute_scores();
+        self.phase = Phase::GameOver { scores };
+    }
+
     pub(super) fn compute_scores(&self) -> Vec<FinalScore> {
         let mut scores: Vec<FinalScore> = (0..self.seats.len())
             .map(|seat| {

@@ -130,6 +130,7 @@ mod tests {
     pub mod api;
     pub mod data;
     pub mod deck;
+    pub mod game_ages;
     pub mod game_effects;
     pub mod game_helpers;
     pub mod game_legality;

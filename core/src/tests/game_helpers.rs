@@ -71,3 +71,13 @@ pub fn discard_turn(game: &mut Game) {
         discard_first(game, &player);
     }
 }
+
+pub fn discard_turns(game: &mut Game, turns: usize) {
+    for _ in 0..turns {
+        discard_turn(game);
+    }
+}
+
+pub fn discard_age(game: &mut Game) {
+    discard_turns(game, 6);
+}

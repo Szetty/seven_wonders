@@ -3,6 +3,7 @@
 use super::types::{Kind, Phase, Resolved};
 use super::Game;
 use crate::domain::{Card, EventType, PlayerDecision};
+use std::cmp::Ordering;
 
 impl Game {
     pub(super) fn all_required_submitted(&self) -> bool {
@@ -16,9 +17,13 @@ impl Game {
     }
 
     pub(super) fn resolve(&mut self) {
+        let was_choosing = matches!(self.phase, Phase::ChoosingCards { .. });
         let batch = self.take_pending();
         // Seats that must now build from the discard pile; wired up in Task 15.
         let _build_from_discard = self.apply_batch(batch);
+        if was_choosing && self.hands.iter().all(|hand| hand.len() == 1) {
+            self.discard_last_cards();
+        }
         self.advance();
     }
 
@@ -89,13 +94,59 @@ impl Game {
         pile.remove(index)
     }
 
+    /// End of turn 6: every remaining (7th) card goes to the discard pile.
+    fn discard_last_cards(&mut self) {
+        for hand in &mut self.hands {
+            if let Some(card) = hand.pop() {
+                self.state.cards_discarded.push(card);
+            }
+        }
+    }
+
     fn advance(&mut self) {
-        self.pass_hands();
-        self.turn += 1;
-        self.phase = Phase::ChoosingCards {
-            age: self.age,
-            turn: self.turn,
+        if self.hands.iter().all(Vec::is_empty) {
+            self.resolve_battles();
+            if self.age == 3 {
+                self.finish();
+            } else {
+                self.deal_age(self.age + 1);
+            }
+        } else {
+            self.pass_hands();
+            self.turn += 1;
+            self.phase = Phase::ChoosingCards {
+                age: self.age,
+                turn: self.turn,
+            };
+        }
+    }
+
+    /// Each player fights both neighbours: more shields → +1/+3/+5 (Age
+    /// I/II/III), fewer → −1, equal → nothing. West battle first.
+    fn resolve_battles(&mut self) {
+        let victory = match self.age {
+            1 => 1,
+            2 => 3,
+            _ => 5,
         };
+        let shields: Vec<u32> = (0..self.seats.len())
+            .map(|seat| self.player(seat).military_symbols)
+            .collect();
+        for seat in 0..self.seats.len() {
+            let mut tokens = Vec::new();
+            for rival in [self.west_of(seat), self.east_of(seat)] {
+                match shields[seat].cmp(&shields[rival]) {
+                    Ordering::Greater => tokens.push(victory),
+                    Ordering::Less => tokens.push(-1),
+                    Ordering::Equal => {}
+                }
+            }
+            let name = self.seats[seat].clone();
+            self.state
+                .get_mut_player_state(&name)
+                .battle_tokens
+                .extend(tokens);
+        }
     }
 
     /// Ages I and III pass to the west neighbour, Age II to the east.
