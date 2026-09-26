@@ -1,4 +1,4 @@
-use crate::game::{Game, Side, WonderSelection};
+use crate::game::{Action, Game, Payment, ResourceType, Side, WonderSelection};
 
 pub fn names(count: usize) -> Vec<String> {
     (1..=count).map(|i| format!("p{i}")).collect()
@@ -22,4 +22,38 @@ pub fn plain_game() -> Game {
         ("Rhódos", Side::A),
         ("Éphesos", Side::A),
     ])
+}
+
+pub fn build(card: &str) -> Action {
+    Action::Build {
+        card: card.to_string(),
+        payment: Payment::default(),
+    }
+}
+
+pub fn build_paying(
+    card: &str,
+    west: &[(ResourceType, u8)],
+    east: &[(ResourceType, u8)],
+) -> Action {
+    Action::Build {
+        card: card.to_string(),
+        payment: Payment {
+            west: west.to_vec(),
+            east: east.to_vec(),
+        },
+    }
+}
+
+pub fn stage(card: &str) -> Action {
+    Action::BuildWonderStage {
+        card: card.to_string(),
+        payment: Payment::default(),
+    }
+}
+
+pub fn discard(card: &str) -> Action {
+    Action::Discard {
+        card: card.to_string(),
+    }
 }

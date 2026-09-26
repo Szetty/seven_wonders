@@ -36,6 +36,9 @@ impl<'a, T> Structure<'a, T> {
     pub fn dependents(&self) -> Dependents<'a> {
         self.5
     }
+    pub fn cost(&self) -> &Cost<'a> {
+        &self.6
+    }
     pub fn thresholds(&self) -> PlayerThresholds<'a> {
         self.7
     }

@@ -30,6 +30,9 @@ impl<'a, T> WonderSide<'a, T> {
     pub fn wonder_stage_with_idx(&self, idx: usize) -> &WonderStage<'a, T> {
         &self.2[idx - 1]
     }
+    pub fn stages_total(&self) -> usize {
+        self.2.len()
+    }
 }
 
 impl<'a, T> fmt::Debug for WonderSide<'a, T> {
@@ -56,5 +59,8 @@ pub struct WonderStage<'a, T>(pub ResourceCosts<'a>, pub Effects<T>);
 impl<'a, T> WonderStage<'a, T> {
     pub fn effects(&self) -> &Effects<T> {
         &self.1
+    }
+    pub fn cost(&self) -> ResourceCosts<'a> {
+        self.0
     }
 }

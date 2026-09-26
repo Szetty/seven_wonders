@@ -66,7 +66,7 @@ impl GameState {
     pub fn get_player_state(&self, player_name: &PName) -> &PlayerState {
         self.player_states.get(player_name).unwrap()
     }
-    fn get_mut_player_state(&mut self, player_name: &PName) -> &mut PlayerState {
+    pub(crate) fn get_mut_player_state(&mut self, player_name: &PName) -> &mut PlayerState {
         self.player_states.get_mut(player_name).unwrap()
     }
     pub fn apply_player_decisions(

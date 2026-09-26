@@ -1,5 +1,6 @@
 //! Rustler-free game API. A [`Game`] owns the whole table: seats, hands,
 //! phase and pending actions. Every public operation is deterministic.
+mod legality;
 pub(crate) mod payment;
 mod setup;
 #[cfg(test)]
@@ -70,5 +71,26 @@ impl Game {
 
     fn player(&self, seat: usize) -> &PlayerState {
         self.state.get_player_state(&self.seats[seat])
+    }
+
+    /// Validates `action` and stores it as `player`'s pending choice
+    /// (replacing any earlier one).
+    pub fn submit(&mut self, player: &str, action: Action) -> Result<(), ActionError> {
+        let seat = self.precheck(player)?;
+        let resolved = self.check_action(seat, &action)?;
+        self.pending[seat] = Some(Pending { action, resolved });
+        Ok(())
+    }
+
+    /// The seat of `player`, if they may act in the current phase.
+    fn precheck(&self, player: &str) -> Result<usize, ActionError> {
+        let seat = self.seat_of(player).ok_or(ActionError::UnknownPlayer)?;
+        match &self.phase {
+            Phase::GameOver { .. } => Err(ActionError::GameOver),
+            Phase::ExtraTurn { player: acting, .. } if acting != player => {
+                Err(ActionError::NotYourTurn)
+            }
+            _ => Ok(seat),
+        }
     }
 }
