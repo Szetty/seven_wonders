@@ -988,3 +988,16 @@ fn test_magistrates_guild_scores_one_point_per_neighbouring_blue_card() {
         Some(&3)
     );
 }
+
+#[test]
+fn test_east_trading_post_discounts_the_east_neighbour() {
+    // Seats a, b, c: b's west neighbour is a, b's east neighbour is c.
+    let mut game_state = default_game_state();
+    let east_trading_post = STRUCTURES_BY_NAME.get("East trading post").unwrap();
+    game_state.apply_player_decisions(
+        hashmap! {"b".to_string() => PlayerDecision::BuildStructure(Card(east_trading_post))},
+    );
+    let player_state = game_state.get_player_state(&"b".to_string());
+    assert_eq!(player_state.apply_trading(&"c".to_string(), &Wood), 1);
+    assert_eq!(player_state.apply_trading(&"a".to_string(), &Wood), 2);
+}

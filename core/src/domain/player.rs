@@ -47,7 +47,7 @@ impl Neighbours {
         player_name: &PName,
         direction: &PlayerDirection,
     ) -> PName {
-        let (east, west) = self.data.get(player_name).unwrap();
+        let (west, east) = self.data.get(player_name).unwrap();
         match direction {
             PlayerDirection::East => east.clone(),
             PlayerDirection::West => west.clone(),
@@ -84,11 +84,11 @@ fn test_get_player_names_from_directions() {
     assert_eq!(affected_player_names, HashSet::from_iter(players.clone()));
     assert_eq!(
         neighbours.get_player_names_from_directions(&"b".to_string(), &[PlayerDirection::East]),
-        HashSet::from_iter(vec!["a".to_string()].into_iter())
+        HashSet::from_iter(vec!["c".to_string()].into_iter())
     );
     assert_eq!(
         neighbours.get_player_names_from_directions(&"b".to_string(), &[PlayerDirection::West]),
-        HashSet::from_iter(vec!["c".to_string()].into_iter())
+        HashSet::from_iter(vec!["a".to_string()].into_iter())
     );
     assert_eq!(
         neighbours.get_player_names_from_directions(&"b".to_string(), &[PlayerDirection::Own]),
