@@ -18,6 +18,26 @@ pub enum ResourceType {
     Loom,
     Papyrus,
 }
+
+pub const ALL_RESOURCE_TYPES: [ResourceType; 7] = [
+    ResourceType::Wood,
+    ResourceType::Stone,
+    ResourceType::Ore,
+    ResourceType::Clay,
+    ResourceType::Glass,
+    ResourceType::Loom,
+    ResourceType::Papyrus,
+];
+
+/// Units needed per resource type, indexed by `ResourceType as usize`.
+pub fn resource_counts(costs: &[ResourceCost]) -> [u8; 7] {
+    let mut counts = [0u8; 7];
+    for ResourceCost(resource_type, count) in costs {
+        counts[*resource_type as usize] += count;
+    }
+    counts
+}
+
 #[rustfmt::skip]
 pub fn all_resource_types() -> impl Iterator<Item = ResourceType> { ResourceType::iter() }
 

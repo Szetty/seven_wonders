@@ -4,10 +4,11 @@ use crate::domain::{
     coin_effect as ce, construct_free_effect as cfe, copy_guild_effect as cge,
     dynamic_battle_lost_point_effect as dblpe, dynamic_coin_effect as dce,
     dynamic_point_effect as dpe, dynamic_wonder_coin_effect as dwce,
-    dynamic_wonder_point_effect as dwpe, military_effect as me, play_last_card_effect as plce,
-    point_effect as pe, trade_effect as te, Age::*, Category::*, Effect, PlayerDirection::*,
-    PointCategory::*, ResourceCost as RCost, ResourceType::*, ScientificSymbol::*, Structure,
-    Wonder, WonderSide, WonderStage,
+    dynamic_wonder_point_effect as dwpe, military_effect as me,
+    owner_any_resources_effect as oanyre, play_last_card_effect as plce, point_effect as pe,
+    trade_effect as te, Age::*, Category::*, Effect, PlayerDirection::*, PointCategory::*,
+    ResourceCost as RCost, ResourceType::*, ScientificSymbol::*, Structure, Wonder, WonderSide,
+    WonderStage,
 };
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -76,8 +77,8 @@ lazy_static! {
         Structure("Library"   , Scientific, II, vec![allse(&[Tablet])] , &["Scriptorium"], &["Senate", "University"]         , (0, &[RCost(Stone, 2), RCost(Loom, 1)])  , &[3, 6]),
         Structure("School"    , Scientific, II, vec![allse(&[Tablet])] , &[]             , &["Academy", "Study"]             , (0, &[RCost(Wood, 1), RCost(Papyrus, 1)]), &[3, 7]),
         // Commercial (Yellow)
-        Structure("Forum"      , Commercial, II, vec![anyre(&[Loom, Glass, Papyrus])]   , &["East trading post", "West trading post"], &["Haven"]     , (0, &[RCost(Clay, 2)]), &[3, 6, 7]),
-        Structure("Caravansery", Commercial, II, vec![anyre(&[Wood, Stone, Ore, Clay])] , &["Marketplace"]                           , &["Lighthouse"], (0, &[RCost(Wood, 2)]), &[3, 5, 6]),
+        Structure("Forum"      , Commercial, II, vec![oanyre(&[Loom, Glass, Papyrus])]   , &["East trading post", "West trading post"], &["Haven"]     , (0, &[RCost(Clay, 2)]), &[3, 6, 7]),
+        Structure("Caravansery", Commercial, II, vec![oanyre(&[Wood, Stone, Ore, Clay])] , &["Marketplace"]                           , &["Lighthouse"], (0, &[RCost(Wood, 2)]), &[3, 5, 6]),
         Structure("Vineyard"   , Commercial, II, vec![dce(&[East, West, Own], &[RM], 1)], &[]                                        , &[]            , (0, &[])              , &[3, 6]),
         Structure("Bazar"      , Commercial, II, vec![dce(&[East, West, Own], &[MG], 2)], &[]                                        , &[]            , (0, &[])              , &[4, 7]),
     ];
@@ -149,7 +150,7 @@ lazy_static! {
                 vec![allre(&[Glass])],
                 vec![
                     WonderStage(&[RCost(Stone, 2)], vec![pe(WonderP, 3)]),
-                    WonderStage(&[RCost(Ore, 2)],   vec![anyre(&[Wood, Stone, Ore, Clay])]),
+                    WonderStage(&[RCost(Ore, 2)],   vec![oanyre(&[Wood, Stone, Ore, Clay])]),
                     WonderStage(&[RCost(Glass, 2)], vec![pe(WonderP, 7)]),
                 ]
             ),
@@ -157,8 +158,8 @@ lazy_static! {
                 "Alexandria - B",
                 vec![allre(&[Glass])],
                 vec![
-                    WonderStage(&[RCost(Clay, 2)], vec![anyre(&[Wood, Stone, Ore, Clay])]),
-                    WonderStage(&[RCost(Wood, 2)], vec![anyre(&[Loom, Glass, Papyrus])]),
+                    WonderStage(&[RCost(Clay, 2)], vec![oanyre(&[Wood, Stone, Ore, Clay])]),
+                    WonderStage(&[RCost(Wood, 2)], vec![oanyre(&[Loom, Glass, Papyrus])]),
                     WonderStage(&[RCost(Stone, 3)], vec![pe(WonderP, 7)]),
                 ]
             )

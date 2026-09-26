@@ -132,6 +132,7 @@ mod tests {
     pub mod game_effects;
     pub mod helpers;
     pub mod points;
+    pub mod production;
     pub mod resources;
     pub mod rng;
     pub mod trading;

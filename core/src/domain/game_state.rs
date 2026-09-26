@@ -68,7 +68,10 @@ impl GameState {
     fn get_mut_player_state(&mut self, player_name: &PName) -> &mut PlayerState {
         self.player_states.get_mut(player_name).unwrap()
     }
-    pub fn apply_player_decisions(&mut self, player_decisions: HashMap<PName, PlayerDecision>) {
+    pub fn apply_player_decisions(
+        &mut self,
+        player_decisions: impl IntoIterator<Item = (PName, PlayerDecision)>,
+    ) {
         let current_age = self.current_age;
         let mut effects: Vec<(&Effect, PName)> = Default::default();
         for (player_name, player_decision) in player_decisions {
@@ -200,6 +203,7 @@ pub struct PlayerState {
     pub battle_tokens: BattleTokens,
     pub scientific_symbols_produced: ScientificSymbolsProduced,
     pub resources_produced: ResourcesProduced,
+    pub tradable_resources: ResourcesProduced,
     pub structure_builder: StructureBuilder,
     pub point_actions: Actions<PointAction>,
     pub trade_actions: Actions<TradeAction>,
@@ -218,6 +222,7 @@ impl PlayerState {
             battle_tokens: vec![],
             scientific_symbols_produced: Default::default(),
             resources_produced: Default::default(),
+            tradable_resources: Default::default(),
             structure_builder: Default::default(),
             point_actions: vec![],
             trade_actions: vec![],
@@ -295,6 +300,7 @@ impl fmt::Debug for PlayerState {
             )
             .field("structure_builder", &self.structure_builder)
             .field("resources_produced", &self.resources_produced)
+            .field("tradable_resources", &self.tradable_resources)
             .field("wonder_stages_built", &self.wonder_stages_built)
             .field("point_actions_len", &self.point_actions.len())
             .field("trade_actions_len", &self.trade_actions.len())
@@ -309,7 +315,7 @@ impl Serialize for PlayerState {
     where
         S: Serializer,
     {
-        let mut s = serializer.serialize_struct("PlayerState", 13)?;
+        let mut s = serializer.serialize_struct("PlayerState", 14)?;
         s.serialize_field("type", "PlayerState")?;
         s.serialize_field("name", &self.player.name())?;
         s.serialize_field("wonder", &self.wonder)?;
@@ -322,6 +328,7 @@ impl Serialize for PlayerState {
         )?;
         s.serialize_field("structure_builder", &self.structure_builder)?;
         s.serialize_field("resources_produced", &self.resources_produced)?;
+        s.serialize_field("tradable_resources", &self.tradable_resources)?;
         s.serialize_field("wonder_stages_built", &self.wonder_stages_built)?;
         s.serialize_field("point_actions_len", &self.point_actions.len())?;
         s.serialize_field("trade_actions_len", &self.trade_actions.len())?;
@@ -353,7 +360,10 @@ pub fn all_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {
     apply_player_effect(Box::new(move |player_state| {
         player_state
             .resources_produced
-            .add_all_resources(resource_types)
+            .add_all_resources(resource_types);
+        player_state
+            .tradable_resources
+            .add_all_resources(resource_types);
     }))
 }
 
@@ -361,7 +371,19 @@ pub fn any_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {
     apply_player_effect(Box::new(move |player_state| {
         player_state
             .resources_produced
-            .add_any_resources(resource_types)
+            .add_any_resources(resource_types);
+        player_state
+            .tradable_resources
+            .add_any_resources(resource_types);
+    }))
+}
+
+/// A choice resource only its owner may use (yellow cards, wonder stages).
+pub fn owner_any_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {
+    apply_player_effect(Box::new(move |player_state| {
+        player_state
+            .resources_produced
+            .add_any_resources(resource_types);
     }))
 }
 
