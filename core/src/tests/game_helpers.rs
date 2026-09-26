@@ -57,3 +57,17 @@ pub fn discard(card: &str) -> Action {
         card: card.to_string(),
     }
 }
+
+pub const PLAYERS: [&str; 3] = ["p1", "p2", "p3"];
+
+pub fn discard_first(game: &mut Game, player: &str) {
+    let card = game.hand_names(player)[0].clone();
+    game.submit(player, discard(&card))
+        .expect("discarding a card in hand is legal");
+}
+
+pub fn discard_turn(game: &mut Game) {
+    for player in game.players().to_vec() {
+        discard_first(game, &player);
+    }
+}

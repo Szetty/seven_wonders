@@ -2,6 +2,7 @@
 //! phase and pending actions. Every public operation is deterministic.
 mod legality;
 pub(crate) mod payment;
+mod resolve;
 mod setup;
 #[cfg(test)]
 mod test_support;
@@ -79,6 +80,9 @@ impl Game {
         let seat = self.precheck(player)?;
         let resolved = self.check_action(seat, &action)?;
         self.pending[seat] = Some(Pending { action, resolved });
+        if self.all_required_submitted() {
+            self.resolve();
+        }
         Ok(())
     }
 

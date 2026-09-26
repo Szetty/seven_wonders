@@ -1,8 +1,9 @@
 //! `#[cfg(test)]` hooks to rig and inspect a [`Game`] from `crate::tests`.
 use super::types::{Action, ActionError, Side};
 use super::Game;
-use crate::domain::{Card, PlayerDecision};
+use crate::domain::{Card, PlayerDecision, Point, PointCategory};
 use crate::engine::data::STRUCTURES_BY_NAME;
+use std::collections::HashMap;
 
 fn card(name: &str) -> Card {
     Card(
@@ -83,5 +84,32 @@ impl Game {
         self.pending[self.seat(player)]
             .as_ref()
             .map(|pending| pending.action.clone())
+    }
+
+    pub fn discard_names(&self) -> Vec<String> {
+        self.state
+            .cards_discarded
+            .iter()
+            .map(|card| card.0.name().to_string())
+            .collect()
+    }
+
+    pub fn built_names(&self, player: &str) -> Vec<String> {
+        self.built[self.seat(player)]
+            .iter()
+            .map(|card| card.0.name().to_string())
+            .collect()
+    }
+
+    pub fn stages_built(&self, player: &str) -> u8 {
+        self.player(self.seat(player)).wonder_stages_built
+    }
+
+    pub fn shields(&self, player: &str) -> u32 {
+        self.player(self.seat(player)).military_symbols
+    }
+
+    pub fn points(&self, player: &str) -> HashMap<PointCategory, Point> {
+        self.player(self.seat(player)).calculate_points(&self.state)
     }
 }
