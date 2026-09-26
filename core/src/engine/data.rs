@@ -32,7 +32,7 @@ lazy_static! {
         Structure("Press"     , MG, I, vec![allre(&[Papyrus])], &[], &[], (0, &[]), &[3, 6]),
         // Civilian (Blue)
         Structure("Pawnshop", Civilian, I, vec![pe(CivilianP, 3)], &[], &[]          , (0, &[]),                &[4, 7]),
-        Structure("Baths"   , Civilian, I, vec![allre(&[])], &[], &["Aqueduct"], (0, &[RCost(Stone, 1)]), &[3, 7]),
+        Structure("Baths"   , Civilian, I, vec![pe(CivilianP, 3)], &[], &["Aqueduct"], (0, &[RCost(Stone, 1)]), &[3, 7]),
         Structure("Altar"   , Civilian, I, vec![pe(CivilianP, 2)], &[], &["Temple"]  , (0, &[]),                &[3, 5]),
         Structure("Theater" , Civilian, I, vec![pe(CivilianP, 2)], &[], &["Statue"]  , (0, &[]),                &[3, 6]),
         // Military (Red)

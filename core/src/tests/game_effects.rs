@@ -936,3 +936,17 @@ fn test_coins_do_not_overflow_past_255() {
     );
     assert_eq!(game_state.get_player_state(&"a".to_string()).coins, 259);
 }
+
+#[test]
+fn test_baths_gives_three_civilian_points() {
+    let mut game_state = default_game_state();
+    let baths = STRUCTURES_BY_NAME.get("Baths").unwrap();
+    game_state.apply_player_decisions(
+        hashmap! {"a".to_string() => PlayerDecision::BuildStructure(Card(baths))},
+    );
+    let player_state = game_state.get_player_state(&"a".to_string());
+    assert_eq!(
+        player_state.calculate_points(&game_state).get(&CivilianP),
+        Some(&3)
+    );
+}
