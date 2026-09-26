@@ -3,6 +3,7 @@
 mod legality;
 pub(crate) mod payment;
 mod resolve;
+pub(crate) mod scoring;
 mod setup;
 #[cfg(test)]
 mod test_support;

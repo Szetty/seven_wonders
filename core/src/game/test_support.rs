@@ -1,5 +1,5 @@
 //! `#[cfg(test)]` hooks to rig and inspect a [`Game`] from `crate::tests`.
-use super::types::{Action, ActionError, Side};
+use super::types::{Action, ActionError, FinalScore, Side};
 use super::Game;
 use crate::domain::{Card, PlayerDecision, Point, PointCategory};
 use crate::engine::data::STRUCTURES_BY_NAME;
@@ -111,5 +111,9 @@ impl Game {
 
     pub fn points(&self, player: &str) -> HashMap<PointCategory, Point> {
         self.player(self.seat(player)).calculate_points(&self.state)
+    }
+
+    pub fn score_now(&self) -> Vec<FinalScore> {
+        self.compute_scores()
     }
 }
