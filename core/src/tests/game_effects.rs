@@ -1,7 +1,7 @@
 use super::helpers::{default_game_state, default_player_state};
 use crate::domain::{
     Age, Card,
-    Category::{Commercial, Guild, Military, Scientific, MG, RM},
+    Category::{Civilian, Commercial, Guild, Military, Scientific, MG, RM},
     GameState, Neighbours, Player, PlayerDecision, PlayerState,
     PointCategory::*,
     ResourceType::*,
@@ -947,6 +947,44 @@ fn test_baths_gives_three_civilian_points() {
     let player_state = game_state.get_player_state(&"a".to_string());
     assert_eq!(
         player_state.calculate_points(&game_state).get(&CivilianP),
+        Some(&3)
+    );
+}
+
+#[test]
+fn test_magistrates_guild_scores_one_point_per_neighbouring_blue_card() {
+    let mut game_state = GameState {
+        player_states: hashmap! {
+            "a".to_string() => PlayerState {
+                player: Player("a".to_string()),
+                ..default_player_state()
+            },
+            "b".to_string() => PlayerState {
+                player: Player("b".to_string()),
+                structure_builder: StructureBuilder {
+                    built_structures: hashmap! { Civilian => hashset! {"Altar"} },
+                    ..Default::default()
+                },
+                ..default_player_state()
+            },
+            "c".to_string() => PlayerState {
+                player: Player("c".to_string()),
+                structure_builder: StructureBuilder {
+                    built_structures: hashmap! { Civilian => hashset! {"Theater", "Baths"} },
+                    ..Default::default()
+                },
+                ..default_player_state()
+            },
+        },
+        ..default_game_state()
+    };
+    let magistrates = STRUCTURES_BY_NAME.get("Magistrates Guild").unwrap();
+    game_state.apply_player_decisions(
+        hashmap! {"a".to_string() => PlayerDecision::BuildStructure(Card(magistrates))},
+    );
+    let player_state = game_state.get_player_state(&"a".to_string());
+    assert_eq!(
+        player_state.calculate_points(&game_state).get(&GuildP),
         Some(&3)
     );
 }

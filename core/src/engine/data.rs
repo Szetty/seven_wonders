@@ -116,7 +116,7 @@ lazy_static! {
         Structure("Strategists Guild" , Guild, III, vec![dblpe(GuildP, &[East, West], 1)]             , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 1), RCost(Loom, 1)])                , &[]),
         Structure("Shipowners Guild"  , Guild, III, vec![dpe(GuildP, &[Own], &[RM, MG, Guild], 1)]    , &[], &[], (0, &[RCost(Wood, 3), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
         Structure("Scientists Guild"  , Guild, III, vec![anyse(&[Compass, Gears, Tablet])]             , &[], &[], (0, &[RCost(Wood, 2), RCost(Ore, 2), RCost(Papyrus, 1)])              , &[]),
-        Structure("Magistrates Guild" , Guild, III, vec![dpe(GuildP, &[East, West], &[Civilian], 2)]  , &[], &[], (0, &[RCost(Wood, 3), RCost(Stone, 1), RCost(Loom, 1)])               , &[]),
+        Structure("Magistrates Guild" , Guild, III, vec![dpe(GuildP, &[East, West], &[Civilian], 1)]  , &[], &[], (0, &[RCost(Wood, 3), RCost(Stone, 1), RCost(Loom, 1)])               , &[]),
         Structure("Builders Guild"    , Guild, III, vec![dwpe(GuildP, &[East, West, Own], 1)]         , &[], &[], (0, &[RCost(Stone, 2), RCost(Clay, 2), RCost(Glass, 1)])              , &[]),
     ];
     pub static ref STRUCTURES_BY_NAME: HashMap<String, &'static Structure<'static, Effect>> = AGE_I_STRUCTURES.iter().chain(AGE_II_STRUCTURES.iter()).chain(AGE_III_STRUCTURES.iter()).chain(GUILD_STRUCTURES.iter()).map(|s| (s.0.to_string(), s)).collect();
