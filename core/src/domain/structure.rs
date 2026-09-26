@@ -24,11 +24,17 @@ impl<'a, T> Structure<'a, T> {
     pub fn category(&self) -> Category {
         self.1.clone()
     }
+    pub fn age(&self) -> Age {
+        self.2
+    }
     pub fn effects(&self) -> &Effects<T> {
         &self.3
     }
     pub fn dependencies(&self) -> Dependencies<'_> {
         self.4
+    }
+    pub fn dependents(&self) -> Dependents<'a> {
+        self.5
     }
     pub fn thresholds(&self) -> PlayerThresholds<'a> {
         self.7
@@ -89,6 +95,22 @@ impl Age {
             Self::I => vec![Self::I, Self::II, Self::III],
             Self::II => vec![Self::II, Self::III],
             Self::III => vec![Self::III],
+        }
+    }
+    pub fn number(&self) -> u8 {
+        match self {
+            Self::None => 0,
+            Self::I => 1,
+            Self::II => 2,
+            Self::III => 3,
+        }
+    }
+    pub fn from_number(number: u8) -> Age {
+        match number {
+            1 => Self::I,
+            2 => Self::II,
+            3 => Self::III,
+            _ => Self::None,
         }
     }
 }

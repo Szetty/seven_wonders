@@ -127,6 +127,7 @@ rustler::init!("Elixir.Helios.Core.Native");
 #[cfg(test)]
 mod tests {
     pub mod api;
+    pub mod data;
     pub mod deck;
     pub mod game_effects;
     pub mod helpers;

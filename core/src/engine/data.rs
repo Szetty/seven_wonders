@@ -61,7 +61,7 @@ lazy_static! {
         Structure("Glassworks", MG, II, vec![allre(&[Glass])]  , &[], &[], (0, &[]), &[3, 5]),
         Structure("Press"     , MG, II, vec![allre(&[Papyrus])], &[], &[], (0, &[]), &[3, 5]),
         // Civilian (Blue)
-        Structure("Courthouse", Civilian, II, vec![pe(CivilianP, 4)], &["Scriptorium"], &["Senate"]  , (0, &[RCost(Clay, 2), RCost(Loom, 1)])                 , &[3, 5]),
+        Structure("Courthouse", Civilian, II, vec![pe(CivilianP, 4)], &["Scriptorium"], &[]          , (0, &[RCost(Clay, 2), RCost(Loom, 1)])                 , &[3, 5]),
         Structure("Aqueduct"  , Civilian, II, vec![pe(CivilianP, 5)], &["Baths"]      , &[]          , (0, &[RCost(Stone, 3)])                                , &[3, 7]),
         Structure("Temple"    , Civilian, II, vec![pe(CivilianP, 3)], &["Altar"]      , &["Pantheon"], (0, &[RCost(Wood, 1), RCost(Clay, 1), RCost(Glass, 1)]), &[3, 6]),
         Structure("Statue"    , Civilian, II, vec![pe(CivilianP, 4)], &["Theater"]    , &["Gardens"] , (0, &[RCost(Wood, 1), RCost(Ore, 2)])                  , &[3, 7]),
