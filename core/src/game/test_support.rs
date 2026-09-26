@@ -120,4 +120,14 @@ impl Game {
     pub fn score_now(&self) -> Vec<FinalScore> {
         self.compute_scores()
     }
+
+    pub fn chosen_guild(&mut self, player: &str) -> Option<String> {
+        let seat = self.seat(player);
+        self.best_guild_to_copy(seat)
+            .map(|guild| guild.name().to_string())
+    }
+
+    pub fn finish_now(&mut self) {
+        self.finish();
+    }
 }

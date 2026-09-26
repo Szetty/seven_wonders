@@ -134,6 +134,7 @@ mod tests {
     pub mod game_effects;
     pub mod game_helpers;
     pub mod game_legality;
+    pub mod game_olympia;
     pub mod game_payment;
     pub mod game_resolution;
     pub mod game_scoring;
