@@ -315,7 +315,7 @@ impl Serialize for PlayerState {
     where
         S: Serializer,
     {
-        let mut s = serializer.serialize_struct("PlayerState", 14)?;
+        let mut s = serializer.serialize_struct("PlayerState", 15)?;
         s.serialize_field("type", "PlayerState")?;
         s.serialize_field("name", &self.player.name())?;
         s.serialize_field("wonder", &self.wonder)?;
