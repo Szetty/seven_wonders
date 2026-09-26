@@ -140,6 +140,7 @@ mod tests {
     pub mod game_resolution;
     pub mod game_scoring;
     pub mod game_setup;
+    pub mod game_view;
     pub mod helpers;
     pub mod points;
     pub mod production;

@@ -8,11 +8,15 @@ mod setup;
 #[cfg(test)]
 mod test_support;
 mod types;
+mod view;
 
 pub use crate::domain::{Category, ResourceType};
 pub use types::{
     Action, ActionError, ExtraTurnKind, FinalScore, Payment, PaymentOption, Phase, SetupError,
     Side, WonderSelection,
+};
+pub use view::{
+    BuildOption, BuiltCard, HandCard, PassDirection, PhaseKind, PhaseView, PlayerView, PublicPlayer,
 };
 
 use crate::domain::{Card, GameState, PlayerState};
