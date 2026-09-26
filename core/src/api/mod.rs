@@ -44,8 +44,9 @@ pub fn start_game(
     if !(3..=7).contains(&players.len()) {
         return Err(ErrorType::InvalidPlayersNumber(players.len()));
     }
+    let mut rng = crate::engine::rng::GameRng::new(rand::random::<u64>());
     let game_state = if wonder_sides.is_empty() {
-        game_init::init_with_random_wonders(players.into_iter().map(Player).collect())
+        game_init::init_with_random_wonders(players.into_iter().map(Player).collect(), &mut rng)
     } else if players.len() == wonder_sides.len() {
         let mut players_with_wonders: PlayersWithWonders = Vec::with_capacity(players.len());
         for (player_name, choice) in players.into_iter().zip(wonder_sides) {
@@ -55,7 +56,7 @@ pub fn start_game(
             let wonder_side = if choice.side_b { &wonder.2 } else { &wonder.1 };
             players_with_wonders.push((Player(player_name), wonder_side));
         }
-        game_init::init(players_with_wonders)
+        game_init::init(players_with_wonders, &mut rng)
     } else {
         return Err(ErrorType::InvalidPlayersAndWonderSideLength(format!(
             "{} != {}",

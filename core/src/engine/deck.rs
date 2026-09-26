@@ -2,17 +2,20 @@ use crate::domain::{Card, Cards, Deck, Effect, Structure};
 use crate::engine::data::{
     AGE_III_STRUCTURES, AGE_II_STRUCTURES, AGE_I_STRUCTURES, GUILD_STRUCTURES,
 };
+use crate::engine::rng::GameRng;
 
-use rand::seq::SliceRandom;
-
-pub fn generate_deck(players_count: usize) -> Deck {
+/// Builds the three age decks for `players_count` players.
+///
+/// RNG consumption order (part of the replay contract): Age I shuffle,
+/// Age II shuffle, guild shuffle, Age III shuffle.
+pub fn generate_deck(players_count: usize, rng: &mut GameRng) -> Deck {
     let mut age1 = generate_age_deck(players_count, AGE_I_STRUCTURES.iter());
-    age1.shuffle(&mut rand::rng());
+    rng.shuffle(&mut age1);
     let mut age2 = generate_age_deck(players_count, AGE_II_STRUCTURES.iter());
-    age2.shuffle(&mut rand::rng());
+    rng.shuffle(&mut age2);
     let mut age3 = generate_age_deck(players_count, AGE_III_STRUCTURES.iter());
-    age3.append(&mut generate_guild_cards(players_count));
-    age3.shuffle(&mut rand::rng());
+    age3.append(&mut generate_guild_cards(players_count, rng));
+    rng.shuffle(&mut age3);
     (age1, age2, age3)
 }
 
@@ -33,9 +36,9 @@ fn generate_age_deck(
     cards
 }
 
-fn generate_guild_cards(players_count: usize) -> Cards {
+fn generate_guild_cards(players_count: usize, rng: &mut GameRng) -> Cards {
     let mut cards: Cards = GUILD_STRUCTURES.iter().map(Card).collect();
-    cards.shuffle(&mut rand::rng());
+    rng.shuffle(&mut cards);
     cards.truncate(players_count + 2);
     cards
 }

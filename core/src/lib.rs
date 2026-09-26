@@ -132,5 +132,6 @@ mod tests {
     pub mod helpers;
     pub mod points;
     pub mod resources;
+    pub mod rng;
     pub mod trading;
 }
