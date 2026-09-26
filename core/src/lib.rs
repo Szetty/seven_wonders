@@ -4,6 +4,7 @@ pub mod api;
 mod common;
 pub mod domain;
 pub mod engine;
+pub mod game;
 
 // ---------------------------------------------------------------------------
 // NIF layer: native-term DTOs + thin wrappers over `api`. No logic lives here.
@@ -130,10 +131,9 @@ mod tests {
     pub mod data;
     pub mod deck;
     pub mod game_effects;
+    pub mod game_payment;
     pub mod helpers;
     pub mod points;
     pub mod production;
-    pub mod resources;
     pub mod rng;
-    pub mod trading;
 }

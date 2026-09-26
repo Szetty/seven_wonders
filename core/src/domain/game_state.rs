@@ -6,8 +6,8 @@ use super::structure::{Age, Categories, Structure};
 use super::structure_builder::StructureBuilder;
 use super::supply::{
     calculate_military_points, calculate_treasury_points, BattleTokens, Coin, MilitarySymbolCount,
-    ResourceCost, ResourceCostOptions, ResourceType, ResourceTypes, ResourcesProduced,
-    ScientificSymbols, ScientificSymbolsProduced, TradeValue,
+    ResourceType, ResourceTypes, ResourcesProduced, ScientificSymbols, ScientificSymbolsProduced,
+    TradeValue,
 };
 use super::wonder::WonderSide;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
@@ -253,9 +253,6 @@ impl PlayerState {
         }
         points_map.to_hash_map()
     }
-    pub fn cover_resource_costs(&self, resource_costs: Vec<ResourceCost>) -> ResourceCostOptions {
-        self.resources_produced.cover_resource_costs(resource_costs)
-    }
     pub fn apply_trading(&self, player_name: &PName, resource_type: &ResourceType) -> TradeValue {
         self.trade_actions
             .iter()
@@ -264,10 +261,6 @@ impl PlayerState {
             .unwrap()
     }
     pub fn add_trade_action_mut(&mut self, action: Action<TradeAction>) -> &Self {
-        self.trade_actions.push(action);
-        self
-    }
-    pub fn add_trade_action_move(mut self, action: Action<TradeAction>) -> Self {
         self.trade_actions.push(action);
         self
     }
