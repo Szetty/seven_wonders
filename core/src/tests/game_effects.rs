@@ -547,7 +547,7 @@ fn test_construct_free_once_per_age() {
         .can_build_structure_for_free(palace_structure, Age::I));
     assert!(player_state
         .structure_builder
-        .can_build_structure_for_free(palace_structure, Age::Ii));
+        .can_build_structure_for_free(palace_structure, Age::II));
 }
 
 #[test]

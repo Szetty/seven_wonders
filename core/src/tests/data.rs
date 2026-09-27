@@ -45,7 +45,7 @@ fn chain_links_are_symmetric_and_point_forward_in_time() {
 
 #[test]
 fn age_numbers_round_trip() {
-    for age in [Age::I, Age::Ii, Age::Iii] {
+    for age in [Age::I, Age::II, Age::III] {
         assert_eq!(Age::from_number(age.number()), age);
     }
     assert_eq!(Age::None.number(), 0);

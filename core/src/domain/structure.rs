@@ -84,36 +84,37 @@ pub enum Category {
 }
 
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, Default)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Age {
     #[default]
     None,
     I,
-    Ii,
-    Iii,
+    II,
+    III,
 }
 
 impl Age {
     pub fn get_current_and_future_ages(&self) -> Vec<Age> {
         match self {
-            Self::None => vec![Self::I, Self::Ii, Self::Iii],
-            Self::I => vec![Self::I, Self::Ii, Self::Iii],
-            Self::Ii => vec![Self::Ii, Self::Iii],
-            Self::Iii => vec![Self::Iii],
+            Self::None => vec![Self::I, Self::II, Self::III],
+            Self::I => vec![Self::I, Self::II, Self::III],
+            Self::II => vec![Self::II, Self::III],
+            Self::III => vec![Self::III],
         }
     }
     pub fn number(&self) -> u8 {
         match self {
             Self::None => 0,
             Self::I => 1,
-            Self::Ii => 2,
-            Self::Iii => 3,
+            Self::II => 2,
+            Self::III => 3,
         }
     }
     pub fn from_number(number: u8) -> Age {
         match number {
             1 => Self::I,
-            2 => Self::Ii,
-            3 => Self::Iii,
+            2 => Self::II,
+            3 => Self::III,
             _ => Self::None,
         }
     }
