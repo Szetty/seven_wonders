@@ -5,7 +5,7 @@ pub(crate) mod dto;
 
 use crate::game::{self, Game};
 use dto::{ActionDto, ActionErrorDto, GameSettingsDto, PlayerViewDto, SetupErrorDto, WondersDto};
-use rustler::{Atom, Encoder, Env, ResourceArc, Term};
+use rustler::{Atom, Decoder, Encoder, Env, ResourceArc, Term};
 use std::sync::Mutex;
 
 mod atoms {
@@ -33,20 +33,23 @@ fn new_game(
         .map_err(SetupErrorDto::from)
 }
 
-/// `:ok` | `{:error, reason}`
+/// `:ok` | `{:error, reason}`. Decodes `action` explicitly so that a malformed
+/// term raises `ArgumentError` (`Error::BadArg`): the derive decoders would
+/// otherwise surface as `ErlangError` (`Error::RaiseTerm`/`RaiseAtom`).
 #[rustler::nif]
 fn submit<'a>(
     env: Env<'a>,
     resource: ResourceArc<GameResource>,
     player: String,
-    action: ActionDto,
-) -> Term<'a> {
+    action: Term<'a>,
+) -> rustler::NifResult<Term<'a>> {
+    let action = ActionDto::decode(action).map_err(|_| rustler::Error::BadArg)?;
     let Ok(mut game) = resource.0.lock() else {
-        return (atoms::error(), atoms::lock_fail()).encode(env);
+        return Ok((atoms::error(), atoms::lock_fail()).encode(env));
     };
     match game.submit(&player, action.into()) {
-        Ok(()) => atoms::ok().encode(env),
-        Err(error) => (atoms::error(), ActionErrorDto::from(error)).encode(env),
+        Ok(()) => Ok(atoms::ok().encode(env)),
+        Err(error) => Ok((atoms::error(), ActionErrorDto::from(error)).encode(env)),
     }
 }
 

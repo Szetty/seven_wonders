@@ -1,50 +1,73 @@
 defmodule Helios.Core do
   @moduledoc """
-  Elixir entry point to the Rust 7 Wonders engine (`core/`, crate `seven_wonders_core`).
+  The 7 Wonders rules engine (Rust, loaded as a NIF). All game rules live in
+  the engine; callers only orchestrate and persist.
 
-  Game handles are opaque NIF resources (they satisfy `is_reference/1`). Game rules
-  live in Rust; this module only converts arguments and results.
-  Malformed arguments (for example non-string player names) raise `ArgumentError`.
+  A game is an opaque reference. Replaying the same `new_game/3` arguments
+  and the same accepted `submit/3` calls always rebuilds the same state.
   """
 
   alias Helios.Core.Native
 
-  @typedoc "Opaque handle to a running engine game."
+  @max_seed 18_446_744_073_709_551_615
+
   @type game :: reference()
-
-  @typedoc "A wonder name as returned by `game_settings/0` and whether side B is used."
-  @type wonder_side :: {String.t(), boolean()}
-
-  @type start_error ::
-          {:invalid_players_number, non_neg_integer()}
-          | {:invalid_players_and_wonder_side_length, String.t()}
+  @type resource :: :wood | :stone | :ore | :clay | :glass | :loom | :papyrus
+  @type payment :: %{west: [{resource(), pos_integer()}], east: [{resource(), pos_integer()}]}
+  @type action ::
+          {:build, %{card: String.t(), payment: payment()}}
+          | {:build_wonder_stage, %{card: String.t(), payment: payment()}}
+          | {:discard, String.t()}
+          | {:build_free, String.t()}
+          | {:build_from_discard, String.t()}
+  @type wonders :: :random | {:explicit, [{String.t(), :a | :b}]}
+  @type setup_error ::
+          :invalid_players_number
+          | {:duplicate_player, String.t()}
           | {:invalid_wonder, String.t()}
+          | {:wonders_length_mismatch, %{players: non_neg_integer(), wonders: non_neg_integer()}}
+          | {:duplicate_wonder, String.t()}
+  @type action_error ::
+          :unknown_player
+          | :not_your_turn
+          | :game_over
+          | :card_not_in_hand
+          | :card_not_in_discard
+          | :already_built
+          | :cannot_afford
+          | :invalid_payment
+          | :no_wonder_stage_left
+          | :free_build_unavailable
+          | :action_not_allowed_now
+          | :lock_fail
 
-  @doc "Engine version and the names of the supported wonders."
-  @spec game_settings() :: %{version: String.t(), wonders: [String.t()]}
+  @doc "Engine version, wonders (with sides) and every card (name, category, age)."
+  @spec game_settings() :: %{engine_version: pos_integer(), wonders: [map()], cards: [map()]}
   def game_settings, do: Native.game_settings()
 
-  @doc """
-  Starts a game for 3 to 7 players, in seat order.
-
-  Pass `[]` as `wonder_sides` for random wonders and sides. Otherwise pass one
-  `{wonder_name, side_b?}` per player, in the same order.
-  """
-  @spec start_game([String.t()], [wonder_side()]) :: {:ok, game()} | {:error, start_error()}
-  def start_game(players, wonder_sides) do
-    wonder_sides =
-      Enum.map(wonder_sides, fn {wonder_name, side_b} ->
-        %{wonder_name: wonder_name, side_b: side_b}
-      end)
-
-    Native.start_game(players, wonder_sides)
+  @doc "Starts a game; `players` is the seat order. `seed` must fit in a u64."
+  @spec new_game([String.t()], wonders(), non_neg_integer()) ::
+          {:ok, game()} | {:error, setup_error()}
+  def new_game(players, wonders, seed)
+      when is_list(players) and is_integer(seed) and seed >= 0 and seed <= @max_seed do
+    Native.new_game(players, wonders, seed)
   end
 
-  @doc "Full internal engine state as a decoded JSON map. Debug and test use only."
-  @spec debug_game(game()) :: {:ok, map()} | {:error, atom()}
+  @doc """
+  Submits (or replaces) `player`'s choice for the current turn. The turn
+  resolves inside the call once every required player has submitted.
+  Raises `ArgumentError` for malformed action terms.
+  """
+  @spec submit(game(), String.t(), action()) :: :ok | {:error, action_error()}
+  def submit(game, player, action), do: Native.submit(game, player, action)
+
+  @doc "The table as seen by `player` (hidden information excluded)."
+  @spec view(game(), String.t()) :: {:ok, map()} | {:error, :unknown_player | :lock_fail}
+  def view(game, player), do: Native.view(game, player)
+
+  @doc "Full internal state, decoded from JSON. Debugging only."
+  @spec debug_game(game()) :: {:ok, map()} | {:error, :lock_fail}
   def debug_game(game) do
-    with {:ok, json} <- Native.debug_game(game) do
-      {:ok, Jason.decode!(json)}
-    end
+    with {:ok, json} <- Native.debug_game(game), do: {:ok, Jason.decode!(json)}
   end
 end
