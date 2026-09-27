@@ -4,6 +4,7 @@ mod legality;
 pub(crate) mod payment;
 mod resolve;
 pub(crate) mod scoring;
+mod settings;
 mod setup;
 #[cfg(test)]
 mod test_support;
@@ -11,6 +12,7 @@ mod types;
 mod view;
 
 pub use crate::domain::{Category, ResourceType};
+pub use settings::{settings, CardInfo, GameSettings, WonderInfo};
 pub use types::{
     Action, ActionError, ExtraTurnKind, FinalScore, Payment, PaymentOption, Phase, SetupError,
     Side, WonderSelection,
@@ -52,6 +54,26 @@ impl Game {
         seed: u64,
     ) -> Result<Game, SetupError> {
         setup::new_game(players, wonders, seed)
+    }
+
+    /// Full internal state as JSON, for debugging only (not a stable format).
+    pub fn debug_json(&self) -> String {
+        let hands: Vec<Vec<&str>> = self
+            .hands
+            .iter()
+            .map(|hand| hand.iter().map(|card| card.0.name()).collect())
+            .collect();
+        serde_json::json!({
+            "engine_version": ENGINE_VERSION,
+            "seats": self.seats,
+            "wonders": self.wonders,
+            "age": self.age,
+            "turn": self.turn,
+            "phase": self.phase,
+            "hands": hands,
+            "state": self.state,
+        })
+        .to_string()
     }
 
     pub fn phase(&self) -> &Phase {

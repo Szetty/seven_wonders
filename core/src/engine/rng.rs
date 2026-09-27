@@ -13,6 +13,7 @@ impl GameRng {
         Self(ChaCha8Rng::seed_from_u64(seed))
     }
 
+    #[cfg(test)]
     pub fn next_u64(&mut self) -> u64 {
         self.0.next_u64()
     }

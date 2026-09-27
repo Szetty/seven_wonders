@@ -59,10 +59,6 @@ impl GameState {
             (*effect)(self, player_name);
         }
     }
-    pub fn get_neighbour_player_states(&self, player_name: &PName) -> (&PlayerState, &PlayerState) {
-        let (west, east) = self.neighbours.get_neighbours(player_name);
-        (self.get_player_state(west), self.get_player_state(east))
-    }
     pub fn get_player_state(&self, player_name: &PName) -> &PlayerState {
         self.player_states.get(player_name).unwrap()
     }
@@ -238,9 +234,6 @@ impl PlayerState {
         self.trade_actions.push(Box::new(|_, _| 2));
         self.wonder.initial_effects()
     }
-    pub fn player_name(&self) -> PName {
-        self.player.name().clone()
-    }
     pub fn calculate_points(&self, game_state: &GameState) -> HashMap<PointCategory, Point> {
         let mut points_map = PointsMap::new();
         points_map.add(&TreasuryP, calculate_treasury_points(self.coins));
@@ -347,8 +340,6 @@ pub type Event = (PName, EventType);
 #[derive(PartialEq, Debug, serde::Serialize)]
 pub enum EventType {
     ConstructFromDiscarded,
-    PlayLastCard,
-    CopyGuild,
 }
 
 pub fn all_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {

@@ -53,72 +53,72 @@ lazy_static! {
     #[rustfmt::skip]
     pub static ref AGE_II_STRUCTURES: [Structure<'static, Effect>; 23] = [
         // Raw Materials (Brown)
-        Structure("Sawmill"  , RM, II, vec![allre(&[Wood, Wood])]  , &[], &[], (1, &[]), &[3, 4]),
-        Structure("Quarry"   , RM, II, vec![allre(&[Stone, Stone])], &[], &[], (1, &[]), &[3, 4]),
-        Structure("Brickyard", RM, II, vec![allre(&[Clay, Clay])]  , &[], &[], (1, &[]), &[3, 4]),
-        Structure("Foundry"  , RM, II, vec![allre(&[Ore, Ore])]    , &[], &[], (1, &[]), &[3, 4]),
+        Structure("Sawmill"  , RM, Ii, vec![allre(&[Wood, Wood])]  , &[], &[], (1, &[]), &[3, 4]),
+        Structure("Quarry"   , RM, Ii, vec![allre(&[Stone, Stone])], &[], &[], (1, &[]), &[3, 4]),
+        Structure("Brickyard", RM, Ii, vec![allre(&[Clay, Clay])]  , &[], &[], (1, &[]), &[3, 4]),
+        Structure("Foundry"  , RM, Ii, vec![allre(&[Ore, Ore])]    , &[], &[], (1, &[]), &[3, 4]),
         // Manufactured Goods (Gray)
-        Structure("Loom"      , MG, II, vec![allre(&[Loom])]   , &[], &[], (0, &[]), &[3, 5]),
-        Structure("Glassworks", MG, II, vec![allre(&[Glass])]  , &[], &[], (0, &[]), &[3, 5]),
-        Structure("Press"     , MG, II, vec![allre(&[Papyrus])], &[], &[], (0, &[]), &[3, 5]),
+        Structure("Loom"      , MG, Ii, vec![allre(&[Loom])]   , &[], &[], (0, &[]), &[3, 5]),
+        Structure("Glassworks", MG, Ii, vec![allre(&[Glass])]  , &[], &[], (0, &[]), &[3, 5]),
+        Structure("Press"     , MG, Ii, vec![allre(&[Papyrus])], &[], &[], (0, &[]), &[3, 5]),
         // Civilian (Blue)
-        Structure("Courthouse", Civilian, II, vec![pe(CivilianP, 4)], &["Scriptorium"], &[]          , (0, &[RCost(Clay, 2), RCost(Loom, 1)])                 , &[3, 5]),
-        Structure("Aqueduct"  , Civilian, II, vec![pe(CivilianP, 5)], &["Baths"]      , &[]          , (0, &[RCost(Stone, 3)])                                , &[3, 7]),
-        Structure("Temple"    , Civilian, II, vec![pe(CivilianP, 3)], &["Altar"]      , &["Pantheon"], (0, &[RCost(Wood, 1), RCost(Clay, 1), RCost(Glass, 1)]), &[3, 6]),
-        Structure("Statue"    , Civilian, II, vec![pe(CivilianP, 4)], &["Theater"]    , &["Gardens"] , (0, &[RCost(Wood, 1), RCost(Ore, 2)])                  , &[3, 7]),
+        Structure("Courthouse", Civilian, Ii, vec![pe(CivilianP, 4)], &["Scriptorium"], &[]          , (0, &[RCost(Clay, 2), RCost(Loom, 1)])                 , &[3, 5]),
+        Structure("Aqueduct"  , Civilian, Ii, vec![pe(CivilianP, 5)], &["Baths"]      , &[]          , (0, &[RCost(Stone, 3)])                                , &[3, 7]),
+        Structure("Temple"    , Civilian, Ii, vec![pe(CivilianP, 3)], &["Altar"]      , &["Pantheon"], (0, &[RCost(Wood, 1), RCost(Clay, 1), RCost(Glass, 1)]), &[3, 6]),
+        Structure("Statue"    , Civilian, Ii, vec![pe(CivilianP, 4)], &["Theater"]    , &["Gardens"] , (0, &[RCost(Wood, 1), RCost(Ore, 2)])                  , &[3, 7]),
         // Military (Red)
-        Structure("Walls"          , Military, II, vec![me(2)], &[]            , &["Fortifications"], (0, &[RCost(Stone, 3)])                              , &[3, 7]),
-        Structure("Training Ground", Military, II, vec![me(2)], &[]            , &["Circus"]        , (0, &[RCost(Wood, 1), RCost(Ore, 2)])                , &[4, 6, 7]),
-        Structure("Stables"        , Military, II, vec![me(2)], &["Apothecary"], &[]                , (0, &[RCost(Ore, 1), RCost(Clay, 1), RCost(Wood, 1)]), &[3, 5]),
-        Structure("Archery Range"  , Military, II, vec![me(2)], &["Workshop"]  , &[]                , (0, &[RCost(Wood, 2), RCost(Ore, 1)])                , &[3, 6]),
+        Structure("Walls"          , Military, Ii, vec![me(2)], &[]            , &["Fortifications"], (0, &[RCost(Stone, 3)])                              , &[3, 7]),
+        Structure("Training Ground", Military, Ii, vec![me(2)], &[]            , &["Circus"]        , (0, &[RCost(Wood, 1), RCost(Ore, 2)])                , &[4, 6, 7]),
+        Structure("Stables"        , Military, Ii, vec![me(2)], &["Apothecary"], &[]                , (0, &[RCost(Ore, 1), RCost(Clay, 1), RCost(Wood, 1)]), &[3, 5]),
+        Structure("Archery Range"  , Military, Ii, vec![me(2)], &["Workshop"]  , &[]                , (0, &[RCost(Wood, 2), RCost(Ore, 1)])                , &[3, 6]),
         // Scientific (Green)
-        Structure("Dispensary", Scientific, II, vec![allse(&[Compass])], &["Apothecary"] , &["Lodge", "Arena"]               , (0, &[RCost(Ore, 2), RCost(Glass, 1)])   , &[3, 4]),
-        Structure("Laboratory", Scientific, II, vec![allse(&[Gears])]  , &["Workshop"]   , &["Siege Workshop", "Observatory"], (0, &[RCost(Clay, 2), RCost(Papyrus, 1)]), &[3, 5]),
-        Structure("Library"   , Scientific, II, vec![allse(&[Tablet])] , &["Scriptorium"], &["Senate", "University"]         , (0, &[RCost(Stone, 2), RCost(Loom, 1)])  , &[3, 6]),
-        Structure("School"    , Scientific, II, vec![allse(&[Tablet])] , &[]             , &["Academy", "Study"]             , (0, &[RCost(Wood, 1), RCost(Papyrus, 1)]), &[3, 7]),
+        Structure("Dispensary", Scientific, Ii, vec![allse(&[Compass])], &["Apothecary"] , &["Lodge", "Arena"]               , (0, &[RCost(Ore, 2), RCost(Glass, 1)])   , &[3, 4]),
+        Structure("Laboratory", Scientific, Ii, vec![allse(&[Gears])]  , &["Workshop"]   , &["Siege Workshop", "Observatory"], (0, &[RCost(Clay, 2), RCost(Papyrus, 1)]), &[3, 5]),
+        Structure("Library"   , Scientific, Ii, vec![allse(&[Tablet])] , &["Scriptorium"], &["Senate", "University"]         , (0, &[RCost(Stone, 2), RCost(Loom, 1)])  , &[3, 6]),
+        Structure("School"    , Scientific, Ii, vec![allse(&[Tablet])] , &[]             , &["Academy", "Study"]             , (0, &[RCost(Wood, 1), RCost(Papyrus, 1)]), &[3, 7]),
         // Commercial (Yellow)
-        Structure("Forum"      , Commercial, II, vec![oanyre(&[Loom, Glass, Papyrus])]   , &["East trading post", "West trading post"], &["Haven"]     , (0, &[RCost(Clay, 2)]), &[3, 6, 7]),
-        Structure("Caravansery", Commercial, II, vec![oanyre(&[Wood, Stone, Ore, Clay])] , &["Marketplace"]                           , &["Lighthouse"], (0, &[RCost(Wood, 2)]), &[3, 5, 6]),
-        Structure("Vineyard"   , Commercial, II, vec![dce(&[East, West, Own], &[RM], 1)], &[]                                        , &[]            , (0, &[])              , &[3, 6]),
-        Structure("Bazar"      , Commercial, II, vec![dce(&[East, West, Own], &[MG], 2)], &[]                                        , &[]            , (0, &[])              , &[4, 7]),
+        Structure("Forum"      , Commercial, Ii, vec![oanyre(&[Loom, Glass, Papyrus])]   , &["East trading post", "West trading post"], &["Haven"]     , (0, &[RCost(Clay, 2)]), &[3, 6, 7]),
+        Structure("Caravansery", Commercial, Ii, vec![oanyre(&[Wood, Stone, Ore, Clay])] , &["Marketplace"]                           , &["Lighthouse"], (0, &[RCost(Wood, 2)]), &[3, 5, 6]),
+        Structure("Vineyard"   , Commercial, Ii, vec![dce(&[East, West, Own], &[RM], 1)], &[]                                        , &[]            , (0, &[])              , &[3, 6]),
+        Structure("Bazar"      , Commercial, Ii, vec![dce(&[East, West, Own], &[MG], 2)], &[]                                        , &[]            , (0, &[])              , &[4, 7]),
     ];
     #[rustfmt::skip]
     pub static ref AGE_III_STRUCTURES: [Structure<'static, Effect>; 18] = [
         // Civilian (Blue)
-        Structure("Pantheon" , Civilian, III, vec![pe(CivilianP, 7)], &["Temple"] , &[], (0, &[RCost(Clay, 2), RCost(Ore, 1), RCost(Papyrus, 1), RCost(Loom, 1), RCost(Glass, 1)])                                 , &[3, 6]),
-        Structure("Gardens"  , Civilian, III, vec![pe(CivilianP, 5)], &["Statue"] , &[], (0, &[RCost(Clay, 2), RCost(Wood, 1)])                                                                                    , &[3, 4]),
-        Structure("Town hall", Civilian, III, vec![pe(CivilianP, 6)], &[]         , &[], (0, &[RCost(Stone, 2), RCost(Ore, 1), RCost(Glass, 1)])                                                                   , &[3, 5, 6]),
-        Structure("Palace"   , Civilian, III, vec![pe(CivilianP, 8)], &[]         , &[], (0, &[RCost(Wood, 1), RCost(Stone, 1), RCost(Ore, 1), RCost(Clay, 1), RCost(Loom, 1), RCost(Glass, 1), RCost(Papyrus, 1)]), &[3, 7]),
-        Structure("Senate"   , Civilian, III, vec![pe(CivilianP, 6)], &["Library"], &[], (0, &[RCost(Wood, 2), RCost(Ore, 1), RCost(Stone, 1)])                                                                    , &[3, 5]),
+        Structure("Pantheon" , Civilian, Iii, vec![pe(CivilianP, 7)], &["Temple"] , &[], (0, &[RCost(Clay, 2), RCost(Ore, 1), RCost(Papyrus, 1), RCost(Loom, 1), RCost(Glass, 1)])                                 , &[3, 6]),
+        Structure("Gardens"  , Civilian, Iii, vec![pe(CivilianP, 5)], &["Statue"] , &[], (0, &[RCost(Clay, 2), RCost(Wood, 1)])                                                                                    , &[3, 4]),
+        Structure("Town hall", Civilian, Iii, vec![pe(CivilianP, 6)], &[]         , &[], (0, &[RCost(Stone, 2), RCost(Ore, 1), RCost(Glass, 1)])                                                                   , &[3, 5, 6]),
+        Structure("Palace"   , Civilian, Iii, vec![pe(CivilianP, 8)], &[]         , &[], (0, &[RCost(Wood, 1), RCost(Stone, 1), RCost(Ore, 1), RCost(Clay, 1), RCost(Loom, 1), RCost(Glass, 1), RCost(Papyrus, 1)]), &[3, 7]),
+        Structure("Senate"   , Civilian, Iii, vec![pe(CivilianP, 6)], &["Library"], &[], (0, &[RCost(Wood, 2), RCost(Ore, 1), RCost(Stone, 1)])                                                                    , &[3, 5]),
         // Military (Red)
-        Structure("Fortifications", Military, III, vec![me(3)], &["Walls"]          , &[], (0, &[RCost(Ore, 3), RCost(Stone, 1)])               , &[3, 7]),
-        Structure("Circus"        , Military, III, vec![me(3)], &["Training Ground"], &[], (0, &[RCost(Stone, 3), RCost(Ore, 1)])               , &[4, 5, 6]),
-        Structure("Arsenal"       , Military, III, vec![me(3)], &[]                 , &[], (0, &[RCost(Ore, 1), RCost(Wood, 2), RCost(Loom, 1)]), &[3, 4, 7]),
-        Structure("Siege Workshop", Military, III, vec![me(3)], &["Laboratory"]     , &[], (0, &[RCost(Wood, 1), RCost(Clay, 3)])               , &[3, 5]),
+        Structure("Fortifications", Military, Iii, vec![me(3)], &["Walls"]          , &[], (0, &[RCost(Ore, 3), RCost(Stone, 1)])               , &[3, 7]),
+        Structure("Circus"        , Military, Iii, vec![me(3)], &["Training Ground"], &[], (0, &[RCost(Stone, 3), RCost(Ore, 1)])               , &[4, 5, 6]),
+        Structure("Arsenal"       , Military, Iii, vec![me(3)], &[]                 , &[], (0, &[RCost(Ore, 1), RCost(Wood, 2), RCost(Loom, 1)]), &[3, 4, 7]),
+        Structure("Siege Workshop", Military, Iii, vec![me(3)], &["Laboratory"]     , &[], (0, &[RCost(Wood, 1), RCost(Clay, 3)])               , &[3, 5]),
         // Scientific (Green)
-        Structure("Lodge"      , Scientific, III, vec![allse(&[Compass])], &["Dispensary"], &[], (0, &[RCost(Clay, 2), RCost(Loom, 1), RCost(Papyrus, 1)]) , &[3, 6]),
-        Structure("Observatory", Scientific, III, vec![allse(&[Gears])]  , &["Laboratory"], &[], (0, &[RCost(Ore, 2), RCost(Glass, 1), RCost(Loom, 1)])    , &[3, 7]),
-        Structure("University" , Scientific, III, vec![allse(&[Tablet])] , &["Library"]   , &[], (0, &[RCost(Wood, 2), RCost(Papyrus, 1), RCost(Glass, 1)]), &[3, 4]),
-        Structure("Academy"    , Scientific, III, vec![allse(&[Compass])], &["School"]    , &[], (0, &[RCost(Stone, 3), RCost(Glass, 1)])                  , &[3, 7]),
-        Structure("Study"      , Scientific, III, vec![allse(&[Gears])]  , &["School"]    , &[], (0, &[RCost(Wood, 1), RCost(Papyrus, 1), RCost(Loom, 1)]) , &[3, 5]),
+        Structure("Lodge"      , Scientific, Iii, vec![allse(&[Compass])], &["Dispensary"], &[], (0, &[RCost(Clay, 2), RCost(Loom, 1), RCost(Papyrus, 1)]) , &[3, 6]),
+        Structure("Observatory", Scientific, Iii, vec![allse(&[Gears])]  , &["Laboratory"], &[], (0, &[RCost(Ore, 2), RCost(Glass, 1), RCost(Loom, 1)])    , &[3, 7]),
+        Structure("University" , Scientific, Iii, vec![allse(&[Tablet])] , &["Library"]   , &[], (0, &[RCost(Wood, 2), RCost(Papyrus, 1), RCost(Glass, 1)]), &[3, 4]),
+        Structure("Academy"    , Scientific, Iii, vec![allse(&[Compass])], &["School"]    , &[], (0, &[RCost(Stone, 3), RCost(Glass, 1)])                  , &[3, 7]),
+        Structure("Study"      , Scientific, Iii, vec![allse(&[Gears])]  , &["School"]    , &[], (0, &[RCost(Wood, 1), RCost(Papyrus, 1), RCost(Loom, 1)]) , &[3, 5]),
         // Commercial (Yellow)
-        Structure("Haven"              , Commercial, III, vec![dce(&[Own], &[RM], 1), dpe(CommercialP, &[Own], &[RM], 1)]                , &["Forum"]      , &[], (0, &[RCost(Ore, 1), RCost(Wood, 1), RCost(Loom, 1)]), &[3, 4]),
-        Structure("Lighthouse"         , Commercial, III, vec![dce(&[Own], &[Commercial], 1), dpe(CommercialP, &[Own], &[Commercial], 1)], &["Caravansery"], &[], (0, &[RCost(Stone, 1), RCost(Glass, 1)])             , &[3, 6]),
-        Structure("Chamber of commerce", Commercial, III, vec![dce(&[Own], &[MG], 2), dpe(CommercialP, &[Own], &[MG], 2)]                , &[]             , &[], (0, &[RCost(Clay, 2), RCost(Papyrus, 1)])            , &[4, 6]),
-        Structure("Arena"              , Commercial, III, vec![dwce(&[Own], 3), dwpe(CommercialP, &[Own], 1)]                            , &["Dispensary"] , &[], (0, &[RCost(Stone, 2), RCost(Ore, 1)])               , &[3, 5, 7]),
+        Structure("Haven"              , Commercial, Iii, vec![dce(&[Own], &[RM], 1), dpe(CommercialP, &[Own], &[RM], 1)]                , &["Forum"]      , &[], (0, &[RCost(Ore, 1), RCost(Wood, 1), RCost(Loom, 1)]), &[3, 4]),
+        Structure("Lighthouse"         , Commercial, Iii, vec![dce(&[Own], &[Commercial], 1), dpe(CommercialP, &[Own], &[Commercial], 1)], &["Caravansery"], &[], (0, &[RCost(Stone, 1), RCost(Glass, 1)])             , &[3, 6]),
+        Structure("Chamber of commerce", Commercial, Iii, vec![dce(&[Own], &[MG], 2), dpe(CommercialP, &[Own], &[MG], 2)]                , &[]             , &[], (0, &[RCost(Clay, 2), RCost(Papyrus, 1)])            , &[4, 6]),
+        Structure("Arena"              , Commercial, Iii, vec![dwce(&[Own], 3), dwpe(CommercialP, &[Own], 1)]                            , &["Dispensary"] , &[], (0, &[RCost(Stone, 2), RCost(Ore, 1)])               , &[3, 5, 7]),
     ];
     #[rustfmt::skip]
     pub static ref GUILD_STRUCTURES: [Structure<'static, Effect>; 10] = [
-        Structure("Workers Guild"     , Guild, III, vec![dpe(GuildP, &[East, West], &[RM], 1)]        , &[], &[], (0, &[RCost(Ore, 2), RCost(Clay, 1), RCost(Stone, 1), RCost(Wood, 1)]), &[]),
-        Structure("Craftsmens Guild"  , Guild, III, vec![dpe(GuildP, &[East, West], &[MG], 2)]        , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 2)])                                , &[]),
-        Structure("Traders Guild"     , Guild, III, vec![dpe(GuildP, &[East, West], &[Commercial], 1)], &[], &[], (0, &[RCost(Loom, 1), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
-        Structure("Philosophers Guild", Guild, III, vec![dpe(GuildP, &[East, West], &[Scientific], 1)], &[], &[], (0, &[RCost(Clay, 3), RCost(Loom, 1), RCost(Papyrus, 1)])             , &[]),
-        Structure("Spies Guild"       , Guild, III, vec![dpe(GuildP, &[East, West], &[Military], 1)]  , &[], &[], (0, &[RCost(Clay, 3), RCost(Glass, 1)])                               , &[]),
-        Structure("Strategists Guild" , Guild, III, vec![dblpe(GuildP, &[East, West], 1)]             , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 1), RCost(Loom, 1)])                , &[]),
-        Structure("Shipowners Guild"  , Guild, III, vec![dpe(GuildP, &[Own], &[RM, MG, Guild], 1)]    , &[], &[], (0, &[RCost(Wood, 3), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
-        Structure("Scientists Guild"  , Guild, III, vec![anyse(&[Compass, Gears, Tablet])]             , &[], &[], (0, &[RCost(Wood, 2), RCost(Ore, 2), RCost(Papyrus, 1)])              , &[]),
-        Structure("Magistrates Guild" , Guild, III, vec![dpe(GuildP, &[East, West], &[Civilian], 1)]  , &[], &[], (0, &[RCost(Wood, 3), RCost(Stone, 1), RCost(Loom, 1)])               , &[]),
-        Structure("Builders Guild"    , Guild, III, vec![dwpe(GuildP, &[East, West, Own], 1)]         , &[], &[], (0, &[RCost(Stone, 2), RCost(Clay, 2), RCost(Glass, 1)])              , &[]),
+        Structure("Workers Guild"     , Guild, Iii, vec![dpe(GuildP, &[East, West], &[RM], 1)]        , &[], &[], (0, &[RCost(Ore, 2), RCost(Clay, 1), RCost(Stone, 1), RCost(Wood, 1)]), &[]),
+        Structure("Craftsmens Guild"  , Guild, Iii, vec![dpe(GuildP, &[East, West], &[MG], 2)]        , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 2)])                                , &[]),
+        Structure("Traders Guild"     , Guild, Iii, vec![dpe(GuildP, &[East, West], &[Commercial], 1)], &[], &[], (0, &[RCost(Loom, 1), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
+        Structure("Philosophers Guild", Guild, Iii, vec![dpe(GuildP, &[East, West], &[Scientific], 1)], &[], &[], (0, &[RCost(Clay, 3), RCost(Loom, 1), RCost(Papyrus, 1)])             , &[]),
+        Structure("Spies Guild"       , Guild, Iii, vec![dpe(GuildP, &[East, West], &[Military], 1)]  , &[], &[], (0, &[RCost(Clay, 3), RCost(Glass, 1)])                               , &[]),
+        Structure("Strategists Guild" , Guild, Iii, vec![dblpe(GuildP, &[East, West], 1)]             , &[], &[], (0, &[RCost(Ore, 2), RCost(Stone, 1), RCost(Loom, 1)])                , &[]),
+        Structure("Shipowners Guild"  , Guild, Iii, vec![dpe(GuildP, &[Own], &[RM, MG, Guild], 1)]    , &[], &[], (0, &[RCost(Wood, 3), RCost(Papyrus, 1), RCost(Glass, 1)])            , &[]),
+        Structure("Scientists Guild"  , Guild, Iii, vec![anyse(&[Compass, Gears, Tablet])]             , &[], &[], (0, &[RCost(Wood, 2), RCost(Ore, 2), RCost(Papyrus, 1)])              , &[]),
+        Structure("Magistrates Guild" , Guild, Iii, vec![dpe(GuildP, &[East, West], &[Civilian], 1)]  , &[], &[], (0, &[RCost(Wood, 3), RCost(Stone, 1), RCost(Loom, 1)])               , &[]),
+        Structure("Builders Guild"    , Guild, Iii, vec![dwpe(GuildP, &[East, West, Own], 1)]         , &[], &[], (0, &[RCost(Stone, 2), RCost(Clay, 2), RCost(Glass, 1)])              , &[]),
     ];
     pub static ref STRUCTURES_BY_NAME: HashMap<String, &'static Structure<'static, Effect>> = AGE_I_STRUCTURES.iter().chain(AGE_II_STRUCTURES.iter()).chain(AGE_III_STRUCTURES.iter()).chain(GUILD_STRUCTURES.iter()).map(|s| (s.0.to_string(), s)).collect();
     #[rustfmt::skip]
@@ -272,5 +272,4 @@ lazy_static! {
         )
     ];
     pub static ref WONDERS_BY_NAME: HashMap<String, &'static Wonder<'static, Effect>> = WONDERS.iter().map(|s| (s.0.to_string(), s)).collect();
-    pub static ref WONDER_NAMES: Vec<String> = WONDERS.iter().map(|s| s.0.to_string()).collect();
 }

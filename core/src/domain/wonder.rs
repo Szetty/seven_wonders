@@ -9,9 +9,11 @@ use std::fmt;
 pub struct Wonder<'a, T>(pub &'a str, pub WonderSide<'a, T>, pub WonderSide<'a, T>);
 
 impl<'a, T> Wonder<'a, T> {
+    #[cfg(test)]
     pub fn get_wonder_side_a(&self) -> &WonderSide<'a, T> {
         &self.1
     }
+    #[cfg(test)]
     pub fn get_wonder_side_b(&self) -> &WonderSide<'a, T> {
         &self.2
     }

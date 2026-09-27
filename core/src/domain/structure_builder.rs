@@ -34,6 +34,7 @@ impl StructureBuilder {
         }
         false
     }
+    #[cfg(test)]
     pub fn can_build_structure_for_free<T>(
         &self,
         _structure: &'static Structure<'static, T>,

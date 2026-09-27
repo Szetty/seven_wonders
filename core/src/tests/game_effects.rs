@@ -1,4 +1,5 @@
 use super::helpers::{default_game_state, default_player_state};
+use crate::domain::structure_builder::StructureBuilder;
 use crate::domain::{
     Age, Card,
     Category::{Civilian, Commercial, Guild, Military, Scientific, MG, RM},
@@ -6,7 +7,7 @@ use crate::domain::{
     PointCategory::*,
     ResourceType::*,
     ScientificSymbol::*,
-    ScientificSymbolsProduced, StructureBuilder,
+    ScientificSymbolsProduced,
 };
 use crate::engine::data::{STRUCTURES_BY_NAME, WONDERS_BY_NAME};
 use maplit::{hashmap, hashset};
@@ -546,7 +547,7 @@ fn test_construct_free_once_per_age() {
         .can_build_structure_for_free(palace_structure, Age::I));
     assert!(player_state
         .structure_builder
-        .can_build_structure_for_free(palace_structure, Age::II));
+        .can_build_structure_for_free(palace_structure, Age::Ii));
 }
 
 #[test]

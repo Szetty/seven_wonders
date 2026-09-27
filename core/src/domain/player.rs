@@ -29,9 +29,6 @@ impl Neighbours {
         }
         Self { data }
     }
-    pub fn get_neighbours(&self, player_name: &PName) -> &(PName, PName) {
-        self.data.get(player_name).unwrap()
-    }
     pub fn get_player_names_from_directions<'a>(
         &self,
         player_name: &PName,

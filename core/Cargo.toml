@@ -16,7 +16,6 @@ lazy_static = "1.5.0"
 derive_more = { version = "2.1.1", features = ["display"] }
 strum = "0.28.0"
 strum_macros = "0.28.0"
-rand = "0.10.3"
 rand_chacha = "0.10.0"
 itertools = "0.15.0"
 maplit = "1.0.2"

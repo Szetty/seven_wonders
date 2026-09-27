@@ -33,6 +33,7 @@ impl<'a, T> Structure<'a, T> {
     pub fn dependencies(&self) -> Dependencies<'_> {
         self.4
     }
+    #[cfg(test)]
     pub fn dependents(&self) -> Dependents<'a> {
         self.5
     }
@@ -87,32 +88,32 @@ pub enum Age {
     #[default]
     None,
     I,
-    II,
-    III,
+    Ii,
+    Iii,
 }
 
 impl Age {
     pub fn get_current_and_future_ages(&self) -> Vec<Age> {
         match self {
-            Self::None => vec![Self::I, Self::II, Self::III],
-            Self::I => vec![Self::I, Self::II, Self::III],
-            Self::II => vec![Self::II, Self::III],
-            Self::III => vec![Self::III],
+            Self::None => vec![Self::I, Self::Ii, Self::Iii],
+            Self::I => vec![Self::I, Self::Ii, Self::Iii],
+            Self::Ii => vec![Self::Ii, Self::Iii],
+            Self::Iii => vec![Self::Iii],
         }
     }
     pub fn number(&self) -> u8 {
         match self {
             Self::None => 0,
             Self::I => 1,
-            Self::II => 2,
-            Self::III => 3,
+            Self::Ii => 2,
+            Self::Iii => 3,
         }
     }
     pub fn from_number(number: u8) -> Age {
         match number {
             1 => Self::I,
-            2 => Self::II,
-            3 => Self::III,
+            2 => Self::Ii,
+            3 => Self::Iii,
             _ => Self::None,
         }
     }
