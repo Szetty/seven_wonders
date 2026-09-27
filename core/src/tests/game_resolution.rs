@@ -90,7 +90,7 @@ fn a_wonder_stage_tucks_the_card() {
     discard_first(&mut game, "p3");
     assert_eq!(game.stages_built("p1"), 1);
     assert!(!game.built_names("p1").contains(&"Altar".to_string()));
-    assert_eq!(game.points("p1").get(&WonderP), Some(&3));
+    assert_eq!(game.point("p1", WonderP), 3);
 }
 
 #[test]

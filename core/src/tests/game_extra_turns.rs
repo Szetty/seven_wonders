@@ -119,7 +119,7 @@ fn halikarnassos_builds_from_the_discard_pile_at_the_end_of_the_turn() {
     game.submit("p1", from_discard("Palace")).unwrap();
     assert!(game.built_names("p1").contains(&"Palace".to_string()));
     assert!(!game.discard_names().contains(&"Palace".to_string()));
-    assert_eq!(game.points("p1").get(&CivilianP), Some(&8));
+    assert_eq!(game.point("p1", CivilianP), 8);
     assert_eq!(game.phase(), &Phase::ChoosingCards { age: 1, turn: 2 });
     assert_eq!(game.hand_names("p1").len(), 6);
 }

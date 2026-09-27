@@ -3,7 +3,6 @@ use super::types::{Action, ActionError, FinalScore, Side};
 use super::Game;
 use crate::domain::{Card, PlayerDecision, Point, PointCategory};
 use crate::engine::data::STRUCTURES_BY_NAME;
-use std::collections::HashMap;
 
 fn card(name: &str) -> Card {
     Card(
@@ -117,8 +116,12 @@ impl Game {
         self.player(self.seat(player)).battle_tokens.clone()
     }
 
-    pub fn points(&self, player: &str) -> HashMap<PointCategory, Point> {
-        self.player(self.seat(player)).calculate_points(&self.state)
+    pub fn point(&self, player: &str, category: PointCategory) -> Point {
+        self.player(self.seat(player))
+            .calculate_points(&self.state)
+            .get(&category)
+            .copied()
+            .unwrap_or(0)
     }
 
     pub fn score_now(&self) -> Vec<FinalScore> {
