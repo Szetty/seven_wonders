@@ -3,7 +3,8 @@ defmodule HeliosWeb.GameAssetsTest do
 
   alias HeliosWeb.GameAssets
 
-  defp exists?(path), do: File.exists?(Path.join(Application.app_dir(:helios, "priv/static"), path))
+  defp exists?(path),
+    do: File.exists?(Path.join(Application.app_dir(:helios, "priv/static"), path))
 
   test "card paths lowercase the engine name and drop spaces" do
     assert GameAssets.card_path("Chamber of commerce") == "/images/cards/chamberofcommerce.png"
@@ -43,7 +44,8 @@ defmodule HeliosWeb.GameAssetsTest do
       [:coin, :pyramid, :wood, :stone, :clay, :ore, :glass, :loom, :papyrus] ++
         Enum.map([1, 3, 5, -1], &{:military, &1})
 
-    for token <- tokens, do: assert(exists?(GameAssets.token_path(token)), "missing #{inspect(token)}")
+    for token <- tokens,
+        do: assert(exists?(GameAssets.token_path(token)), "missing #{inspect(token)}")
 
     assert exists?("/images/paper.jpg")
   end

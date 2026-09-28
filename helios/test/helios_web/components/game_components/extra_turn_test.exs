@@ -9,13 +9,28 @@ defmodule HeliosWeb.GameComponents.ExtraTurnTest do
 
   defp extra(player, kind, overrides \\ %{}) do
     base = SampleViews.view()
-    Map.merge(%{base | phase: %{base.phase | kind: :extra_turn, extra_turn_player: player, extra_turn_kind: kind}}, overrides)
+
+    Map.merge(
+      %{
+        base
+        | phase: %{
+            base.phase
+            | kind: :extra_turn,
+              extra_turn_player: player,
+              extra_turn_kind: kind
+          }
+      },
+      overrides
+    )
   end
 
-  defp render_extra(view), do: render_component(&ExtraTurn.extra_turn/1, view: view, names: SampleViews.names())
+  defp render_extra(view),
+    do: render_component(&ExtraTurn.extra_turn/1, view: view, names: SampleViews.names())
 
   test "my build-from-discard turn shows a picker over the discard pile" do
-    html = render_extra(extra("1", :build_from_discard, %{discard_pile: ["Altar", "Loom"], hand: []}))
+    html =
+      render_extra(extra("1", :build_from_discard, %{discard_pile: ["Altar", "Loom"], hand: []}))
+
     assert attrs(html, "#discard-picker [data-card]", "data-card") == ["Altar", "Loom"]
     assert attrs(html, "#discard-pick-1", "phx-value-kind") == ["build_from_discard"]
     assert attrs(html, "#discard-pick-1", "phx-value-card") == ["Loom"]

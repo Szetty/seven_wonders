@@ -10,7 +10,12 @@ defmodule HeliosWeb.GameComponents.HandTest do
   defp card(name), do: Enum.find(SampleViews.hand(), &(&1.name == name))
 
   test "hand cards expose name and buildability and highlight selection and pending choice" do
-    html = render_component(&Hand.hand/1, hand: SampleViews.hand(), selected: "Tavern", pending: {:discard, "Baths"})
+    html =
+      render_component(&Hand.hand/1,
+        hand: SampleViews.hand(),
+        selected: "Tavern",
+        pending: {:discard, "Baths"}
+      )
 
     assert attrs(html, "#hand [data-card]", "data-card") == ["Baths", "Tavern", "Tree Farm"]
     assert attrs(html, "#hand [data-card]", "data-buildable") == ["false", "true", "true"]

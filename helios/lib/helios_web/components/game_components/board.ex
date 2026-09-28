@@ -37,7 +37,10 @@ defmodule HeliosWeb.GameComponents.Board do
             data-built={to_string(stage <= @player.stages_built)}
             class={[
               "h-12 w-8 overflow-hidden rounded ring-2 transition sm:h-16 sm:w-11",
-              if(stage <= @player.stages_built, do: "ring-amber-400", else: "bg-black/30 ring-white/60")
+              if(stage <= @player.stages_built,
+                do: "ring-amber-400",
+                else: "bg-black/30 ring-white/60"
+              )
             ]}
           >
             <img
@@ -51,7 +54,11 @@ defmodule HeliosWeb.GameComponents.Board do
       </div>
       <.player_stats player={@player} />
       <div id="my-built" class="flex gap-2 overflow-x-auto pb-1">
-        <div :for={{category, cards} <- @columns} data-category={category} class="flex shrink-0 flex-col gap-1">
+        <div
+          :for={{category, cards} <- @columns}
+          data-category={category}
+          class="flex shrink-0 flex-col gap-1"
+        >
           <div
             :for={card <- cards}
             id={"built-#{GameAssets.slug(card.name)}"}
@@ -59,7 +66,11 @@ defmodule HeliosWeb.GameComponents.Board do
             title={card.name}
             class={["h-10 w-16 overflow-hidden rounded ring-2", GameFormat.category_ring(category)]}
           >
-            <img src={GameAssets.card_path(card.name)} alt={card.name} class="w-full object-cover object-top" />
+            <img
+              src={GameAssets.card_path(card.name)}
+              alt={card.name}
+              class="w-full object-cover object-top"
+            />
           </div>
         </div>
       </div>

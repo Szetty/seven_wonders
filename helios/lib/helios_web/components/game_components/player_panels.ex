@@ -11,10 +11,16 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
 
   def neighbour_panel(assigns) do
     ~H"""
-    <section id={@id} data-player={@player.name} class="flex flex-col gap-2 rounded-xl bg-antique/90 p-3 shadow">
+    <section
+      id={@id}
+      data-player={@player.name}
+      class="flex flex-col gap-2 rounded-xl bg-antique/90 p-3 shadow"
+    >
       <header class="flex items-center justify-between gap-2">
         <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">{@label}</span>
-        <span class="truncate font-semibold text-zinc-900">{GameFormat.player_name(@names, @player.name)}</span>
+        <span class="truncate font-semibold text-zinc-900">
+          {GameFormat.player_name(@names, @player.name)}
+        </span>
       </header>
       <img
         src={GameAssets.wonder_path(@player.wonder, @player.side)}
@@ -48,7 +54,9 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
       >
         <header class="mb-1 flex items-center justify-between gap-2">
           <span class="truncate font-semibold">{GameFormat.player_name(@names, player.name)}</span>
-          <span class="text-xs text-zinc-600">{player.wonder} {GameFormat.side_label(player.side)}</span>
+          <span class="text-xs text-zinc-600">
+            {player.wonder} {GameFormat.side_label(player.side)}
+          </span>
         </header>
         <.player_stats player={player} />
         <div class="mt-2 flex flex-wrap gap-1">
@@ -56,7 +64,10 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
             :for={{category, count} <- GameFormat.category_counts(player.built)}
             data-category={category}
             title={GameFormat.category_label(category)}
-            class={["min-w-6 rounded px-1.5 text-center text-xs font-bold text-white", GameFormat.category_class(category)]}
+            class={[
+              "min-w-6 rounded px-1.5 text-center text-xs font-bold text-white",
+              GameFormat.category_class(category)
+            ]}
           >
             {count}
           </span>
@@ -83,7 +94,11 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
         <img src={GameAssets.token_path(:pyramid)} alt="Wonder stages" class="size-5" />
         <span data-stat="stages">{@player.stages_built}/{@player.stages_total}</span>
       </span>
-      <span :if={@player.military_tokens != []} class="flex items-center gap-0.5" title="Military tokens">
+      <span
+        :if={@player.military_tokens != []}
+        class="flex items-center gap-0.5"
+        title="Military tokens"
+      >
         <img
           :for={token <- @player.military_tokens}
           src={GameAssets.token_path({:military, token})}

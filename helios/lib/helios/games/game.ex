@@ -31,7 +31,10 @@ defmodule Helios.Games.Game do
     |> validate_number(:seed, greater_than_or_equal_to: 0, less_than_or_equal_to: @max_seed)
     # Postgres reports the partial index by name; SQLite only reports the column,
     # which ecto_sqlite3 turns into "games_lobby_id_index". Declare both.
-    |> unique_constraint(:lobby_id, name: :games_one_active_per_lobby, message: "game in progress")
+    |> unique_constraint(:lobby_id,
+      name: :games_one_active_per_lobby,
+      message: "game in progress"
+    )
     |> unique_constraint(:lobby_id, name: :games_lobby_id_index, message: "game in progress")
   end
 

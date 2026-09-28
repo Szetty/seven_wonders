@@ -26,7 +26,9 @@ defmodule Helios.Games.Choice do
   @spec resolve(map(), t()) :: {:ok, Helios.Games.ActionCodec.action()} | {:error, atom()}
   def resolve(_view, %{kind: "discard", card: card}), do: {:ok, {:discard, card}}
   def resolve(_view, %{kind: "build_free", card: card}), do: {:ok, {:build_free, card}}
-  def resolve(_view, %{kind: "build_from_discard", card: card}), do: {:ok, {:build_from_discard, card}}
+
+  def resolve(_view, %{kind: "build_from_discard", card: card}),
+    do: {:ok, {:build_from_discard, card}}
 
   def resolve(view, %{kind: "build", card: card, option: option}) do
     with {:ok, hand_card} <- hand_card(view, card),

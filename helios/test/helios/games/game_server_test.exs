@@ -30,7 +30,10 @@ defmodule Helios.Games.GameServerTest do
   end
 
   describe "submit/3" do
-    test "persists accepted actions with increasing seq and broadcasts each", %{game: game, users: users} do
+    test "persists accepted actions with increasing seq and broadcasts each", %{
+      game: game,
+      users: users
+    } do
       Phoenix.PubSub.subscribe(Helios.PubSub, Games.topic(game.id))
 
       for user <- users do
@@ -104,7 +107,10 @@ defmodule Helios.Games.GameServerTest do
       assert :ok = Games.submit(game.id, a.id, {:discard, List.last(names)})
       before = views(game, users)
 
-      put_games_config(fixed_seed: 999, wonders: [{"Olympía", :b}, {"Babylon", :b}, {"Alexandria", :b}])
+      put_games_config(
+        fixed_seed: 999,
+        wonders: [{"Olympía", :b}, {"Babylon", :b}, {"Alexandria", :b}]
+      )
 
       {:ok, pid} = Games.ensure_started(game.id)
       ref = Process.monitor(pid)
@@ -117,15 +123,26 @@ defmodule Helios.Games.GameServerTest do
     end
 
     @tag :capture_log
-    test "a failed insert crashes the server and the log stays authoritative", %{game: game, users: [a | _]} do
+    test "a failed insert crashes the server and the log stays authoritative", %{
+      game: game,
+      users: [a | _]
+    } do
       [card | _] = names = hand_names(game, a)
       {:ok, pid} = Games.ensure_started(game.id)
 
       # Occupy seq 1 behind the server's back so its own insert of seq 1 fails.
-      Repo.insert!(%GameAction{game_id: game.id, seq: 1, user_id: a.id, action: ActionCodec.encode({:discard, card})})
+      Repo.insert!(%GameAction{
+        game_id: game.id,
+        seq: 1,
+        user_id: a.id,
+        action: ActionCodec.encode({:discard, card})
+      })
+
       ref = Process.monitor(pid)
 
-      assert {:error, :server_restarted} = Games.submit(game.id, a.id, {:discard, List.last(names)})
+      assert {:error, :server_restarted} =
+               Games.submit(game.id, a.id, {:discard, List.last(names)})
+
       assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
 
       assert {:ok, %{my_pending: {:discard, ^card}}} = Games.view(game.id, a.id)
@@ -143,7 +160,13 @@ defmodule Helios.Games.GameServerTest do
 
     @tag :capture_log
     test "a replay error marks the game aborted and notifies", %{game: game, users: [a | _]} do
-      Repo.insert!(%GameAction{game_id: game.id, seq: 1, user_id: a.id, action: %{"type" => "discard", "card" => "Not A Card"}})
+      Repo.insert!(%GameAction{
+        game_id: game.id,
+        seq: 1,
+        user_id: a.id,
+        action: %{"type" => "discard", "card" => "Not A Card"}
+      })
+
       Phoenix.PubSub.subscribe(Helios.PubSub, Games.topic(game.id))
       Phoenix.PubSub.subscribe(Helios.PubSub, "lobby:#{game.lobby_id}")
 
@@ -156,7 +179,13 @@ defmodule Helios.Games.GameServerTest do
 
     @tag :capture_log
     test "an undecodable stored action also aborts", %{game: game, users: [a | _]} do
-      Repo.insert!(%GameAction{game_id: game.id, seq: 1, user_id: a.id, action: %{"type" => "bogus"}})
+      Repo.insert!(%GameAction{
+        game_id: game.id,
+        seq: 1,
+        user_id: a.id,
+        action: %{"type" => "bogus"}
+      })
+
       assert {:error, :aborted} = Games.ensure_started(game.id)
     end
 
@@ -167,7 +196,11 @@ defmodule Helios.Games.GameServerTest do
     end
   end
 
-  test "a completed game is marked finished with final scores", %{game: game, users: [a | _], ids: ids} do
+  test "a completed game is marked finished with final scores", %{
+    game: game,
+    users: [a | _],
+    ids: ids
+  } do
     Phoenix.PubSub.subscribe(Helios.PubSub, Games.topic(game.id))
     Phoenix.PubSub.subscribe(Helios.PubSub, "lobby:#{game.lobby_id}")
     {view_fun, submit_fun} = GameDriver.games_funs(game.id)

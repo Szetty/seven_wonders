@@ -10,7 +10,10 @@ defmodule HeliosWeb.GameComponents.TopBar do
 
   def top_bar(assigns) do
     assigns =
-      assign(assigns, phase: assigns.view.phase, waiting: GameFormat.waiting_for(assigns.view, assigns.names))
+      assign(assigns,
+        phase: assigns.view.phase,
+        waiting: GameFormat.waiting_for(assigns.view, assigns.names)
+      )
 
     ~H"""
     <header
@@ -20,7 +23,9 @@ defmodule HeliosWeb.GameComponents.TopBar do
       class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-linear-to-r from-header-from to-header-to px-4 py-3 text-white shadow-lg"
     >
       <div class="flex flex-wrap items-center gap-4">
-        <span id="age-label" class="text-xl font-bold tracking-wide">Age {GameFormat.roman(@phase.age)}</span>
+        <span id="age-label" class="text-xl font-bold tracking-wide">
+          Age {GameFormat.roman(@phase.age)}
+        </span>
         <%= if @phase.kind == :game_over do %>
           <span id="turn-label" class="font-semibold">Game over</span>
         <% else %>

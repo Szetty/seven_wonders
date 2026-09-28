@@ -7,7 +7,8 @@ defmodule HeliosWeb.HTMLHelpers do
     html |> query(selector) |> LazyHTML.text() |> String.replace(~r/\s+/, " ") |> String.trim()
   end
 
-  def attrs(html, selector, attribute), do: html |> query(selector) |> LazyHTML.attribute(attribute)
+  def attrs(html, selector, attribute),
+    do: html |> query(selector) |> LazyHTML.attribute(attribute)
 
   defp query(html, selector), do: html |> LazyHTML.from_fragment() |> LazyHTML.query(selector)
 end

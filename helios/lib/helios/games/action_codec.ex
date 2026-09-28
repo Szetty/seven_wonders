@@ -40,7 +40,8 @@ defmodule Helios.Games.ActionCodec do
     %{"type" => Atom.to_string(type), "card" => card, "payment" => encode_payment(payment)}
   end
 
-  def encode({type, card}) when type in [:discard, :build_free, :build_from_discard] and is_binary(card) do
+  def encode({type, card})
+      when type in [:discard, :build_free, :build_from_discard] and is_binary(card) do
     %{"type" => Atom.to_string(type), "card" => card}
   end
 
@@ -52,7 +53,8 @@ defmodule Helios.Games.ActionCodec do
     end
   end
 
-  def decode(%{"type" => type, "card" => card}) when is_map_key(@card_types, type) and is_binary(card) do
+  def decode(%{"type" => type, "card" => card})
+      when is_map_key(@card_types, type) and is_binary(card) do
     {:ok, {Map.fetch!(@card_types, type), card}}
   end
 

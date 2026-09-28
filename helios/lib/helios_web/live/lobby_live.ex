@@ -215,7 +215,8 @@ defmodule HeliosWeb.LobbyLive do
         {:noreply, socket}
 
       {:error, reason} ->
-        {:noreply, socket |> put_flash(:error, Games.error_message(reason)) |> assign_game_state()}
+        {:noreply,
+         socket |> put_flash(:error, Games.error_message(reason)) |> assign_game_state()}
     end
   end
 
@@ -371,6 +372,9 @@ defmodule HeliosWeb.LobbyLive do
     socket
     |> assign(:active_game, active_game)
     |> assign(:seated?, active_game != nil and Games.seated?(active_game, user.id))
-    |> assign(:start_blocker, Games.start_blocker(active_game, length(Games.eligible_players(lobby))))
+    |> assign(
+      :start_blocker,
+      Games.start_blocker(active_game, length(Games.eligible_players(lobby)))
+    )
   end
 end

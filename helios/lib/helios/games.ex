@@ -152,7 +152,9 @@ defmodule Helios.Games do
     Multi.new()
     |> Multi.insert(:game, Game.create_changeset(%Game{lobby_id: lobby.id}, attrs))
     |> Multi.insert_all(:players, GamePlayer, fn %{game: game} ->
-      Enum.with_index(players, fn user, seat -> %{game_id: game.id, user_id: user.id, seat: seat} end)
+      Enum.with_index(players, fn user, seat ->
+        %{game_id: game.id, user_id: user.id, seat: seat}
+      end)
     end)
     |> Repo.transaction()
     |> case do
@@ -160,7 +162,9 @@ defmodule Helios.Games do
         {:ok, game}
 
       {:error, :game, %Ecto.Changeset{errors: errors} = changeset, _changes} ->
-        if Keyword.has_key?(errors, :lobby_id), do: {:error, :game_in_progress}, else: {:error, changeset}
+        if Keyword.has_key?(errors, :lobby_id),
+          do: {:error, :game_in_progress},
+          else: {:error, changeset}
     end
   end
 
@@ -189,7 +193,8 @@ defmodule Helios.Games do
   def submit(game_id, user_id, action), do: call(game_id, {:submit, user_id, action})
 
   @spec submit_choice(term(), integer(), Helios.Games.Choice.t()) :: :ok | {:error, term()}
-  def submit_choice(game_id, user_id, %{} = choice), do: call(game_id, {:submit_choice, user_id, choice})
+  def submit_choice(game_id, user_id, %{} = choice),
+    do: call(game_id, {:submit_choice, user_id, choice})
 
   @spec view(term(), integer()) :: {:ok, map()} | {:error, term()}
   def view(game_id, user_id), do: call(game_id, {:view, user_id})

@@ -37,7 +37,8 @@ defmodule Helios.GamesFixtures do
   @doc "Marks users as connected to the lobby (tracked by the calling test process)."
   def connect_to_lobby(lobby, users) do
     Enum.each(users, fn user ->
-      {:ok, _ref} = HeliosWeb.Presence.track(self(), "lobby:#{lobby.id}", user.id, %{name: user.name})
+      {:ok, _ref} =
+        HeliosWeb.Presence.track(self(), "lobby:#{lobby.id}", user.id, %{name: user.name})
     end)
   end
 
@@ -69,8 +70,11 @@ defmodule Helios.GamesFixtures do
     Helios.Games.Supervisor
     |> DynamicSupervisor.which_children()
     |> Enum.each(fn
-      {_, pid, _, _} when is_pid(pid) -> DynamicSupervisor.terminate_child(Helios.Games.Supervisor, pid)
-      _other -> :ok
+      {_, pid, _, _} when is_pid(pid) ->
+        DynamicSupervisor.terminate_child(Helios.Games.Supervisor, pid)
+
+      _other ->
+        :ok
     end)
   end
 

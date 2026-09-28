@@ -20,7 +20,10 @@ defmodule Helios.Games.GameServer do
 
   def start_link(opts) do
     game_id = Keyword.fetch!(opts, :game_id)
-    GenServer.start_link(__MODULE__, opts, name: {:via, Registry, {Helios.Games.Registry, game_id}})
+
+    GenServer.start_link(__MODULE__, opts,
+      name: {:via, Registry, {Helios.Games.Registry, game_id}}
+    )
   end
 
   @impl true
@@ -53,7 +56,10 @@ defmodule Helios.Games.GameServer do
       {:ok, state, state.idle_timeout}
     else
       {:error, reason} ->
-        Logger.error("Game #{game.id} could not be rebuilt (#{inspect(reason)}); marking it aborted")
+        Logger.error(
+          "Game #{game.id} could not be rebuilt (#{inspect(reason)}); marking it aborted"
+        )
+
         abort(game)
         :ignore
     end

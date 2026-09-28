@@ -31,7 +31,10 @@ defmodule HeliosWeb.GameAssets do
 
   def token_path(:coin), do: static("/images/tokens/coin.png")
   def token_path(:pyramid), do: static("/images/tokens/pyramid.png")
-  def token_path({:military, value}) when value in [1, 3, 5], do: static("/images/tokens/victory#{value}.png")
+
+  def token_path({:military, value}) when value in [1, 3, 5],
+    do: static("/images/tokens/victory#{value}.png")
+
   def token_path({:military, -1}), do: static("/images/tokens/victoryminus1.png")
 
   def token_path(resource) when is_map_key(@resource_tokens, resource) do

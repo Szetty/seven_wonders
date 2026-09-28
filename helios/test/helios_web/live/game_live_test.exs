@@ -51,7 +51,9 @@ defmodule HeliosWeb.GameLiveTest do
     assert has_element?(view, "#build-options")
     assert has_element?(view, "#wonder-options")
     assert has_element?(view, "#discard-button")
-    assert has_element?(view, "#build-options #build-unavailable") or has_element?(view, "#build-option-0")
+
+    assert has_element?(view, "#build-options #build-unavailable") or
+             has_element?(view, "#build-option-0")
 
     view |> element("#hand-card-0") |> render_click()
     refute has_element?(view, "#action-panel")
@@ -81,7 +83,10 @@ defmodule HeliosWeb.GameLiveTest do
     end
   end
 
-  test "a player can change their choice before the turn resolves", %{game: game, players: [{a, ta} | _]} do
+  test "a player can change their choice before the turn resolves", %{
+    game: game,
+    players: [{a, ta} | _]
+  } do
     {:ok, view, _html} = open(ta, game.id)
     {:ok, state} = Games.view(game.id, a.id)
     [first, second | _] = Enum.map(state.hand, & &1.name)
@@ -99,7 +104,10 @@ defmodule HeliosWeb.GameLiveTest do
     assert {:ok, %{my_pending: {:discard, ^second}}} = Games.view(game.id, a.id)
   end
 
-  test "engine errors and forged choices are flashed and nothing is persisted", %{game: game, players: [{_a, ta} | _]} do
+  test "engine errors and forged choices are flashed and nothing is persisted", %{
+    game: game,
+    players: [{_a, ta} | _]
+  } do
     {:ok, view, _html} = open(ta, game.id)
 
     render_click(view, "submit", %{"card" => "Not A Card", "kind" => "discard", "option" => "0"})

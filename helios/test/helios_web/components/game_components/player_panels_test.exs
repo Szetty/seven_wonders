@@ -20,11 +20,20 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
 
     assert text(html, "#east-panel header") =~ "East"
     assert text(html, "#east-panel header") =~ "Bob"
-    assert attrs(html, "#east-panel img[alt='Rhódos B']", "src") == ["/images/wonders/rhodosB.png"]
+
+    assert attrs(html, "#east-panel img[alt='Rhódos B']", "src") == [
+             "/images/wonders/rhodosB.png"
+           ]
+
     assert text(html, "#east-panel [data-stat='coins']") == "4"
     assert text(html, "#east-panel [data-stat='shields']") == "1"
     assert text(html, "#east-panel [data-stat='stages']") == "1/3"
-    assert attrs(html, "#east-panel [data-token]", "src") == ["/images/tokens/victory1.png", "/images/tokens/victoryminus1.png"]
+
+    assert attrs(html, "#east-panel [data-token]", "src") == [
+             "/images/tokens/victory1.png",
+             "/images/tokens/victoryminus1.png"
+           ]
+
     assert attrs(html, "#east-panel [data-card]", "title") == ["Lumber Yard", "Altar", "Stockade"]
   end
 
@@ -37,6 +46,11 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
 
     assert text(html, "#player-3 header") =~ "Cid"
     assert text(html, "#player-3 header") =~ "Éphesos A"
-    assert attrs(html, "#player-3 [data-category]", "data-category") == ["raw_material", "civilian", "military"]
+
+    assert attrs(html, "#player-3 [data-category]", "data-category") == [
+             "raw_material",
+             "civilian",
+             "military"
+           ]
   end
 end

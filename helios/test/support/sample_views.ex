@@ -35,8 +35,18 @@ defmodule Helios.SampleViews do
         wonder_stage:
           {:trade,
            [
-             %{payment: %{west: [{:stone, 1}], east: []}, west_coins: 2, east_coins: 0, bank_coins: 0},
-             %{payment: %{west: [], east: [{:stone, 1}]}, west_coins: 0, east_coins: 2, bank_coins: 0}
+             %{
+               payment: %{west: [{:stone, 1}], east: []},
+               west_coins: 2,
+               east_coins: 0,
+               bank_coins: 0
+             },
+             %{
+               payment: %{west: [], east: [{:stone, 1}]},
+               west_coins: 0,
+               east_coins: 2,
+               bank_coins: 0
+             }
            ]},
         free_build: false
       },
@@ -92,9 +102,45 @@ defmodule Helios.SampleViews do
 
   def scores do
     [
-      %{player: "1", military: 3, treasury: 2, wonder: 3, civilian: 5, scientific: 4, commercial: 2, guild: 0, total: 19, coins: 6, rank: 2},
-      %{player: "2", military: 6, treasury: 1, wonder: 10, civilian: 6, scientific: 0, commercial: 2, guild: 0, total: 25, coins: 4, rank: 1},
-      %{player: "3", military: -2, treasury: 3, wonder: 0, civilian: 8, scientific: 1, commercial: 2, guild: 0, total: 12, coins: 9, rank: 3}
+      %{
+        player: "1",
+        military: 3,
+        treasury: 2,
+        wonder: 3,
+        civilian: 5,
+        scientific: 4,
+        commercial: 2,
+        guild: 0,
+        total: 19,
+        coins: 6,
+        rank: 2
+      },
+      %{
+        player: "2",
+        military: 6,
+        treasury: 1,
+        wonder: 10,
+        civilian: 6,
+        scientific: 0,
+        commercial: 2,
+        guild: 0,
+        total: 25,
+        coins: 4,
+        rank: 1
+      },
+      %{
+        player: "3",
+        military: -2,
+        treasury: 3,
+        wonder: 0,
+        civilian: 8,
+        scientific: 1,
+        commercial: 2,
+        guild: 0,
+        total: 12,
+        coins: 9,
+        rank: 3
+      }
     ]
   end
 end

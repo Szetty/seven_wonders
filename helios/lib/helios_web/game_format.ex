@@ -3,7 +3,15 @@ defmodule HeliosWeb.GameFormat do
 
   alias Helios.Games.Choice
 
-  @category_order [:raw_material, :manufactured_good, :civilian, :commercial, :military, :scientific, :guild]
+  @category_order [
+    :raw_material,
+    :manufactured_good,
+    :civilian,
+    :commercial,
+    :military,
+    :scientific,
+    :guild
+  ]
 
   def category_order, do: @category_order
 
@@ -55,7 +63,9 @@ defmodule HeliosWeb.GameFormat do
   end
 
   def category_counts(built) do
-    built |> group_by_category() |> Enum.map(fn {category, cards} -> {category, length(cards)} end)
+    built
+    |> group_by_category()
+    |> Enum.map(fn {category, cards} -> {category, length(cards)} end)
   end
 
   defdelegate available?(option), to: Choice
@@ -63,14 +73,19 @@ defmodule HeliosWeb.GameFormat do
   def option_label(:free), do: "Free"
   def option_label({:coins, 1}), do: "Pay 1 coin"
   def option_label({:coins, n}), do: "Pay #{n} coins"
-  def option_label(%{west_coins: west, east_coins: east, bank_coins: bank}), do: "West #{west} · East #{east} · Bank #{bank}"
+
+  def option_label(%{west_coins: west, east_coins: east, bank_coins: bank}),
+    do: "West #{west} · East #{east} · Bank #{bank}"
 
   def action_card(nil), do: nil
   def action_card({_type, %{card: card}}), do: card
   def action_card({_type, card}) when is_binary(card), do: card
 
   def describe_action({:build, %{card: card}}), do: "Build #{card}"
-  def describe_action({:build_wonder_stage, %{card: card}}), do: "Build a wonder stage with #{card}"
+
+  def describe_action({:build_wonder_stage, %{card: card}}),
+    do: "Build a wonder stage with #{card}"
+
   def describe_action({:discard, card}), do: "Discard #{card}"
   def describe_action({:build_free, card}), do: "Build #{card} for free"
   def describe_action({:build_from_discard, card}), do: "Build #{card} from the discard pile"
@@ -86,6 +101,9 @@ defmodule HeliosWeb.GameFormat do
   def waiting_for(view, names), do: for({id, false} <- view.submitted, do: player_name(names, id))
 
   def show_hand?(%{hand: []}), do: false
-  def show_hand?(%{phase: %{kind: :extra_turn, extra_turn_player: player}, me: me}), do: player == me
+
+  def show_hand?(%{phase: %{kind: :extra_turn, extra_turn_player: player}, me: me}),
+    do: player == me
+
   def show_hand?(_view), do: true
 end

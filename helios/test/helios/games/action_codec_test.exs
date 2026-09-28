@@ -5,7 +5,8 @@ defmodule Helios.Games.ActionCodecTest do
 
   @actions [
     {:build, %{card: "Altar", payment: %{west: [], east: []}}},
-    {:build, %{card: "Aqueduct", payment: %{west: [{:wood, 1}, {:papyrus, 2}], east: [{:loom, 1}]}}},
+    {:build,
+     %{card: "Aqueduct", payment: %{west: [{:wood, 1}, {:papyrus, 2}], east: [{:loom, 1}]}}},
     {:build_wonder_stage,
      %{card: "Baths", payment: %{west: [{:stone, 2}], east: [{:ore, 1}, {:clay, 1}, {:glass, 1}]}}},
     {:discard, "Altar"},
@@ -16,24 +17,43 @@ defmodule Helios.Games.ActionCodecTest do
   defp through_json(map), do: map |> Jason.encode!() |> Jason.decode!()
 
   test "encodes to the documented JSON-safe maps" do
-    assert ActionCodec.encode({:build, %{card: "Altar", payment: %{west: [{:wood, 1}], east: []}}}) ==
-             %{"type" => "build", "card" => "Altar", "payment" => %{"west" => [["wood", 1]], "east" => []}}
+    assert ActionCodec.encode(
+             {:build, %{card: "Altar", payment: %{west: [{:wood, 1}], east: []}}}
+           ) ==
+             %{
+               "type" => "build",
+               "card" => "Altar",
+               "payment" => %{"west" => [["wood", 1]], "east" => []}
+             }
 
     assert ActionCodec.encode({:discard, "Altar"}) == %{"type" => "discard", "card" => "Altar"}
   end
 
   test "round-trips every action variant through JSON" do
     for action <- @actions do
-      assert action |> ActionCodec.encode() |> through_json() |> ActionCodec.decode() == {:ok, action}
+      assert action |> ActionCodec.encode() |> through_json() |> ActionCodec.decode() ==
+               {:ok, action}
     end
   end
 
   test "rejects unknown types, unknown resources and malformed input" do
     for bad <- [
           %{"type" => "steal", "card" => "Altar"},
-          %{"type" => "build", "card" => "Altar", "payment" => %{"west" => [["gold", 1]], "east" => []}},
-          %{"type" => "build", "card" => "Altar", "payment" => %{"west" => [["wood", 0]], "east" => []}},
-          %{"type" => "build", "card" => "Altar", "payment" => %{"west" => [["wood", "1"]], "east" => []}},
+          %{
+            "type" => "build",
+            "card" => "Altar",
+            "payment" => %{"west" => [["gold", 1]], "east" => []}
+          },
+          %{
+            "type" => "build",
+            "card" => "Altar",
+            "payment" => %{"west" => [["wood", 0]], "east" => []}
+          },
+          %{
+            "type" => "build",
+            "card" => "Altar",
+            "payment" => %{"west" => [["wood", "1"]], "east" => []}
+          },
           %{"type" => "build", "card" => "Altar", "payment" => %{"west" => []}},
           %{"type" => "build", "card" => "Altar"},
           %{"type" => "discard"},
@@ -60,7 +80,9 @@ defmodule Helios.Games.ActionCodecTest do
     assert encoded == %{"explicit" => [["Gizah", "a"], ["Rhódos", "b"]]}
     assert encoded |> through_json() |> ActionCodec.decode_wonders() == {:ok, selection}
 
-    assert ActionCodec.decode_wonders(%{"explicit" => [["Gizah", "c"]]}) == {:error, :invalid_wonders}
+    assert ActionCodec.decode_wonders(%{"explicit" => [["Gizah", "c"]]}) ==
+             {:error, :invalid_wonders}
+
     assert ActionCodec.decode_wonders(%{"other" => []}) == {:error, :invalid_wonders}
   end
 end

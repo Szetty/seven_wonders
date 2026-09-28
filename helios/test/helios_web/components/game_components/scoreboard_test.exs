@@ -16,7 +16,12 @@ defmodule HeliosWeb.GameComponents.ScoreboardTest do
         lobby_id: "abc"
       )
 
-    assert attrs(html, "#scoreboard tbody tr", "id") == ["score-row-2", "score-row-1", "score-row-3"]
+    assert attrs(html, "#scoreboard tbody tr", "id") == [
+             "score-row-2",
+             "score-row-1",
+             "score-row-3"
+           ]
+
     assert attrs(html, "#score-row-2", "data-rank") == ["1"]
     assert hd(attrs(html, "#score-row-2", "class")) =~ "bg-amber-200"
     assert text(html, "#score-row-2 td:last-child") == "1"

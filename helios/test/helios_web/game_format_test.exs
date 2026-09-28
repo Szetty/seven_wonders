@@ -15,7 +15,10 @@ defmodule HeliosWeb.GameFormatTest do
 
   test "groups built cards by colour in a fixed order, skipping empty colours" do
     built = SampleViews.player("1").built
-    assert [{:raw_material, [_]}, {:civilian, [_]}, {:military, [_]}] = GameFormat.group_by_category(built)
+
+    assert [{:raw_material, [_]}, {:civilian, [_]}, {:military, [_]}] =
+             GameFormat.group_by_category(built)
+
     assert GameFormat.category_counts(built) == [raw_material: 1, civilian: 1, military: 1]
     assert GameFormat.category_class(:scientific) == "bg-green-600"
     assert GameFormat.category_label(:manufactured_good) == "Manufactured goods"
@@ -26,18 +29,29 @@ defmodule HeliosWeb.GameFormatTest do
     assert GameFormat.option_label({:coins, 1}) == "Pay 1 coin"
     assert GameFormat.option_label({:coins, 3}) == "Pay 3 coins"
 
-    assert GameFormat.option_label(%{payment: %{west: [], east: []}, west_coins: 2, east_coins: 1, bank_coins: 0}) ==
+    assert GameFormat.option_label(%{
+             payment: %{west: [], east: []},
+             west_coins: 2,
+             east_coins: 1,
+             bank_coins: 0
+           }) ==
              "West 2 · East 1 · Bank 0"
   end
 
   test "describes pending actions" do
     assert GameFormat.describe_action({:discard, "Baths"}) == "Discard Baths"
-    assert GameFormat.describe_action({:build, %{card: "Altar", payment: %{west: [], east: []}}}) == "Build Altar"
 
-    assert GameFormat.describe_action({:build_wonder_stage, %{card: "Altar", payment: %{west: [], east: []}}}) ==
+    assert GameFormat.describe_action({:build, %{card: "Altar", payment: %{west: [], east: []}}}) ==
+             "Build Altar"
+
+    assert GameFormat.describe_action(
+             {:build_wonder_stage, %{card: "Altar", payment: %{west: [], east: []}}}
+           ) ==
              "Build a wonder stage with Altar"
 
-    assert GameFormat.action_card({:build, %{card: "Altar", payment: %{west: [], east: []}}}) == "Altar"
+    assert GameFormat.action_card({:build, %{card: "Altar", payment: %{west: [], east: []}}}) ==
+             "Altar"
+
     assert GameFormat.action_card({:discard, "Baths"}) == "Baths"
     assert GameFormat.action_card(nil) == nil
   end
@@ -46,7 +60,16 @@ defmodule HeliosWeb.GameFormatTest do
     names = SampleViews.names()
     assert GameFormat.waiting_for(SampleViews.view(), names) == ["Bob", "Dee"]
 
-    extra = SampleViews.view(%{phase: %{SampleViews.view().phase | kind: :extra_turn, extra_turn_player: "3", extra_turn_kind: :build_from_discard}})
+    extra =
+      SampleViews.view(%{
+        phase: %{
+          SampleViews.view().phase
+          | kind: :extra_turn,
+            extra_turn_player: "3",
+            extra_turn_kind: :build_from_discard
+        }
+      })
+
     assert GameFormat.waiting_for(extra, names) == ["Cid"]
 
     over = SampleViews.view(%{phase: %{SampleViews.view().phase | kind: :game_over}})
@@ -57,7 +80,15 @@ defmodule HeliosWeb.GameFormatTest do
     view = SampleViews.view()
     assert GameFormat.show_hand?(view)
     refute GameFormat.show_hand?(%{view | hand: []})
-    refute GameFormat.show_hand?(%{view | phase: %{view.phase | kind: :extra_turn, extra_turn_player: "2"}})
-    assert GameFormat.show_hand?(%{view | phase: %{view.phase | kind: :extra_turn, extra_turn_player: "1"}})
+
+    refute GameFormat.show_hand?(%{
+             view
+             | phase: %{view.phase | kind: :extra_turn, extra_turn_player: "2"}
+           })
+
+    assert GameFormat.show_hand?(%{
+             view
+             | phase: %{view.phase | kind: :extra_turn, extra_turn_player: "1"}
+           })
   end
 end

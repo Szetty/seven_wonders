@@ -11,13 +11,20 @@ defmodule HeliosWeb.GameComponents.ExtraTurn do
     ~H"""
     <%= cond do %>
       <% @view.phase.extra_turn_player != @view.me -> %>
-        <div id="waiting-extra-turn" class="flex items-center gap-2 rounded-xl bg-white/90 px-4 py-3 shadow">
+        <div
+          id="waiting-extra-turn"
+          class="flex items-center gap-2 rounded-xl bg-white/90 px-4 py-3 shadow"
+        >
           <.icon name="hero-clock" class="size-5 animate-pulse text-sky-600" />
-          Waiting for {GameFormat.player_name(@names, @view.phase.extra_turn_player)} ({GameFormat.extra_turn_label(@view.phase.extra_turn_kind)})
+          Waiting for {GameFormat.player_name(@names, @view.phase.extra_turn_player)} ({GameFormat.extra_turn_label(
+            @view.phase.extra_turn_kind
+          )})
         </div>
       <% @view.phase.extra_turn_kind == :build_from_discard -> %>
         <section id="discard-picker" class="rounded-xl bg-antique/95 p-4 shadow-xl">
-          <h2 class="mb-3 font-semibold text-zinc-900">Build one card from the discard pile for free</h2>
+          <h2 class="mb-3 font-semibold text-zinc-900">
+            Build one card from the discard pile for free
+          </h2>
           <div class="flex flex-wrap gap-2">
             <button
               :for={{card, index} <- Enum.with_index(@view.discard_pile || [])}

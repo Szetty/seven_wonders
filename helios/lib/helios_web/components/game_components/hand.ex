@@ -66,7 +66,14 @@ defmodule HeliosWeb.GameComponents.Hand do
         />
         <div class="flex flex-1 flex-col gap-3">
           <h3 class="text-lg font-semibold text-zinc-900">{@card.name}</h3>
-          <.option_group id="build-options" title="Build" kind="build" prefix="build" card={@card.name} option={@card.build} />
+          <.option_group
+            id="build-options"
+            title="Build"
+            kind="build"
+            prefix="build"
+            card={@card.name}
+            option={@card.build}
+          />
           <.option_group
             id="wonder-options"
             title="Build wonder stage"
@@ -168,8 +175,8 @@ defmodule HeliosWeb.GameComponents.Hand do
       class="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-300"
     >
       <span class="flex items-center gap-2 text-zinc-800">
-        <.icon name="hero-check-circle" class="size-5 text-amber-600" />
-        You chose: <strong>{GameFormat.describe_action(@action)}</strong>
+        <.icon name="hero-check-circle" class="size-5 text-amber-600" /> You chose:
+        <strong>{GameFormat.describe_action(@action)}</strong>
       </span>
       <button
         id="change-choice"

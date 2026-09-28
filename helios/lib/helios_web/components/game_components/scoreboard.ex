@@ -22,7 +22,10 @@ defmodule HeliosWeb.GameComponents.Scoreboard do
 
   def scoreboard(assigns) do
     assigns =
-      assign(assigns, columns: @columns, rows: Enum.sort_by(assigns.scores, &{&1.rank, -&1.total}))
+      assign(assigns,
+        columns: @columns,
+        rows: Enum.sort_by(assigns.scores, &{&1.rank, -&1.total})
+      )
 
     ~H"""
     <section id="scoreboard" class="mx-auto w-full max-w-4xl rounded-xl bg-antique/95 p-6 shadow-xl">

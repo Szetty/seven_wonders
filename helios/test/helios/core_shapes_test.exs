@@ -27,7 +27,12 @@ defmodule Helios.CoreShapesTest do
     settings = Core.game_settings()
     assert is_integer(settings.engine_version)
     assert length(settings.wonders) == 7
-    assert Enum.all?(settings.wonders, &match?(%{name: name, sides: [:a, :b]} when is_binary(name), &1))
+
+    assert Enum.all?(
+             settings.wonders,
+             &match?(%{name: name, sides: [:a, :b]} when is_binary(name), &1)
+           )
+
     assert %{name: name, category: category, age: age} = hd(settings.cards)
     assert is_binary(name) and is_atom(category) and age in 1..3
   end
@@ -72,7 +77,9 @@ defmodule Helios.CoreShapesTest do
       assert %{name: name, category: category, age: 1, free_build: false} = card
       assert is_binary(name) and is_atom(category)
       assert build_option?(card.build), "unexpected build option #{inspect(card.build)}"
-      assert build_option?(card.wonder_stage), "unexpected wonder option #{inspect(card.wonder_stage)}"
+
+      assert build_option?(card.wonder_stage),
+             "unexpected wonder option #{inspect(card.wonder_stage)}"
     end
   end
 
@@ -82,7 +89,10 @@ defmodule Helios.CoreShapesTest do
     card = hd(view.hand).name
 
     assert :ok = Core.submit(ref, "1", {:discard, card})
-    assert {:ok, %{my_pending: {:discard, ^card}, submitted: [{"1", true} | _]}} = Core.view(ref, "1")
+
+    assert {:ok, %{my_pending: {:discard, ^card}, submitted: [{"1", true} | _]}} =
+             Core.view(ref, "1")
+
     assert {:error, :card_not_in_hand} = Core.submit(ref, "1", {:discard, "Not A Card"})
     assert {:error, :unknown_player} = Core.view(ref, "9")
   end

@@ -8,7 +8,11 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
   alias HeliosWeb.GameComponents.TopBar
 
   defp render_bar(view, connected \\ MapSet.new(["1", "2"])) do
-    render_component(&TopBar.top_bar/1, view: view, names: SampleViews.names(), connected: connected)
+    render_component(&TopBar.top_bar/1,
+      view: view,
+      names: SampleViews.names(),
+      connected: connected
+    )
   end
 
   test "shows age, turn, direction, who we wait for and connection dots" do

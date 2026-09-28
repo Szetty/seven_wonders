@@ -17,7 +17,9 @@ defmodule Helios.Games.GameTest do
     assert {:ok, first} = Repo.insert(Game.create_changeset(%Game{lobby_id: lobby.id}, attrs()))
     assert first.status == "active"
 
-    assert {:error, changeset} = Repo.insert(Game.create_changeset(%Game{lobby_id: lobby.id}, attrs()))
+    assert {:error, changeset} =
+             Repo.insert(Game.create_changeset(%Game{lobby_id: lobby.id}, attrs()))
+
     assert %{lobby_id: ["game in progress"]} = errors_on(changeset)
 
     Repo.update!(Game.finish_changeset(first, %{"scores" => []}))
@@ -57,10 +59,19 @@ defmodule Helios.Games.GameTest do
     game = game_fixture(users)
 
     seats = Repo.all(from p in GamePlayer, where: p.game_id == ^game.id, order_by: p.seat)
-    assert Enum.map(seats, &{&1.seat, &1.user_id}) == Enum.with_index(users, fn u, i -> {i, u.id} end)
+
+    assert Enum.map(seats, &{&1.seat, &1.user_id}) ==
+             Enum.with_index(users, fn u, i -> {i, u.id} end)
+
     assert game.wonders == %{"explicit" => [["Gizah", "a"], ["Rhódos", "a"], ["Éphesos", "a"]]}
 
-    Repo.insert!(%GameAction{game_id: game.id, seq: 1, user_id: owner.id, action: %{"type" => "discard", "card" => "Altar"}})
+    Repo.insert!(%GameAction{
+      game_id: game.id,
+      seq: 1,
+      user_id: owner.id,
+      action: %{"type" => "discard", "card" => "Altar"}
+    })
+
     Repo.delete!(game)
     assert Repo.aggregate(from(p in GamePlayer, where: p.game_id == ^game.id), :count) == 0
     assert Repo.aggregate(from(a in GameAction, where: a.game_id == ^game.id), :count) == 0
