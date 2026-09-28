@@ -26,3 +26,17 @@ config :helios, access_token: "e2e"
 config :logger, level: :warning
 
 config :helios, presence_grace_ms: 2_000
+
+# Deterministic games for Playwright: fixed seed and wonders without extra turns
+# (Gizah A, Rhódos A, Éphesos A are the seats used by the 3-player specs).
+config :helios, Helios.Games,
+  fixed_seed: 20_260_923,
+  wonders: [
+    {"Gizah", :a},
+    {"Rhódos", :a},
+    {"Éphesos", :a},
+    {"Alexandria", :a},
+    {"Babylon", :a},
+    {"Olympía", :a},
+    {"Halikarnassós", :a}
+  ]
