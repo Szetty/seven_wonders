@@ -7,7 +7,6 @@
 
 - [Install Rust](https://www.rust-lang.org)
 - [Install Go 1.14.2](https://golang.org/doc/install)
-- [Install Elm 0.19.1](https://guide.elm-lang.org/install/elm.html)
 
 ## Development
 
@@ -31,20 +30,14 @@ Run tests:
 ACCESS_TOKEN="TEST" JWT_SECRET="test" go test -v -race ./...
 ```
 
-### Frontend
+### Web app
 
-In *websocket-client* folder:
+The UI (login, lobby, game table) is served by Helios:
 
 ```shell script
-npm install
-npm run build
-```
-
-In frontend folder:
-```shell script
-npm install
-elm make
-elm-app start
+cd helios
+mix setup
+mix phx.server
 ```
 
 ## Deployment
