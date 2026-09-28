@@ -12,8 +12,11 @@ defmodule Helios.Games.Choice do
 
   @spec parse(map()) :: {:ok, t()} | {:error, :invalid_choice}
   def parse(%{"card" => card, "kind" => kind} = params) when is_binary(card) and kind in @kinds do
-    case params |> Map.get("option", "0") |> to_string() |> Integer.parse() do
-      {option, ""} when option >= 0 -> {:ok, %{card: card, kind: kind, option: option}}
+    with option when is_binary(option) or is_integer(option) <- Map.get(params, "option", "0"),
+         {option, ""} <- option |> to_string() |> Integer.parse(),
+         true <- option >= 0 do
+      {:ok, %{card: card, kind: kind, option: option}}
+    else
       _other -> {:error, :invalid_choice}
     end
   end

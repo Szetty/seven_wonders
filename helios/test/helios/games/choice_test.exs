@@ -25,7 +25,8 @@ defmodule Helios.Games.ChoiceTest do
             %{"card" => "Baths", "kind" => "build", "option" => "-1"},
             %{"card" => "Baths", "kind" => "build", "option" => "1x"},
             %{"kind" => "build"},
-            %{}
+            %{},
+            %{"card" => "Baths", "kind" => "discard", "option" => %{}}
           ] do
         assert Choice.parse(params) == {:error, :invalid_choice}, "accepted #{inspect(params)}"
       end
