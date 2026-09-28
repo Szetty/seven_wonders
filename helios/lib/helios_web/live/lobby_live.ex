@@ -5,6 +5,9 @@ defmodule HeliosWeb.LobbyLive do
   """
   use HeliosWeb, :live_view
 
+  import HeliosWeb.LobbyGamePanel
+
+  alias Helios.Games
   alias Helios.Lobbies
   alias HeliosWeb.Notifications
   alias HeliosWeb.OnlineTracker
@@ -19,7 +22,7 @@ defmodule HeliosWeb.LobbyLive do
 
     with {:ok, lobby} <- Lobbies.fetch_lobby(game_id),
          :ok <- Lobbies.authorize(lobby, user) do
-      {:ok, setup(socket, lobby, user)}
+      {:ok, socket |> setup(lobby, user) |> assign_game_state()}
     else
       {:error, reason} ->
         own = Lobbies.get_or_create_own_lobby(user)
@@ -85,6 +88,13 @@ defmodule HeliosWeb.LobbyLive do
             Invite
           </.button>
         </.form>
+
+        <.game_panel
+          owner?={@owner?}
+          active_game={@active_game}
+          seated?={@seated?}
+          start_blocker={@start_blocker}
+        />
 
         <div class="overflow-hidden rounded-xl bg-antique shadow-md ring-1 ring-zinc-900/10">
           <table id="members-table" class="w-full text-left">
@@ -199,6 +209,16 @@ defmodule HeliosWeb.LobbyLive do
     {:noreply, put_flash(socket, :error, Lobbies.error_message(:not_invited))}
   end
 
+  def handle_event("start_game", _params, socket) do
+    case Games.start_game(socket.assigns.current_scope, socket.assigns.lobby) do
+      {:ok, _game} ->
+        {:noreply, socket}
+
+      {:error, reason} ->
+        {:noreply, socket |> put_flash(:error, Games.error_message(reason)) |> assign_game_state()}
+    end
+  end
+
   @impl true
   def handle_info(%Broadcast{event: "presence_diff", topic: @online_topic, payload: diff}, socket) do
     {online, events} = OnlineTracker.handle_diff(socket.assigns.online, diff)
@@ -206,7 +226,7 @@ defmodule HeliosWeb.LobbyLive do
   end
 
   def handle_info(%Broadcast{event: "presence_diff"}, socket) do
-    {:noreply, load_connected(socket)}
+    {:noreply, socket |> load_connected() |> assign_game_state()}
   end
 
   def handle_info({:confirm_offline, user_id, token}, socket) do
@@ -221,7 +241,25 @@ defmodule HeliosWeb.LobbyLive do
     {:noreply, socket |> assign(:online, online) |> notify_presence(events) |> assign_derived()}
   end
 
-  def handle_info({:members_changed}, socket), do: {:noreply, load_members(socket)}
+  def handle_info({:members_changed}, socket) do
+    {:noreply, socket |> load_members() |> assign_game_state()}
+  end
+
+  def handle_info({:game_started, game_id}, socket) do
+    user = socket.assigns.current_scope.user
+
+    case Games.fetch_game(game_id) do
+      {:ok, game} ->
+        if Games.seated?(game, user.id) do
+          {:noreply, push_navigate(socket, to: ~p"/game/#{game_id}")}
+        else
+          {:noreply, assign_game_state(socket)}
+        end
+
+      {:error, _reason} ->
+        {:noreply, assign_game_state(socket)}
+    end
+  end
 
   def handle_info({:declined, user}, socket) do
     socket = load_members(socket)
@@ -323,5 +361,16 @@ defmodule HeliosWeb.LobbyLive do
     )
     |> assign(:invite_options, invite_options)
     |> assign(:invite_form, form)
+  end
+
+  defp assign_game_state(socket) do
+    lobby = socket.assigns.lobby
+    user = socket.assigns.current_scope.user
+    active_game = Games.active_game_for_lobby(lobby.id)
+
+    socket
+    |> assign(:active_game, active_game)
+    |> assign(:seated?, active_game != nil and Games.seated?(active_game, user.id))
+    |> assign(:start_blocker, Games.start_blocker(active_game, length(Games.eligible_players(lobby))))
   end
 end
