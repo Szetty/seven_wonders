@@ -57,6 +57,9 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Game orchestration. `fixed_seed` / `wonders` are only set by the e2e env.
+config :helios, Helios.Games, idle_timeout: :timer.minutes(30)
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

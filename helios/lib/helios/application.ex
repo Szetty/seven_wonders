@@ -15,6 +15,10 @@ defmodule Helios.Application do
       {DNSCluster, query: Application.get_env(:helios, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Helios.PubSub},
       HeliosWeb.Presence,
+      {Registry, keys: :unique, name: Helios.Games.Registry},
+      # One crashing game must not take down every other game's supervisor.
+      {DynamicSupervisor,
+       name: Helios.Games.Supervisor, strategy: :one_for_one, max_restarts: 50, max_seconds: 5},
       # Start a worker by calling: Helios.Worker.start_link(arg)
       # {Helios.Worker, arg},
       # Start to serve requests, typically the last entry
