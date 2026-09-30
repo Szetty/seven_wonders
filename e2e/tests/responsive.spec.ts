@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { closeAll, newPlayer, setupTable } from "./support/game";
+import { closeAll, newPlayer, setupTable, startGame, waitForTurn } from "./support/game";
 import {
   LONG_NAME_PREFIX,
   VIEWPORTS,
@@ -72,6 +72,28 @@ for (const vp of VIEWPORTS) {
       if (vp.touch) {
         await expectTapTargets(page.locator("[id^='uninvite-']"));
         await expectTapTargets(page.locator("#start-game, #invite-button"));
+      }
+
+      await closeAll(players);
+    });
+
+    test("game table", async ({ browser }) => {
+      test.setTimeout(120_000);
+      const { owner, players } = await setupTable(browser, 3, LONG_NAME_PREFIX);
+      await startGame(owner, players);
+      const page = owner.page;
+      await waitForTurn(page, 1, 1);
+      await expectViewport(page, vp);
+      await expectNoHorizontalScroll(page);
+
+      // --- top bar
+      if (vp.width < 640) {
+        expect((await boxOf(page.locator("#top-bar"))).height).toBeLessThanOrEqual(96);
+        await expect(page.locator("#waiting-count")).toBeVisible();
+        await expect(page.locator("#waiting-for")).toBeHidden();
+      } else {
+        await expect(page.locator("#waiting-for")).toBeVisible();
+        await expect(page.locator("#waiting-count")).toBeHidden();
       }
 
       await closeAll(players);

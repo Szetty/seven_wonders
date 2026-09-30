@@ -21,6 +21,8 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     assert text(html, "#turn-label") == "Turn 3/6"
     assert text(html, "#pass-direction") == "Pass east"
     assert text(html, "#waiting-for") == "Waiting for: Bob, Dee"
+    assert text(html, "#waiting-count") == "Waiting for 2"
+    assert attrs(html, "#waiting-count", "title") == ["Bob, Dee"]
     assert attrs(html, "#top-bar", "data-turn-key") == ["2-3"]
     assert attrs(html, "#top-bar", "data-phase") == ["choosing_cards"]
     assert attrs(html, "#connection-2", "data-connected") == ["true"]
@@ -34,5 +36,6 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     assert text(html, "#turn-label") == "Game over"
     assert count(html, "#pass-direction") == 0
     assert count(html, "#waiting-for") == 0
+    assert count(html, "#waiting-count") == 0
   end
 end
