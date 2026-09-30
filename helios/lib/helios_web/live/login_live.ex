@@ -24,13 +24,13 @@ defmodule HeliosWeb.LoginLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="relative flex min-h-screen flex-col items-center justify-center bg-[url(/images/7_wonders.jpg)] bg-cover bg-center px-4 py-12">
+      <div class="relative flex min-h-dvh flex-col items-center justify-center bg-[url(/images/7_wonders.jpg)] bg-cover bg-center px-4 py-12">
         <div class="absolute inset-0 bg-black/30" aria-hidden="true"></div>
 
         <div class="relative flex w-full max-w-md flex-col items-center">
           <h1
             id="login-title"
-            class="mb-8 text-center text-5xl font-bold tracking-widest text-yellow-400 drop-shadow-lg"
+            class="mb-8 text-center text-4xl font-bold tracking-widest text-yellow-400 drop-shadow-lg sm:text-5xl"
           >
             7 WONDERS
           </h1>

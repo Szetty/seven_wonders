@@ -13,7 +13,7 @@ defmodule HeliosWeb.LobbyGamePanel do
       <div
         :if={@active_game}
         id="game-in-progress"
-        class="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-300"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-300"
       >
         <span class="flex items-center gap-2 font-semibold text-zinc-800">
           <.icon name="hero-play-circle" class="size-5 text-amber-600" /> Game in progress
@@ -22,7 +22,7 @@ defmodule HeliosWeb.LobbyGamePanel do
           :if={@seated?}
           id="rejoin-game"
           navigate={~p"/game/#{@active_game.id}"}
-          class="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
+          class="inline-flex items-center rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-700 active:bg-zinc-800 pointer-coarse:min-h-11"
         >
           Rejoin
         </.link>
@@ -33,7 +33,7 @@ defmodule HeliosWeb.LobbyGamePanel do
           type="button"
           phx-click="start_game"
           disabled={@start_blocker != nil}
-          class="rounded-lg bg-zinc-900 px-4 py-2 font-semibold text-white shadow transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-zinc-900"
+          class="rounded-lg bg-zinc-900 px-4 py-2 font-semibold text-white shadow transition hover:bg-zinc-700 active:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-zinc-900 pointer-coarse:min-h-11"
         >
           Start game
         </button>

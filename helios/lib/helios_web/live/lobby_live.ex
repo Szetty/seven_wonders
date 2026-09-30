@@ -57,7 +57,7 @@ defmodule HeliosWeb.LobbyLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} notifications={@notifications}>
-      <section id="lobby" class="mx-auto w-full max-w-3xl space-y-6 px-4 py-10">
+      <section id="lobby" class="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:py-10">
         <h1 id="lobby-title" class="text-2xl font-semibold tracking-tight text-zinc-900">
           {@page_title}
         </h1>
@@ -68,7 +68,7 @@ defmodule HeliosWeb.LobbyLive do
           id="invite-form"
           phx-change="select_invitee"
           phx-submit="invite"
-          class="flex items-end gap-3"
+          class="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3"
         >
           <div class="flex-1">
             <.input
@@ -83,7 +83,7 @@ defmodule HeliosWeb.LobbyLive do
             id="invite-button"
             type="submit"
             disabled={@invite_form[:user_id].value in [nil, ""]}
-            class="mb-2 rounded-lg bg-zinc-900 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+            class="w-full rounded-lg bg-zinc-900 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 sm:mb-2 sm:w-auto pointer-coarse:min-h-11"
           >
             Invite
           </.button>
@@ -133,7 +133,7 @@ defmodule HeliosWeb.LobbyLive do
                     phx-click="uninvite"
                     phx-value-id={row.user.id}
                     aria-label={"Remove #{row.user.name}"}
-                    class="inline-flex size-8 items-center justify-center rounded-md bg-zinc-900 text-white transition hover:bg-red-700"
+                    class="inline-flex size-8 items-center justify-center rounded-md bg-zinc-900 text-white transition hover:bg-red-700 active:bg-red-800 pointer-coarse:size-11"
                   >
                     <.icon name="hero-x-mark" class="size-4" />
                   </button>
