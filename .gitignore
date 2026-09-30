@@ -261,3 +261,6 @@ core.cabal
 # Local OS / BEAM artifacts
 .DS_Store
 erl_crash.dump
+
+# Superpowers brainstorming companion (mockups, session state)
+/.superpowers/
