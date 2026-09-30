@@ -39,45 +39,46 @@ The same off-screen action panel also happens on desktop at 1080px height (hand 
 
 **Page structure.** `#game`'s content column becomes `min-h-dvh flex flex-col`: sticky `#top-bar` → table (`flex-1`) → dock as the **last child with `sticky bottom-0`**. Because the dock stays in normal flow, the table never scrolls underneath it (no padding bookkeeping), and on short pages `flex-1` pushes the dock to the bottom of the screen. The dock pads by `env(safe-area-inset-bottom)`. Game over: no dock; the scoreboard replaces the table as today. The paper background drops `bg-fixed` below `lg` (iOS Safari renders fixed backgrounds zoomed/janky).
 
-**Top bar (`TopBar`).** Sticky `top-0`. Phones: row 1 = `Age I · Turn 3/6 · ←` plus a new `#waiting-count` ("Waiting for N", `sm:hidden`); row 2 = player chips (name, truncated, with connection dot) in a single horizontally scrolling line (`overflow-x-auto`, no wrap). From `sm` up: `#waiting-for` ("Waiting for: a, b", `hidden sm:block`, text unchanged — `top_bar_test.exs` asserts it exactly) and today's spacing. `#age-label`, `#turn-label`, `#pass-direction`, `#waiting-for`, `#connections`, `#connection-<id>` and their `data-*` attributes keep their exact content; `#waiting-count` carries the full names in `title`.
+**Top bar (`TopBar`).** Sticky `top-0 z-20`, but `short:static` so on landscape phones it scrolls away and leaves the height to the table and dock. Phones: row 1 = `Age I · Turn 3/6 · ←` plus a new `#waiting-count` ("Waiting for N", `sm:hidden`); row 2 = player chips (name, truncated, with connection dot) in a single horizontally scrolling line (`overflow-x-auto`, no wrap). From `sm` up: `#waiting-for` ("Waiting for: a, b", `hidden sm:block`, text unchanged — `top_bar_test.exs` asserts it exactly) and today's spacing. `#age-label`, `#turn-label`, `#pass-direction`, `#waiting-for`, `#connections`, `#connection-<id>` and their `data-*` attributes keep their exact content; `#waiting-count` carries the full names in `title`.
 
 **Table.**
-- Own board (`#my-board`) first on every size below `lg`. Built-card thumbnails grow (≈48×32 phone → 64×40 `sm`), still grouped by colour column, still in `#my-built` with `data-card`.
-- Neighbour panels (`#west-panel`, `#east-panel`) on phones: a one-line summary (small wonder image ≈72px wide, name, coins/shields/stages, colour squares) inside a native `<details>`; expanding shows today's full panel content. From `md` up: open by default, side by side (`md:grid-cols-2`). At `lg`: today's `West | Me | East` grid (`lg:grid-cols-[1fr_2fr_1fr]`).
+- Own board (`#my-board`) first on every size below `lg` (`md:col-span-2 lg:col-span-1`). Built-card thumbnails stay 64×40 (the card's top strip with its effect icons), still grouped by colour column in `#my-built` with `data-card`; reading a whole card is the out-of-scope zoom viewer.
+- Neighbour panels (`#west-panel`, `#east-panel`) on phones: a one-line summary button (`#<id>-toggle`, `md:hidden`: small decorative wonder image ≈72px wide, label, name, coins/shields/stages, colour squares — none of it reusing `data-stat`/`data-card`/the wonder `alt`, which the panel tests count) that toggles today's full panel content (`#<id>-details`). The toggle is a LiveView `JS.toggle_class("is-open", to: "#<id>")` plus `JS.toggle_attribute({"aria-expanded", "true", "false"})` — no hook, no server state; details are `hidden group-[.is-open]:flex md:flex`. (A native `<details>` can't be forced open from `md` up with CSS alone.) From `md` up: details always shown, panels side by side (`md:grid-cols-2`, own board `md:col-span-2`). At `lg`: today's `West | Me | East` grid (`lg:grid-cols-[1fr_2fr_1fr]`).
 - Other players (`#other-players`): stays a horizontal strip; cards narrow to `min-w-48` on phones.
 
-**Dock (`Hand.hand`, `#hand`).** `sticky bottom-0 z-30`, full width of the content column, antique background, top shadow. Contents, top to bottom:
-1. The status line when relevant: `#pending-choice` ("You chose … / Change"), `#waiting-extra-turn`, `#play-last-card`. These move from the table into the dock so they are always visible.
+**Dock (`#dock`, rendered by `GameLive`).** `sticky bottom-0 z-30`, full width, antique background, top shadow. `#hand` stays the hand section *inside* the dock (rendered only when `GameFormat.show_hand?/1`), so "no `#hand` while waiting for someone else's extra turn" keeps holding. Contents, top to bottom:
+1. The status line when relevant: `#pending-choice` ("You chose … / Change"), `#waiting-extra-turn`, `#play-last-card`. These move from the table into the dock so they are always visible. `ExtraTurn.extra_turn/1` splits into `extra_turn_notice/1` (waiting / play-last-card, in the dock) and `discard_picker/1` (the sheet below, rendered next to the action sheet, outside the dock).
 2. The hand: one horizontal row, `overflow-x-auto`, `snap-x`, cards `snap-start`. Card sizes: 64×98 base, 88×134 `sm`, 120×183 `lg`; `short:` forces 56×86 so a landscape phone's dock is ≤ 40% of the viewport height. Selected card: ring + lift (as today); also `active:` scale feedback.
-When `GameFormat.show_hand?/1` is false and there is no status line, the dock is not rendered.
+New `GameFormat.dock?/1` = `show_hand?(view) or view.phase.kind == :extra_turn`; the dock renders only when it is true (never at game over).
 
 **Action sheet (`Hand.action_panel`, `#action-panel`).** Rendered while `@selected_card` is set:
 - A scrim (`#action-scrim`, `fixed inset-0 z-40 bg-black/35`) with `phx-click="deselect"`.
 - The sheet (`fixed z-50`): phones = bottom sheet (`inset-x-0 bottom-0`, `rounded-t-2xl`, `max-h-[85dvh] overflow-y-auto`, safe-area padding); `lg` = centred modal panel (`max-w-xl`, vertically and horizontally centred, `rounded-2xl`).
 - Content: grab handle (decorative) and close button `#close-action-panel` (`phx-click="deselect"`, `aria-label="Close"`); card image (≈96×147 phone, 120×183 `sm`+, now shown on phones too); name; option groups with full-width buttons on phones (`w-full sm:w-auto`); Discard last.
 - `phx-window-keydown="deselect"` with `phx-key="Escape"` on the sheet.
+- The scrim covers the dock, so switching to another card means closing the sheet first (on phones the sheet covers the dock anyway).
 - Tapping the selected card in the dock still toggles it off (existing `select_card` behaviour).
 - `role="dialog"`, `aria-modal="true"`, `aria-labelledby` the card name heading.
 
-**New event.** `GameLive.handle_event("deselect", _params, socket)` → `assign_selection(socket, nil)`. Idempotent (no-op when nothing is selected).
+**New event.** `GameLive.handle_event("deselect", params, socket)` → `assign_selection(socket, nil)`. Idempotent (no-op when nothing is selected). A keydown payload whose `"key"` is not `"Escape"` is ignored server-side too.
 
 **Halikarnassós discard picker (`ExtraTurn`, `#discard-picker`).** Uses the same sheet styling but **no scrim close, no close button, no Escape** — the choice is mandatory. Cards in a 3-column grid on phones (`grid-cols-3`, card width 100%), `sm:flex sm:flex-wrap` with 120×183 cards above. `max-h-[85dvh] overflow-y-auto`.
 
-**Touch.** Every button and link in the game table is ≥ 44px tall on touch viewports (`min-h-11`). Every `hover:` affordance gets a matching `active:` state.
+**Touch.** Every button and link is ≥ 44px on touch viewports via Tailwind 4.1's built-in `pointer-coarse:` variant (`pointer-coarse:min-h-11`, icon buttons `pointer-coarse:size-11`), leaving desktop sizes unchanged. Every `hover:` affordance gets a matching `active:` state (Tailwind v4 already limits `hover:` to hover-capable devices).
 
 ### Shared layout (`HeliosWeb.Layouts`, `root.html.heex`)
 
 - `min-h-screen` → `min-h-dvh` (root body, `Layouts.app`, login, game).
 - Viewport meta: `width=device-width, initial-scale=1, viewport-fit=cover`.
-- Site header (`#site-header`): `px-3 py-2 sm:px-6 sm:py-3`; name `truncate min-w-0` with `text-base sm:text-lg`; `#my-table-link` and `#logout-link` `min-h-11` with centred content.
-- Notifications (`#notifications`): below `sm`, in normal flow directly under the header (`static`, full width); from `sm`, today's fixed overlay (`sm:fixed sm:inset-x-0 sm:top-4`). Message text wraps; Accept/Decline/OK `min-h-11`.
+- Site header (`#site-header`): `px-3 py-2 sm:px-6 sm:py-3`; name `truncate min-w-0` with `text-base sm:text-lg`; `#my-table-link` and `#logout-link` `pointer-coarse:min-h-11` with centred content.
+- Notifications (`#notifications`): below `sm`, in normal flow directly under the header (`static`, full width); from `sm`, today's fixed overlay (`sm:fixed sm:inset-x-0 sm:top-4`). Message text wraps; Accept/Decline/OK `pointer-coarse:min-h-11`.
 - Flash group (`#flash-group`): `fixed inset-x-2 top-2` below `sm`; `sm:inset-x-auto sm:right-4 sm:top-4 sm:w-96` above.
 
 ### Lobby (`LobbyLive`, `LobbyGamePanel`)
 
 - Invite form (`#invite-form`): `flex-col sm:flex-row`; select and `#invite-button` full width below `sm`; drop the `mb-2` alignment hack on phones.
-- `#game-in-progress` and the Start row wrap (`flex-wrap`); `#rejoin-game` and `#start-game` `min-h-11`.
-- `#uninvite-*`: `size-11 sm:size-8`.
+- `#game-in-progress` and the Start row wrap (`flex-wrap`); `#rejoin-game` and `#start-game` `pointer-coarse:min-h-11`.
+- `#uninvite-*`: `size-8 pointer-coarse:size-11`.
 
 ### Login (`LoginLive`)
 
@@ -88,7 +89,7 @@ When `GameFormat.show_hand?/1` is false and there is no status line, the dock is
 
 - Table and columns unchanged. Card padding `p-3 sm:p-6`.
 - Player column sticky (`sticky left-0` with the row's background and a right shadow) while the score columns scroll inside the existing `overflow-x-auto`; a right-edge fade hints at more columns on phones.
-- `#back-to-lobby` full width below `sm`, `min-h-11`.
+- `#back-to-lobby` full width below `sm`, `pointer-coarse:min-h-11`.
 
 ## Testing
 
@@ -100,12 +101,13 @@ Projects in `playwright.config.ts`:
 - `responsive` — `testMatch: /responsive\.spec\.ts/`, desktop base; the spec sets viewports itself.
 - `workers: 1` stays (SQLite contention).
 
-Context creation: every manual `browser.newContext()` (support `lobby.ts`, `game.ts`, `auth.spec.ts`) goes through one helper in `tests/support/` that explicitly passes the current project's device options (`viewport`, `deviceScaleFactor`, `isMobile`, `hasTouch`, `userAgent`) from `test.info().project.use`, merged with per-call overrides. A guard test asserts the `mobile` project really runs at 412px wide so a silent desktop fallback fails.
+Context creation: in Playwright 1.63 a manual `browser.newContext()` inherits the project's (and `test.use`'s) device options — verified 2026-09-30 with a Pixel 7 project (412px, `pointer: coarse`, Android UA in both fixture and manual contexts) — so the existing helpers need no change. A guard test (`device.spec.ts`) asserts the `mobile` project really runs at 412px with a coarse pointer, and the responsive spec asserts each context's viewport, so a silent desktop fallback fails.
 
 `responsive.spec.ts` — for each viewport in `360×740`, `390×844`, `740×360` (landscape), `768×1024`, `1280×800`, one 3-player table (all three players at that viewport; touch enabled when width < 1024):
 - No horizontal scroll (`documentElement.scrollWidth <= innerWidth`) on login, lobby, game table, game with sheet open.
 - `#hand` fully in viewport without scrolling (`toBeInViewport({ ratio: 1 })`); landscape: dock height ≤ 40% of viewport height.
 - Tap a hand card → `#action-panel` and each of its buttons fully in viewport; scrim tap, `#close-action-panel` and Escape each close it (`#action-panel` count 0).
+- `game.spec.ts` "change choice": after `#change-choice`, close the sheet (`#close-action-panel`) before tapping a different card.
 - Scrolled to the bottom, the last table panel's bottom edge ≤ the dock's top edge.
 - On touch viewports: action-sheet buttons, `#change-choice`, `#my-table-link`, `#logout-link`, `#uninvite-*`, notification buttons are ≥ 44×44.
 - Phones: `#top-bar` height ≤ 2 text rows (assert ≤ 96px); `#waiting-count` visible and `#waiting-for` hidden.
@@ -118,7 +120,7 @@ A shared helper `expectNoHorizontalScroll(page)` lives in `tests/support/`.
 
 - `deselect` via scrim click, close button and Escape keydown clears the selection and removes `#action-panel`; `deselect` with nothing selected is a no-op.
 - `#discard-picker` has no `#close-action-panel`, no scrim and no `phx-window-keydown`.
-- Pending-choice and extra-turn notices render inside `#hand`.
+- Pending-choice and extra-turn notices render inside `#dock`; `#discard-picker` renders outside it; no `#dock` at game over.
 - `#waiting-count` shows "Waiting for N" with the names in `title`; `#waiting-for` text is unchanged.
 - Existing component/LiveView tests pass unchanged (ids preserved).
 
