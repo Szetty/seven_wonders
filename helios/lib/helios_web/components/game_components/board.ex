@@ -19,7 +19,7 @@ defmodule HeliosWeb.GameComponents.Board do
     <section
       id="my-board"
       data-player={@player.name}
-      class="order-first flex flex-col gap-3 rounded-xl bg-antique/90 p-3 shadow-lg lg:order-none"
+      class="min-w-0 order-first flex flex-col gap-3 rounded-xl bg-antique/90 p-3 shadow-lg lg:order-none"
     >
       <div class="relative overflow-hidden rounded-lg">
         <img

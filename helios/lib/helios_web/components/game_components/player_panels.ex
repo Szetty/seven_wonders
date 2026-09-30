@@ -14,7 +14,7 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
     <section
       id={@id}
       data-player={@player.name}
-      class="flex flex-col gap-2 rounded-xl bg-antique/90 p-3 shadow"
+      class="min-w-0 flex flex-col gap-2 rounded-xl bg-antique/90 p-3 shadow"
     >
       <header class="flex items-center justify-between gap-2">
         <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">{@label}</span>
