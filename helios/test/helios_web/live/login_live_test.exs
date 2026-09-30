@@ -113,4 +113,11 @@ defmodule HeliosWeb.LoginLiveTest do
       assert %{name: ^name} = Accounts.get_user_by_session_token(get_session(conn, :user_token))
     end
   end
+
+  test "the root layout lets pages extend under phone notches and home bars", %{conn: conn} do
+    doc = conn |> get(~p"/login") |> html_response(200) |> LazyHTML.from_document()
+
+    assert doc |> LazyHTML.query("meta[name='viewport']") |> LazyHTML.attribute("content") ==
+             ["width=device-width, initial-scale=1, viewport-fit=cover"]
+  end
 end
