@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { closeAll, newPlayer, setupTable, startGame, waitForTurn } from "./support/game";
+import {
+  closeAll,
+  newPlayer,
+  playFirstBuildableOrDiscard,
+  setupTable,
+  startGame,
+  waitForTurn,
+} from "./support/game";
 import {
   LONG_NAME_PREFIX,
   VIEWPORTS,
@@ -96,7 +103,44 @@ for (const vp of VIEWPORTS) {
         await expect(page.locator("#waiting-count")).toBeHidden();
       }
 
+      // --- table: neighbours fold into summaries below md, and stay open across updates
+      if (vp.width < 768) {
+        await expect(page.locator("#west-panel-details")).toBeHidden();
+        await page.locator("#west-panel-toggle").click();
+        await expect(page.locator("#west-panel-details")).toBeVisible();
+        await expect(page.locator("#west-panel-toggle")).toHaveAttribute("aria-expanded", "true");
+        if (vp.touch) await expectTapTargets(page.locator("#west-panel-toggle, #east-panel-toggle"));
+
+        await playFirstBuildableOrDiscard(players[1].page);
+        await expect(page.locator("#waiting-count")).toHaveText(/Waiting for 2/);
+        await expect(page.locator("#west-panel-details")).toBeVisible();
+      } else {
+        await expect(page.locator("#west-panel-toggle")).toBeHidden();
+        await expect(page.locator("#west-panel-details")).toBeVisible();
+        await playFirstBuildableOrDiscard(players[1].page);
+      }
+      await expectNoHorizontalScroll(page);
+
       await closeAll(players);
     });
   });
 }
+
+test.describe("seven players on a small phone", () => {
+  test.use({ viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true });
+
+  test("the table still fits", async ({ browser }) => {
+    test.setTimeout(180_000);
+    const { owner, players } = await setupTable(browser, 7, LONG_NAME_PREFIX);
+    await startGame(owner, players);
+    const page = owner.page;
+    await waitForTurn(page, 1, 1);
+    await expectViewport(page, { name: "small-android", width: 360, height: 740, touch: true });
+    await expectNoHorizontalScroll(page);
+    expect((await boxOf(page.locator("#top-bar"))).height).toBeLessThanOrEqual(96);
+    await expect(page.locator("#other-players article")).toHaveCount(4);
+    const strip = await boxOf(page.locator("#other-players"));
+    expect(strip.x + strip.width).toBeLessThanOrEqual(360);
+    await closeAll(players);
+  });
+});

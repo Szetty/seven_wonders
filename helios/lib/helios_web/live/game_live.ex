@@ -23,28 +23,40 @@ defmodule HeliosWeb.GameLive do
     <Layouts.app flash={@flash} current_scope={@current_scope} notifications={@notifications}>
       <div
         id="game"
-        class="min-h-screen bg-[url('/images/paper.jpg')] bg-cover bg-fixed px-2 py-4 sm:px-4 lg:px-8"
+        class="flex min-h-dvh flex-col bg-[url('/images/paper.jpg')] bg-cover lg:bg-fixed"
       >
-        <div class="mx-auto flex max-w-7xl flex-col gap-4">
+        <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-2 pt-3 sm:gap-4 sm:px-4 sm:pt-4 lg:px-8">
           <.top_bar view={@view} names={@names} connected={@connected} />
           <%= if @view.phase.kind == :game_over do %>
-            <.scoreboard scores={@view.scores} names={@names} me={@view.me} lobby_id={@game.lobby_id} />
-          <% else %>
-            <.others_strip :if={@others != []} players={@others} names={@names} />
-            <div class="grid gap-4 lg:grid-cols-[1fr_2fr_1fr]">
-              <.neighbour_panel id="west-panel" label="West" player={@west} names={@names} />
-              <.my_board player={@me} />
-              <.neighbour_panel id="east-panel" label="East" player={@east} names={@names} />
+            <div class="pb-4">
+              <.scoreboard
+                scores={@view.scores}
+                names={@names}
+                me={@view.me}
+                lobby_id={@game.lobby_id}
+              />
             </div>
-            <.extra_turn view={@view} names={@names} />
-            <.pending_choice :if={@view.my_pending && is_nil(@selected)} action={@view.my_pending} />
-            <.hand
-              :if={GameFormat.show_hand?(@view)}
-              hand={@view.hand}
-              selected={@selected}
-              pending={@view.my_pending}
-            />
-            <.action_panel :if={@selected_card} card={@selected_card} />
+          <% else %>
+            <div id="table" class="flex flex-1 flex-col gap-3 pb-1 sm:gap-4">
+              <.others_strip :if={@others != []} players={@others} names={@names} />
+              <div class="grid items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-[1fr_2fr_1fr]">
+                <.neighbour_panel id="west-panel" label="West" player={@west} names={@names} />
+                <.my_board player={@me} />
+                <.neighbour_panel id="east-panel" label="East" player={@east} names={@names} />
+              </div>
+              <.extra_turn view={@view} names={@names} />
+              <.pending_choice
+                :if={@view.my_pending && is_nil(@selected)}
+                action={@view.my_pending}
+              />
+              <.hand
+                :if={GameFormat.show_hand?(@view)}
+                hand={@view.hand}
+                selected={@selected}
+                pending={@view.my_pending}
+              />
+              <.action_panel :if={@selected_card} card={@selected_card} />
+            </div>
           <% end %>
         </div>
       </div>

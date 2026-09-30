@@ -37,6 +37,27 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
     assert attrs(html, "#east-panel [data-card]", "title") == ["Lumber Yard", "Altar", "Stockade"]
   end
 
+  test "neighbour panel folds into a one-line summary toggle on phones" do
+    html =
+      render_component(&PlayerPanels.neighbour_panel/1,
+        id: "east-panel",
+        label: "East",
+        player: SampleViews.player("2", %{wonder: "Rhódos", side: :b}),
+        names: SampleViews.names()
+      )
+
+    assert attrs(html, "#east-panel-toggle", "aria-controls") == ["east-panel-details"]
+    assert attrs(html, "#east-panel-toggle", "aria-expanded") == ["false"]
+    assert text(html, "#east-panel-toggle") =~ "East"
+    assert text(html, "#east-panel-toggle") =~ "Bob"
+    assert attrs(html, "#east-panel-toggle img", "alt") |> Enum.all?(&(&1 == ""))
+    assert [js] = attrs(html, "#east-panel-toggle", "phx-click")
+    assert js =~ "toggle_class" and js =~ "is-open"
+    assert count(html, "#east-panel-details header") == 1
+    # The summary must not duplicate what the existing test counts.
+    assert count(html, "#east-panel-toggle [data-stat], #east-panel-toggle [data-card]") == 0
+  end
+
   test "others strip summarises each remaining player with colour counts" do
     html =
       render_component(&PlayerPanels.others_strip/1,
