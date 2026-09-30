@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust 2021 (stable via `mise`), rustler (the ≥ 0.36 version Phase 0 pinned; latest is 0.38.0), `rand_chacha = "0.10.0"`, serde / serde_json, lazy_static, maplit, itertools, strum, derive_more. Helios side: Elixir 1.19 / OTP 28, ExUnit, Jason.
 
-**Spec:** `docs/superpowers/specs/2026-09-23-phase-3-engine-design.md`. Read it alongside `2026-09-23-migration-overview-design.md`, `2026-09-23-phase-0-foundation-design.md` (its end state is this plan's starting state) and `2026-09-23-phase-4-game-design.md` (Phase 4 consumes this NIF API, so the names must match).
+**Spec:** `docs/superpowers/specs/2026-09-23-migration/2026-09-23-phase-3-engine-design.md`. Read it alongside `2026-09-23-migration-overview-design.md`, `2026-09-23-phase-0-foundation-design.md` (its end state is this plan's starting state) and `2026-09-23-phase-4-game-design.md` (Phase 4 consumes this NIF API, so the names must match).
 
 ---
 

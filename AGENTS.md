@@ -4,18 +4,18 @@ An online implementation of the 7 Wonders board game (base game, 3–7 players).
 
 ## Repository layout
 
-Target layout (see `docs/superpowers/specs/2026-09-23-migration-overview-design.md`):
+Target layout (see `docs/superpowers/specs/2026-09-23-migration/2026-09-23-migration-overview-design.md`):
 
 - `helios/` — Phoenix 1.8 / LiveView app: UI, auth, lobby, game orchestration, SQLite persistence. **Read `helios/AGENTS.md` before touching it**; it takes precedence for files under `helios/`.
 - `core/` — Rust 7 Wonders engine (crate `seven_wonders_core`), loaded into Helios as a Rustler NIF via `Helios.Core` / `Helios.Core.Native`.
 - `e2e/` — Playwright end-to-end tests. Standalone package that drives a running Helios (`MIX_ENV=e2e`, port 4004). No application code.
-- `docs/superpowers/` — design specs (`specs/`) and implementation plans (`plans/`).
+- `docs/superpowers/` — design specs (`specs/`) and implementation plans (`plans/`), grouped in one folder per initiative (`<date>-<initiative>/`, e.g. `2026-09-23-migration/`, `2026-09-30-responsive-ui/`).
 
 Legacy folders — `backend/`, `backend_old/`, `frontend/`, `websocket-client/`, `integration-tests/`, `proto/` — are deprecated. Use them only as behavioural reference; never add features to them. Each is deleted by the migration phase that replaces it.
 
 ## Migration in progress
 
-The repo is being migrated in phases 0–5. Before doing migration work, read `docs/superpowers/plans/README.md` (order, human checkpoints, open decisions) and check `git log` to see which phase/tasks are done. Follow the plans; if a plan can't be followed as written, stop and ask rather than redesigning.
+The repo is being migrated in phases 0–5. Before doing migration work, read `docs/superpowers/plans/2026-09-23-migration/README.md` (order, human checkpoints, open decisions) and check `git log` to see which phase/tasks are done. Follow the plans; if a plan can't be followed as written, stop and ask rather than redesigning.
 
 ## Toolchain
 

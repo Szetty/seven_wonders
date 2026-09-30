@@ -1,6 +1,6 @@
 # Migration Plans — Execution Guide
 
-Plans implementing `docs/superpowers/specs/2026-09-23-*` (start with `2026-09-23-migration-overview-design.md`).
+Plans implementing `docs/superpowers/specs/2026-09-23-migration/2026-09-23-*` (start with `2026-09-23-migration-overview-design.md`).
 
 ## Execution method
 

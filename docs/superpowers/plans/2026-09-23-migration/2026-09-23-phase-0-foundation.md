@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust 1.98.1 (edition 2021), rustler 0.38.0, derive_more 2.1.1, strum 0.28, rand 0.10.3, itertools 0.15, serde_json; Elixir 1.19.5-otp-28 / Erlang 28, Phoenix 1.8, LiveView 1.1, Hex `rustler ~> 0.38.0`; GitHub Actions with `jdx/mise-action@v4`.
 
-**Spec:** `docs/superpowers/specs/2026-09-23-phase-0-foundation-design.md` (cross-cutting decisions: `docs/superpowers/specs/2026-09-23-migration-overview-design.md`; downstream consumers: `2026-09-23-phase-1-auth-design.md`, `2026-09-23-phase-3-engine-design.md`).
+**Spec:** `docs/superpowers/specs/2026-09-23-migration/2026-09-23-phase-0-foundation-design.md` (cross-cutting decisions: `docs/superpowers/specs/2026-09-23-migration/2026-09-23-migration-overview-design.md`; downstream consumers: `2026-09-23-phase-1-auth-design.md`, `2026-09-23-phase-3-engine-design.md`).
 
 ## Global Constraints
 
@@ -1845,8 +1845,8 @@ Only with the human's approval, run:
 ```bash
 git push -u origin game_ui
 gh pr create --base master --head game_ui --title "Phase 0: foundation (Helios + seven_wonders_core NIF)" --body "$(cat <<'EOF'
-Implements docs/superpowers/specs/2026-09-23-phase-0-foundation-design.md
-(plan: docs/superpowers/plans/2026-09-23-phase-0-foundation.md).
+Implements docs/superpowers/specs/2026-09-23-migration/2026-09-23-phase-0-foundation-design.md
+(plan: docs/superpowers/plans/2026-09-23-migration/2026-09-23-phase-0-foundation.md).
 
 - Helios committed; Tidewave token from TIDEWAVE_TOKEN
 - core -> seven_wonders_core (edition 2021, rustler 0.38, no protobuf)

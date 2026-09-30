@@ -1,6 +1,6 @@
 # Responsive UI — play full games on a phone
 
-Status: approved design (2026-09-30). Builds on Phase 4 (`2026-09-23-phase-4-game-design.md`). Independent of Phase 5 (release).
+Status: approved design (2026-09-30). Builds on Phase 4 (`docs/superpowers/specs/2026-09-23-migration/2026-09-23-phase-4-game-design.md`). Independent of Phase 5 (release).
 
 ## Goal
 

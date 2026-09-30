@@ -42,7 +42,7 @@ Everything else (`backend/`, `backend_old/`, `frontend/`, `websocket-client/`, `
 | 4 | GameServer + GameLive | `2026-09-23-phase-4-game-design.md` | 2, 3 | `frontend/` |
 | 5 | Release & cleanup | `2026-09-23-phase-5-release-design.md` | 4 | `bin/` leftovers, stale docs |
 
-Each phase has its own implementation plan in `docs/superpowers/plans/`.
+Each phase has its own implementation plan in `docs/superpowers/plans/2026-09-23-migration/`.
 
 ## Target architecture
 

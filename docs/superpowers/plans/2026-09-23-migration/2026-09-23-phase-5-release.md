@@ -8,7 +8,7 @@
 
 **Tech Stack:** Docker (BuildKit), `hexpm/elixir:1.19.5-erlang-28.5.0.5-debian-trixie-20260824-slim`, `debian:trixie-20260824-slim`, rustup (minimal profile), Elixir releases (`mix release`), Rustler (version pinned in Phase 0; `mode: :release` is its default — verified in Task 1 Step 4), bash + curl, GitHub Actions.
 
-**Spec:** `docs/superpowers/specs/2026-09-23-phase-5-release-design.md` (overview: `docs/superpowers/specs/2026-09-23-migration-overview-design.md`)
+**Spec:** `docs/superpowers/specs/2026-09-23-migration/2026-09-23-phase-5-release-design.md` (overview: `docs/superpowers/specs/2026-09-23-migration/2026-09-23-migration-overview-design.md`)
 
 ## Global Constraints
 
@@ -1108,7 +1108,7 @@ For each remaining hit outside `docs/`, apply this rule: if the line only concer
 - [ ] **Step 5: Update the root `AGENTS.md` for the finished migration**
 
 In `AGENTS.md` (repo root; not `helios/AGENTS.md`):
-1. In "Repository layout", change the line `Target layout (see ...):` to `Layout (design: docs/superpowers/specs/2026-09-23-migration-overview-design.md):`, and delete the paragraph starting `Legacy folders —` entirely.
+1. In "Repository layout", change the line `Target layout (see ...):` to `Layout (design: docs/superpowers/specs/2026-09-23-migration/2026-09-23-migration-overview-design.md):`, and delete the paragraph starting `Legacy folders —` entirely.
 2. Replace the whole "## Migration in progress" section (heading and paragraph) with:
 ```markdown
 ## History
