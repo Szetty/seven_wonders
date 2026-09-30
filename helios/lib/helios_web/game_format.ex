@@ -15,6 +15,11 @@ defmodule HeliosWeb.GameFormat do
 
   def category_order, do: @category_order
 
+  @sheet_class "fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-2xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-black/5 lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:w-full lg:max-w-xl lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:pb-4"
+
+  @doc "Bottom sheet on phones and tablets, centred modal from `lg`."
+  def sheet_class, do: @sheet_class
+
   def roman(1), do: "I"
   def roman(2), do: "II"
   def roman(3), do: "III"

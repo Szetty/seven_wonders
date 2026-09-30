@@ -5,8 +5,8 @@ defmodule HeliosWeb.GameComponents.Hand do
   alias Helios.Games
   alias HeliosWeb.{GameAssets, GameFormat}
 
-  @action_button "rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white shadow transition hover:-translate-y-0.5 hover:bg-zinc-700"
-  @disabled_button "cursor-not-allowed rounded-lg bg-zinc-200 px-3 py-2 text-sm text-zinc-500"
+  @action_button "inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white shadow transition hover:-translate-y-0.5 hover:bg-zinc-700 active:translate-y-0 active:bg-zinc-800 sm:w-auto pointer-coarse:min-h-11"
+  @disabled_button "inline-flex w-full cursor-not-allowed items-center justify-center rounded-lg bg-zinc-200 px-3 py-2 text-sm text-zinc-500 sm:w-auto pointer-coarse:min-h-11"
 
   attr :hand, :list, required: true
   attr :selected, :string, default: nil
@@ -59,15 +59,42 @@ defmodule HeliosWeb.GameComponents.Hand do
     assigns = assign(assigns, :button_class, @action_button)
 
     ~H"""
-    <section id="action-panel" class="rounded-xl bg-white/95 p-4 shadow-xl ring-1 ring-black/5">
-      <div class="flex items-start gap-4">
+    <div
+      id="action-scrim"
+      phx-click="deselect"
+      class="fixed inset-0 z-40 bg-black/35"
+      aria-hidden="true"
+    >
+    </div>
+    <section
+      id="action-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="action-panel-title"
+      phx-window-keydown="deselect"
+      phx-key="Escape"
+      class={GameFormat.sheet_class()}
+    >
+      <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-zinc-300 lg:hidden" aria-hidden="true"></div>
+      <button
+        id="close-action-panel"
+        type="button"
+        phx-click="deselect"
+        aria-label="Close"
+        class="absolute right-2 top-2 inline-flex size-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 active:text-zinc-900 pointer-coarse:size-11"
+      >
+        <.icon name="hero-x-mark" class="size-5" />
+      </button>
+      <div class="flex items-start gap-3 sm:gap-4">
         <img
           src={GameAssets.card_path(@card.name)}
           alt={@card.name}
-          class="hidden h-[183px] w-[120px] rounded-lg sm:block"
+          class="h-[147px] w-24 shrink-0 rounded-lg sm:h-[183px] sm:w-[120px] short:h-[98px] short:w-16"
         />
-        <div class="flex flex-1 flex-col gap-3">
-          <h3 class="text-lg font-semibold text-zinc-900">{@card.name}</h3>
+        <div class="flex min-w-0 flex-1 flex-col gap-3">
+          <h3 id="action-panel-title" class="pr-10 text-lg font-semibold text-zinc-900">
+            {@card.name}
+          </h3>
           <.option_group
             id="build-options"
             title="Build"
@@ -105,7 +132,7 @@ defmodule HeliosWeb.GameComponents.Hand do
               phx-value-card={@card.name}
               phx-value-kind="discard"
               phx-value-option="0"
-              class="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 transition hover:bg-zinc-100"
+              class="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 transition hover:bg-zinc-100 active:bg-zinc-200 sm:w-auto pointer-coarse:min-h-11"
             >
               <.icon name="hero-trash" class="size-4" /> Discard (+3 coins)
             </button>
@@ -135,7 +162,7 @@ defmodule HeliosWeb.GameComponents.Hand do
             {Games.error_message(reason)}
           </button>
         <% {:trade, options} -> %>
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               :for={{payment_option, index} <- Enum.with_index(options)}
               id={"#{@prefix}-option-#{index}"}

@@ -38,6 +38,16 @@ defmodule HeliosWeb.GameComponents.ExtraTurnTest do
     assert count(render_notice(view), "#waiting-extra-turn, #play-last-card") == 0
   end
 
+  test "the discard picker is a dialog that cannot be dismissed" do
+    html = render_picker(extra("1", :build_from_discard, %{discard_pile: ["Altar"], hand: []}))
+    assert attrs(html, "#discard-picker", "role") == ["dialog"]
+    assert attrs(html, "#discard-picker", "aria-labelledby") == ["discard-picker-title"]
+    assert count(html, "#discard-scrim") == 1
+    assert count(html, "#discard-scrim[phx-click]") == 0
+    assert count(html, "#discard-picker[phx-window-keydown]") == 0
+    assert count(html, "#close-action-panel") == 0
+  end
+
   test "my play-last-card turn shows the notice and no picker" do
     view = extra("1", :play_last_card)
     assert text(render_notice(view), "#play-last-card") =~ "Play your last card"

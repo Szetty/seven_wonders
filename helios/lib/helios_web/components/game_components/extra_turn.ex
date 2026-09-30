@@ -40,30 +40,39 @@ defmodule HeliosWeb.GameComponents.ExtraTurn do
 
   def discard_picker(assigns) do
     ~H"""
-    <section
-      :if={my_discard_turn?(@view)}
-      id="discard-picker"
-      class="rounded-xl bg-antique/95 p-4 shadow-xl"
-    >
-      <h2 class="mb-3 font-semibold text-zinc-900">
-        Build one card from the discard pile for free
-      </h2>
-      <div class="flex flex-wrap gap-2">
-        <button
-          :for={{card, index} <- Enum.with_index(@view.discard_pile || [])}
-          id={"discard-pick-#{index}"}
-          type="button"
-          phx-click="submit"
-          phx-value-card={card}
-          phx-value-kind="build_from_discard"
-          phx-value-option="0"
-          data-card={card}
-          class="rounded-lg transition hover:-translate-y-1 hover:ring-4 hover:ring-sky-400"
-        >
-          <img src={GameAssets.card_path(card)} alt={card} class="h-[183px] w-[120px] rounded-lg" />
-        </button>
-      </div>
-    </section>
+    <%= if my_discard_turn?(@view) do %>
+      <div id="discard-scrim" class="fixed inset-0 z-40 bg-black/35" aria-hidden="true"></div>
+      <section
+        id="discard-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="discard-picker-title"
+        class={GameFormat.sheet_class()}
+      >
+        <h2 id="discard-picker-title" class="mb-3 font-semibold text-zinc-900">
+          Build one card from the discard pile for free
+        </h2>
+        <div class="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+          <button
+            :for={{card, index} <- Enum.with_index(@view.discard_pile || [])}
+            id={"discard-pick-#{index}"}
+            type="button"
+            phx-click="submit"
+            phx-value-card={card}
+            phx-value-kind="build_from_discard"
+            phx-value-option="0"
+            data-card={card}
+            class="rounded-lg transition hover:-translate-y-1 hover:ring-4 hover:ring-sky-400 active:scale-95 active:ring-4 active:ring-sky-400"
+          >
+            <img
+              src={GameAssets.card_path(card)}
+              alt={card}
+              class="aspect-[120/183] w-full rounded-lg sm:h-[183px] sm:w-[120px]"
+            />
+          </button>
+        </div>
+      </section>
+    <% end %>
     """
   end
 

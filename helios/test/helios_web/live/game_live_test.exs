@@ -68,6 +68,41 @@ defmodule HeliosWeb.GameLiveTest do
     refute has_element?(view, "#action-panel")
   end
 
+  test "the action sheet closes from the scrim, the close button and Escape", %{
+    game: game,
+    players: [{_a, ta} | _]
+  } do
+    {:ok, view, _html} = open(ta, game.id)
+
+    closers = [
+      fn view -> view |> element("#action-scrim") |> render_click() end,
+      fn view -> view |> element("#close-action-panel") |> render_click() end,
+      fn view -> view |> element("#action-panel") |> render_keydown(%{"key" => "Escape"}) end
+    ]
+
+    for close <- closers do
+      view |> element("#hand-card-0") |> render_click()
+      assert has_element?(view, "#action-panel[role='dialog']")
+      close.(view)
+      refute has_element?(view, "#action-panel")
+      refute has_element?(view, "#action-scrim")
+      assert has_element?(view, "#hand-card-0[aria-pressed='false']")
+    end
+  end
+
+  test "other keys and a deselect with nothing selected change nothing", %{
+    game: game,
+    players: [{_a, ta} | _]
+  } do
+    {:ok, view, _html} = open(ta, game.id)
+    render_click(view, "deselect", %{})
+    refute has_element?(view, "#action-panel")
+
+    view |> element("#hand-card-0") |> render_click()
+    view |> element("#action-panel") |> render_keydown(%{"key" => "a"})
+    assert has_element?(view, "#action-panel")
+  end
+
   test "three players submitting advances the turn", %{game: game, players: players} do
     [{_a, _}, {b, _}, {c, _}] = players
     views = Enum.map(players, fn {_user, token} -> elem(open(token, game.id), 1) end)

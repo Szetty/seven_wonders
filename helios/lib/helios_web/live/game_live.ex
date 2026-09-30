@@ -185,6 +185,13 @@ defmodule HeliosWeb.GameLive do
     {:noreply, assign_selection(socket, name)}
   end
 
+  # `phx-key="Escape"` filters keys in the browser; this guard keeps the server
+  # safe from other keys (and hand-crafted events) too.
+  def handle_event("deselect", %{"key" => key}, socket) when key != "Escape",
+    do: {:noreply, socket}
+
+  def handle_event("deselect", _params, socket), do: {:noreply, assign_selection(socket, nil)}
+
   def handle_event("submit", params, socket) do
     %{game: game, current_scope: %{user: user}} = socket.assigns
 

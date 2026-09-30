@@ -140,6 +140,43 @@ for (const vp of VIEWPORTS) {
         await page.setViewportSize({ width: vp.width, height: vp.height });
       }
 
+      // --- action sheet
+      const firstCard = page.locator("#hand [data-card]").first();
+      const sheet = page.locator("#action-panel");
+      await firstCard.click();
+      await expect(sheet).toBeVisible();
+      expect((await boxOf(sheet)).height).toBeLessThanOrEqual(vp.height);
+      if (vp.height > 500) {
+        for (const button of await sheet.locator("button:visible").all()) {
+          await expect(button).toBeInViewport({ ratio: 1 });
+        }
+      } else {
+        // Landscape phones: the sheet scrolls internally; Discard must be reachable.
+        await page.locator("#discard-button").scrollIntoViewIfNeeded();
+        await expect(page.locator("#discard-button")).toBeInViewport({ ratio: 1 });
+      }
+      if (vp.touch) await expectTapTargets(sheet.locator("button:visible"));
+      await expectNoHorizontalScroll(page);
+
+      await page.locator("#action-scrim").click({ position: { x: 5, y: 5 } });
+      await expect(sheet).toHaveCount(0);
+
+      await firstCard.click();
+      await page.keyboard.press("a");
+      await expect(sheet).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(sheet).toHaveCount(0);
+
+      await firstCard.click();
+      await page.locator("#close-action-panel").click();
+      await expect(sheet).toHaveCount(0);
+
+      // --- the pending choice lives in the dock
+      await firstCard.click();
+      await page.locator("#discard-button").click();
+      await expect(page.locator("#dock #pending-choice")).toBeInViewport({ ratio: 1 });
+      if (vp.touch) await expectTapTargets(page.locator("#change-choice"));
+
       await closeAll(players);
     });
   });

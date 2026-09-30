@@ -48,6 +48,19 @@ defmodule HeliosWeb.GameComponents.HandTest do
     assert text(farm, "#build-option-0") == "Pay 1 coin"
   end
 
+  test "the action panel is a dismissable dialog" do
+    html = render_component(&Hand.action_panel/1, card: card("Tavern"))
+    assert attrs(html, "#action-panel", "role") == ["dialog"]
+    assert attrs(html, "#action-panel", "aria-modal") == ["true"]
+    assert attrs(html, "#action-panel", "aria-labelledby") == ["action-panel-title"]
+    assert text(html, "#action-panel-title") == "Tavern"
+    assert attrs(html, "#action-panel", "phx-window-keydown") == ["deselect"]
+    assert attrs(html, "#action-panel", "phx-key") == ["Escape"]
+    assert attrs(html, "#close-action-panel", "phx-click") == ["deselect"]
+    assert attrs(html, "#close-action-panel", "aria-label") == ["Close"]
+    assert attrs(html, "#action-scrim", "phx-click") == ["deselect"]
+  end
+
   test "pending choice banner describes the choice and offers Change" do
     html = render_component(&Hand.pending_choice/1, action: {:discard, "Baths"})
     assert text(html, "#pending-choice") =~ "You chose: Discard Baths"
