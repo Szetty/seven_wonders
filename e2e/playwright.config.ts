@@ -15,7 +15,26 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /responsive\.spec\.ts/,
+    },
+    {
+      // Every existing spec again on a phone-sized touch screen (chromium engine,
+      // so CI needs no extra browser).
+      name: "mobile",
+      use: { ...devices["Pixel 7"] },
+      testIgnore: /responsive\.spec\.ts/,
+    },
+    {
+      // Layout rules over a viewport matrix; the spec sets viewports itself.
+      name: "responsive",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /responsive\.spec\.ts/,
+    },
+  ],
   webServer: {
     // assets.build runs first: ecto.setup's seeds step starts the endpoint
     // (server: true), so assets must exist before /login starts answering.

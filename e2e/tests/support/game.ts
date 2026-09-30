@@ -22,12 +22,16 @@ export async function inviteAndAccept(owner: Player, guest: Player): Promise<voi
   await waitForLive(guest.page);
 }
 
-export async function setupTable(browser: Browser, count: number) {
+export async function setupTable(browser: Browser, count: number, prefix = "g") {
   const players: Player[] = [];
-  for (let i = 0; i < count; i++) players.push(await newPlayer(browser, `g${i}`));
+  for (let i = 0; i < count; i++) players.push(await newPlayer(browser, `${prefix}${i}`));
   const [owner, ...guests] = players;
   for (const guest of guests) await inviteAndAccept(owner, guest);
   return { owner, guests, players };
+}
+
+export async function closeAll(players: Player[]): Promise<void> {
+  for (const player of players) await player.context.close();
 }
 
 export async function startGame(owner: Player, players: Player[]): Promise<void> {
