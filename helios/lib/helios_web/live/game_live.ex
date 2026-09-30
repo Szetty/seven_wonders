@@ -44,7 +44,13 @@ defmodule HeliosWeb.GameLive do
                 <.my_board player={@me} />
                 <.neighbour_panel id="east-panel" label="East" player={@east} names={@names} />
               </div>
-              <.extra_turn view={@view} names={@names} />
+            </div>
+            <div
+              :if={GameFormat.dock?(@view)}
+              id="dock"
+              class="sticky bottom-0 z-30 -mx-2 flex flex-col gap-2 rounded-t-xl bg-antique/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.2)] sm:mx-0 sm:px-3"
+            >
+              <.extra_turn_notice view={@view} names={@names} />
               <.pending_choice
                 :if={@view.my_pending && is_nil(@selected)}
                 action={@view.my_pending}
@@ -55,8 +61,9 @@ defmodule HeliosWeb.GameLive do
                 selected={@selected}
                 pending={@view.my_pending}
               />
-              <.action_panel :if={@selected_card} card={@selected_card} />
             </div>
+            <.discard_picker view={@view} />
+            <.action_panel :if={@selected_card} card={@selected_card} />
           <% end %>
         </div>
       </div>

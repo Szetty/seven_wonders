@@ -24,31 +24,35 @@ defmodule HeliosWeb.GameComponents.ExtraTurnTest do
     )
   end
 
-  defp render_extra(view),
-    do: render_component(&ExtraTurn.extra_turn/1, view: view, names: SampleViews.names())
+  defp render_notice(view),
+    do: render_component(&ExtraTurn.extra_turn_notice/1, view: view, names: SampleViews.names())
 
-  test "my build-from-discard turn shows a picker over the discard pile" do
-    html =
-      render_extra(extra("1", :build_from_discard, %{discard_pile: ["Altar", "Loom"], hand: []}))
+  defp render_picker(view), do: render_component(&ExtraTurn.discard_picker/1, view: view)
 
+  test "my build-from-discard turn shows a picker over the discard pile and no notice" do
+    view = extra("1", :build_from_discard, %{discard_pile: ["Altar", "Loom"], hand: []})
+    html = render_picker(view)
     assert attrs(html, "#discard-picker [data-card]", "data-card") == ["Altar", "Loom"]
     assert attrs(html, "#discard-pick-1", "phx-value-kind") == ["build_from_discard"]
     assert attrs(html, "#discard-pick-1", "phx-value-card") == ["Loom"]
+    assert count(render_notice(view), "#waiting-extra-turn, #play-last-card") == 0
   end
 
-  test "my play-last-card turn shows the notice" do
-    html = render_extra(extra("1", :play_last_card))
-    assert text(html, "#play-last-card") =~ "Play your last card"
+  test "my play-last-card turn shows the notice and no picker" do
+    view = extra("1", :play_last_card)
+    assert text(render_notice(view), "#play-last-card") =~ "Play your last card"
+    assert count(render_picker(view), "#discard-picker") == 0
   end
 
   test "other players wait for the extra-turn player" do
-    html = render_extra(extra("2", :build_from_discard))
-    assert text(html, "#waiting-extra-turn") =~ "Waiting for Bob"
-    assert count(html, "#discard-picker") == 0
+    view = extra("2", :build_from_discard)
+    assert text(render_notice(view), "#waiting-extra-turn") =~ "Waiting for Bob"
+    assert count(render_picker(view), "#discard-picker") == 0
   end
 
   test "renders nothing outside extra turns" do
-    html = render_extra(SampleViews.view())
-    assert count(html, "#waiting-extra-turn, #play-last-card, #discard-picker") == 0
+    view = SampleViews.view()
+    assert count(render_notice(view), "#waiting-extra-turn, #play-last-card") == 0
+    assert count(render_picker(view), "#discard-picker") == 0
   end
 end

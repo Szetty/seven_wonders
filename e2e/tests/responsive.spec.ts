@@ -121,6 +121,25 @@ for (const vp of VIEWPORTS) {
       }
       await expectNoHorizontalScroll(page);
 
+      // --- dock: the hand is always on screen and never covers the table
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await expect(page.locator("#hand")).toBeInViewport({ ratio: 1 });
+      if (vp.height <= 500) {
+        expect((await boxOf(page.locator("#dock"))).height).toBeLessThanOrEqual(vp.height * 0.4);
+      }
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const table = await boxOf(page.locator("#table"));
+      expect(table.y + table.height).toBeLessThanOrEqual((await boxOf(page.locator("#dock"))).y + 1);
+
+      if (vp.name === "iphone") {
+        // Rotating mid-turn keeps the dock on screen and compact.
+        await page.setViewportSize({ width: vp.height, height: vp.width });
+        await expect(page.locator("#hand")).toBeInViewport({ ratio: 1 });
+        await expectNoHorizontalScroll(page);
+        expect((await boxOf(page.locator("#dock"))).height).toBeLessThanOrEqual(vp.width * 0.4);
+        await page.setViewportSize({ width: vp.width, height: vp.height });
+      }
+
       await closeAll(players);
     });
   });

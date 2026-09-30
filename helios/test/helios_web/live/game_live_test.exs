@@ -29,6 +29,15 @@ defmodule HeliosWeb.GameLiveTest do
     refute has_element?(view, "#action-panel")
   end
 
+  test "the dock holds the hand and the pending choice", %{game: game, players: [{_a, ta} | _]} do
+    {:ok, view, _html} = open(ta, game.id)
+    assert has_element?(view, "#dock #hand #hand-card-0")
+
+    view |> element("#hand-card-0") |> render_click()
+    view |> element("#discard-button") |> render_click()
+    assert has_element?(view, "#dock #pending-choice")
+  end
+
   test "players who are not seated are sent to their own lobby", %{game: game} do
     {outsider, token} = user_with_token_fixture()
     own = Helios.Lobbies.get_or_create_own_lobby(outsider)

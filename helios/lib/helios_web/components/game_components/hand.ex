@@ -16,9 +16,11 @@ defmodule HeliosWeb.GameComponents.Hand do
     assigns = assign(assigns, :pending_card, GameFormat.action_card(assigns.pending))
 
     ~H"""
-    <section id="hand" class="rounded-xl bg-antique/90 p-3 shadow-lg">
-      <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-700">Your hand</h2>
-      <div class="flex gap-2 overflow-x-auto px-1 pb-2 pt-3">
+    <section id="hand" aria-label="Your hand">
+      <h2 class="sr-only text-xs font-semibold uppercase tracking-wide text-zinc-700 sm:not-sr-only short:sr-only">
+        Your hand
+      </h2>
+      <div class="-mx-2 flex snap-x gap-2 overflow-x-auto px-2 pt-2 pb-1 sm:pt-3">
         <button
           :for={{card, index} <- Enum.with_index(@hand)}
           type="button"
@@ -29,7 +31,7 @@ defmodule HeliosWeb.GameComponents.Hand do
           data-buildable={to_string(GameFormat.available?(card.build))}
           aria-pressed={to_string(@selected == card.name)}
           class={[
-            "relative shrink-0 rounded-lg transition duration-150 hover:-translate-y-1 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300",
+            "relative shrink-0 snap-start rounded-lg transition duration-150 hover:-translate-y-1 active:scale-95 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300",
             @selected == card.name && "-translate-y-2 ring-4 ring-sky-500",
             @pending_card == card.name && "ring-4 ring-amber-500"
           ]}
@@ -37,7 +39,7 @@ defmodule HeliosWeb.GameComponents.Hand do
           <img
             src={GameAssets.card_path(card.name)}
             alt={card.name}
-            class="h-[183px] w-[120px] rounded-lg object-cover sm:h-[275px] sm:w-[180px]"
+            class="h-[98px] w-16 rounded-lg object-cover sm:h-[134px] sm:w-22 lg:h-[183px] lg:w-[120px] short:h-[86px] short:w-14"
           />
           <span
             :if={@pending_card == card.name}
@@ -172,7 +174,7 @@ defmodule HeliosWeb.GameComponents.Hand do
     ~H"""
     <div
       id="pending-choice"
-      class="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 ring-1 ring-amber-300"
+      class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm ring-1 ring-amber-300"
     >
       <span class="flex items-center gap-2 text-zinc-800">
         <.icon name="hero-check-circle" class="size-5 text-amber-600" /> You chose:
@@ -183,7 +185,7 @@ defmodule HeliosWeb.GameComponents.Hand do
         type="button"
         phx-click="select_card"
         phx-value-card={GameFormat.action_card(@action)}
-        class="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-zinc-900 ring-1 ring-amber-300 transition hover:bg-amber-100"
+        class="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-zinc-900 ring-1 ring-amber-300 transition hover:bg-amber-100 active:bg-amber-200 pointer-coarse:min-h-11"
       >
         Change
       </button>

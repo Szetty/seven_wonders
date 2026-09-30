@@ -91,4 +91,18 @@ defmodule HeliosWeb.GameFormatTest do
              | phase: %{view.phase | kind: :extra_turn, extra_turn_player: "1"}
            })
   end
+
+  test "dock? shows the dock for a hand or an extra turn, never at game over" do
+    view = SampleViews.view()
+    assert GameFormat.dock?(view)
+    refute GameFormat.dock?(%{view | hand: []})
+
+    assert GameFormat.dock?(%{
+             view
+             | hand: [],
+               phase: %{view.phase | kind: :extra_turn, extra_turn_player: "2"}
+           })
+
+    refute GameFormat.dock?(%{view | hand: [], phase: %{view.phase | kind: :game_over}})
+  end
 end

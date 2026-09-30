@@ -106,4 +106,7 @@ defmodule HeliosWeb.GameFormat do
     do: player == me
 
   def show_hand?(_view), do: true
+
+  def dock?(%{phase: %{kind: :extra_turn}}), do: true
+  def dock?(view), do: show_hand?(view)
 end

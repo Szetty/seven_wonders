@@ -34,7 +34,8 @@ defmodule HeliosWeb.GameLiveExtraTurnsTest do
     {:ok, view_a, _html} = open(ta, game)
     {:ok, view_b, _html} = open(tb, game)
     assert has_element?(view_a, "#discard-picker")
-    assert has_element?(view_b, "#waiting-extra-turn", a.name)
+    refute has_element?(view_a, "#dock #discard-picker")
+    assert has_element?(view_b, "#dock #waiting-extra-turn", a.name)
     refute has_element?(view_b, "#hand")
 
     {:ok, state} = Games.view(game.id, a.id)
@@ -58,12 +59,12 @@ defmodule HeliosWeb.GameLiveExtraTurnsTest do
 
     {:ok, view_a, _html} = open(ta, game)
     {:ok, view_b, _html} = open(tb, game)
-    assert has_element?(view_a, "#play-last-card")
-    assert has_element?(view_a, "#hand-card-0")
+    assert has_element?(view_a, "#dock #play-last-card")
+    assert has_element?(view_a, "#dock #hand-card-0")
     refute has_element?(view_a, "#hand-card-1")
     assert has_element?(view_b, "#waiting-extra-turn", a.name)
 
-    view_a |> element("#hand-card-0") |> render_click()
+    view_a |> element("#dock #hand-card-0") |> render_click()
     view_a |> element("#discard-button") |> render_click()
     refute has_element?(view_a, "#play-last-card")
     assert {:ok, %{phase: %{kind: kind}}} = Games.view(game.id, a.id)
@@ -84,6 +85,7 @@ defmodule HeliosWeb.GameLiveExtraTurnsTest do
 
     assert has_element?(view_a, "#scoreboard")
     refute has_element?(view_a, "#hand")
+    refute has_element?(view_a, "#dock")
     refute has_element?(view_a, "#action-panel")
     for id <- ids, do: assert(has_element?(view_a, "#score-row-#{id}"))
 
