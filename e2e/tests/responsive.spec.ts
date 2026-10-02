@@ -75,6 +75,10 @@ for (const vp of VIEWPORTS) {
         const button = await boxOf(page.locator("#invite-button"));
         expect(button.y).toBeGreaterThanOrEqual(select.y + select.height);
         expect(button.width).toBeGreaterThanOrEqual(select.width - 1);
+        // The members table shrinks to its wrapper instead of clipping the Delete column.
+        const table = await boxOf(page.locator("#members-table"));
+        const wrapper = await boxOf(page.locator("#members-table").locator("xpath=./.."));
+        expect(table.x + table.width).toBeLessThanOrEqual(wrapper.x + wrapper.width + 1);
       }
       if (vp.touch) {
         await expectTapTargets(page.locator("[id^='uninvite-']"));

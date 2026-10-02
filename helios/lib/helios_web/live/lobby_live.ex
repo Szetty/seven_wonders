@@ -97,7 +97,7 @@ defmodule HeliosWeb.LobbyLive do
         />
 
         <div class="overflow-hidden rounded-xl bg-antique shadow-md ring-1 ring-zinc-900/10">
-          <table id="members-table" class="w-full text-left">
+          <table id="members-table" class="w-full table-fixed text-left">
             <thead class="bg-zinc-900 text-xs uppercase tracking-wider text-white">
               <tr>
                 <th class="px-4 py-3">Username</th>
@@ -119,10 +119,10 @@ defmodule HeliosWeb.LobbyLive do
                 ]}
               >
                 <td class="px-4 py-3">
-                  <span class="inline-flex items-center gap-2 font-medium">
-                    <.icon :if={row.self?} name="hero-chevron-double-right" class="size-4" />
+                  <span class="flex min-w-0 items-center gap-2 font-medium">
+                    <.icon :if={row.self?} name="hero-chevron-double-right" class="size-4 shrink-0" />
                     <.crown :if={row.leader?} />
-                    {row.user.name}
+                    <span class="truncate">{row.user.name}</span>
                   </span>
                 </td>
                 <td :if={@owner?} class="px-4 py-3 text-right">
