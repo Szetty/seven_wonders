@@ -34,6 +34,7 @@ for (const vp of VIEWPORTS) {
       const title = page.locator("#login-title");
       const lineHeight = await title.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
       expect((await boxOf(title)).height).toBeLessThanOrEqual(lineHeight * 1.2);
+      if (vp.touch) await expectTapTargets(page.locator("#login-submit"));
     });
 
     test("lobby header and notifications fit", async ({ browser }) => {

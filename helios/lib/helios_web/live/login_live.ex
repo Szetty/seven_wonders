@@ -59,7 +59,7 @@ defmodule HeliosWeb.LoginLive do
               <.button
                 id="login-submit"
                 type="submit"
-                class="mt-2 w-full"
+                class="mt-2 w-full pointer-coarse:min-h-11"
                 phx-disable-with="Entering…"
               >
                 Login
