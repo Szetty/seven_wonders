@@ -8,6 +8,7 @@ import {
   waitForLive,
   waitForTurn,
 } from "./support/game";
+import { expectNoHorizontalScroll } from "./support/layout";
 
 test("three players play a full game to the scoreboard", async ({ browser }) => {
   test.setTimeout(240_000);
@@ -27,6 +28,8 @@ test("three players play a full game to the scoreboard", async ({ browser }) => 
     await expect(player.page.locator("#scoreboard")).toBeVisible();
     await expect(player.page.locator("#scoreboard tbody tr")).toHaveCount(3);
     await expect(player.page.locator('#scoreboard tbody tr[data-rank="1"]').first()).toBeVisible();
+    await expectNoHorizontalScroll(player.page);
+    await expect(player.page.locator("#scoreboard tbody tr td:first-child").first()).toBeInViewport();
   }
 
   for (const player of players) await player.context.close();

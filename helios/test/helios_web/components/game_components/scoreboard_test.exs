@@ -30,4 +30,20 @@ defmodule HeliosWeb.GameComponents.ScoreboardTest do
     assert count(html, "#scoreboard thead th") == 10
     assert attrs(html, "#back-to-lobby", "href") == ["/lobby/abc"]
   end
+
+  test "the player column stays put while the scores scroll sideways" do
+    html =
+      render_component(&Scoreboard.scoreboard/1,
+        scores: SampleViews.scores(),
+        names: SampleViews.names(),
+        me: "1",
+        lobby_id: "abc"
+      )
+
+    assert hd(attrs(html, "#scoreboard thead th:first-child", "class")) =~ "sticky"
+    assert hd(attrs(html, "#score-row-1 td:first-child", "class")) =~ "sticky"
+    # Sticky cells need an opaque row background to cover the scrolled columns.
+    assert hd(attrs(html, "#score-row-1", "class")) =~ "bg-antique"
+    assert hd(attrs(html, "#score-row-2", "class")) =~ "bg-amber-200"
+  end
 end
