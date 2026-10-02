@@ -161,6 +161,13 @@ for (const vp of VIEWPORTS) {
         await expect(page.locator("#discard-button")).toBeInViewport({ ratio: 1 });
       }
       if (vp.touch) await expectTapTargets(sheet.locator("button:visible"));
+      if (vp.width >= 640) {
+        // Disabled options shrink to fit their group like every other button.
+        const sheetBox = await boxOf(sheet);
+        for (const button of await sheet.locator("button[disabled]:visible").all()) {
+          expect((await boxOf(button)).width).toBeLessThanOrEqual(sheetBox.width - 64);
+        }
+      }
       await expectNoHorizontalScroll(page);
 
       await page.locator("#action-scrim").click({ position: { x: 5, y: 5 } });

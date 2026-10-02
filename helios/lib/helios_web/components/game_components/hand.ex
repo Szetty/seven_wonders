@@ -158,9 +158,11 @@ defmodule HeliosWeb.GameComponents.Hand do
       <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">{@title}</span>
       <%= case @option do %>
         <% {:unavailable, reason} -> %>
-          <button id={"#{@prefix}-unavailable"} type="button" disabled class={@disabled_class}>
-            {Games.error_message(reason)}
-          </button>
+          <div>
+            <button id={"#{@prefix}-unavailable"} type="button" disabled class={@disabled_class}>
+              {Games.error_message(reason)}
+            </button>
+          </div>
         <% {:trade, options} -> %>
           <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
