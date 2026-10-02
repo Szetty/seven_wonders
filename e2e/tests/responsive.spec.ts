@@ -34,7 +34,8 @@ for (const vp of VIEWPORTS) {
       const title = page.locator("#login-title");
       const lineHeight = await title.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
       expect((await boxOf(title)).height).toBeLessThanOrEqual(lineHeight * 1.2);
-      if (vp.touch) await expectTapTargets(page.locator("#login-submit"));
+      if (vp.touch)
+        await expectTapTargets(page.locator("#login-submit, #login_form input:not([type='hidden'])"));
     });
 
     test("lobby header and notifications fit", async ({ browser }) => {
@@ -83,7 +84,7 @@ for (const vp of VIEWPORTS) {
       }
       if (vp.touch) {
         await expectTapTargets(page.locator("[id^='uninvite-']"));
-        await expectTapTargets(page.locator("#start-game, #invite-button"));
+        await expectTapTargets(page.locator("#start-game, #invite-button, #invite_user_id"));
       }
 
       await closeAll(players);

@@ -293,7 +293,7 @@ defmodule HeliosWeb.CoreComponents do
 
   defp field_classes(errors) do
     [
-      "block w-full rounded-lg border bg-white px-3 py-2 text-zinc-900 shadow-sm transition",
+      "block w-full rounded-lg border bg-white px-3 py-2 text-zinc-900 shadow-sm transition pointer-coarse:min-h-11",
       "placeholder:text-zinc-400 focus:outline-none focus:ring-4",
       if(errors == [],
         do: "border-zinc-300 focus:border-zinc-900 focus:ring-zinc-900/15",
