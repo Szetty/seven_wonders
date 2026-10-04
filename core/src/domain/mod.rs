@@ -1,5 +1,8 @@
 pub mod effects;
 
+pub mod effect_spec;
+pub use effect_spec::*;
+
 pub mod game_state;
 pub use game_state::*;
 

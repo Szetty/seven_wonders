@@ -9,6 +9,7 @@ mod nif;
 mod tests {
     pub mod data;
     pub mod deck;
+    pub mod effect_specs;
     pub mod game_ages;
     pub mod game_effects;
     pub mod game_extra_turns;

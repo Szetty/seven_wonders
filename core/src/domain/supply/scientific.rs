@@ -7,7 +7,7 @@ use std::fmt;
 
 pub type ScientificSymbols<'a> = &'a [ScientificSymbol];
 
-#[derive(Display, Copy, Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Display, Copy, Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum ScientificSymbol {
     Tablet,
     Compass,

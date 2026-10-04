@@ -20,7 +20,7 @@ impl Game {
             if let Some(guild) = self.best_guild_to_copy(seat) {
                 let name = self.seats[seat].clone();
                 for effect in guild.effects() {
-                    (*effect)(&mut self.state, name.clone());
+                    effect.apply(&mut self.state, name.clone());
                 }
             }
         }
@@ -62,7 +62,7 @@ impl Game {
             )
         };
         for effect in guild.effects() {
-            (*effect)(&mut self.state, name.clone());
+            effect.apply(&mut self.state, name.clone());
         }
         let total: i32 = self
             .player(seat)

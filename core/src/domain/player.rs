@@ -54,7 +54,7 @@ impl Neighbours {
 }
 
 pub type PlayerDirections<'a> = &'a [PlayerDirection];
-#[derive(EnumIter)]
+#[derive(EnumIter, Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum PlayerDirection {
     East,
     West,

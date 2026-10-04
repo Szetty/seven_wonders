@@ -10,6 +10,7 @@ use super::supply::{
     TradeValue,
 };
 use super::wonder::WonderSide;
+use super::EffectSpec;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -56,7 +57,7 @@ impl GameState {
             effects.extend(player_state.init().iter().map(|e| (e, name.clone())));
         }
         for (effect, player_name) in effects {
-            (*effect)(self, player_name);
+            effect.apply(self, player_name);
         }
     }
     pub fn get_player_state(&self, player_name: &PName) -> &PlayerState {
@@ -109,7 +110,7 @@ impl GameState {
             }
         }
         for (effect, player_name) in effects {
-            (*effect)(self, player_name);
+            effect.apply(self, player_name);
         }
     }
     pub fn calculate_points(&self) -> HashMap<PName, HashMap<PointCategory, Point>> {
@@ -333,7 +334,26 @@ type Action<T> = Box<T>;
 type PointAction = dyn Fn(&GameState, &mut PointsMap) + Sync + Send;
 type TradeAction = dyn Fn(&PName, &ResourceType) -> TradeValue + Sync + Send;
 
-pub type Effect = Box<dyn Fn(&mut GameState, PName) + Sync>;
+pub type EffectFn = Box<dyn Fn(&mut GameState, PName) + Sync>;
+
+/// A card or wonder-stage effect: what it does (`spec`, for clients) and how
+/// it changes the game (`run`).
+pub struct Effect {
+    // Read by tests/NIF clients, never by the rules (hence allow).
+    #[allow(dead_code)]
+    pub spec: EffectSpec,
+    run: EffectFn,
+}
+
+impl Effect {
+    fn new(spec: EffectSpec, run: EffectFn) -> Self {
+        Self { spec, run }
+    }
+
+    pub fn apply(&self, state: &mut GameState, player: PName) {
+        (self.run)(state, player)
+    }
+}
 
 pub type Events = Vec<Event>;
 pub type Event = (PName, EventType);
@@ -343,92 +363,144 @@ pub enum EventType {
 }
 
 pub fn all_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state
-            .resources_produced
-            .add_all_resources(resource_types);
-        player_state
-            .tradable_resources
-            .add_all_resources(resource_types);
-    }))
+    Effect::new(
+        EffectSpec::Produces {
+            resources: resource_types.to_vec(),
+            choice: false,
+            tradable: true,
+        },
+        apply_player_effect(Box::new(move |player_state| {
+            player_state
+                .resources_produced
+                .add_all_resources(resource_types);
+            player_state
+                .tradable_resources
+                .add_all_resources(resource_types);
+        })),
+    )
 }
 
 pub fn any_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state
-            .resources_produced
-            .add_any_resources(resource_types);
-        player_state
-            .tradable_resources
-            .add_any_resources(resource_types);
-    }))
+    Effect::new(
+        EffectSpec::Produces {
+            resources: resource_types.to_vec(),
+            choice: true,
+            tradable: true,
+        },
+        apply_player_effect(Box::new(move |player_state| {
+            player_state
+                .resources_produced
+                .add_any_resources(resource_types);
+            player_state
+                .tradable_resources
+                .add_any_resources(resource_types);
+        })),
+    )
 }
 
 /// A choice resource only its owner may use (yellow cards, wonder stages).
 pub fn owner_any_resources_effect(resource_types: ResourceTypes<'static>) -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state
-            .resources_produced
-            .add_any_resources(resource_types);
-    }))
+    Effect::new(
+        EffectSpec::Produces {
+            resources: resource_types.to_vec(),
+            choice: true,
+            tradable: false,
+        },
+        apply_player_effect(Box::new(move |player_state| {
+            player_state
+                .resources_produced
+                .add_any_resources(resource_types);
+        })),
+    )
 }
 
 pub fn point_effect(point_category: PointCategory, points: Point) -> Effect {
+    let spec = EffectSpec::Points {
+        category: point_category.clone(),
+        points,
+    };
     let action = Box::new(move |_: &_, points_by_categories: &mut PointsMap| {
         points_by_categories.add(&point_category, points);
     });
-    apply_player_effect(Box::new(move |player_state| {
-        player_state.point_actions.push(action.clone());
-    }))
+    Effect::new(
+        spec,
+        apply_player_effect(Box::new(move |player_state| {
+            player_state.point_actions.push(action.clone());
+        })),
+    )
 }
 
 pub fn military_effect(military_symbols: MilitarySymbolCount) -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state.military_symbols += military_symbols;
-    }))
+    Effect::new(
+        EffectSpec::Military(military_symbols),
+        apply_player_effect(Box::new(move |player_state| {
+            player_state.military_symbols += military_symbols;
+        })),
+    )
 }
 
 pub fn all_scientific_effect(scientific_symbols: ScientificSymbols<'static>) -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state
-            .scientific_symbols_produced
-            .add_all_symbols(scientific_symbols)
-    }))
+    Effect::new(
+        EffectSpec::Science {
+            symbols: scientific_symbols.to_vec(),
+            choice: false,
+        },
+        apply_player_effect(Box::new(move |player_state| {
+            player_state
+                .scientific_symbols_produced
+                .add_all_symbols(scientific_symbols)
+        })),
+    )
 }
 
 pub fn any_scientific_effect(scientific_symbols: ScientificSymbols<'static>) -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state
-            .scientific_symbols_produced
-            .add_any_symbols(scientific_symbols)
-    }))
+    Effect::new(
+        EffectSpec::Science {
+            symbols: scientific_symbols.to_vec(),
+            choice: true,
+        },
+        apply_player_effect(Box::new(move |player_state| {
+            player_state
+                .scientific_symbols_produced
+                .add_any_symbols(scientific_symbols)
+        })),
+    )
 }
 
 pub fn coin_effect(coins: Coin) -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state.coins += coins;
-    }))
+    Effect::new(
+        EffectSpec::Coins(coins),
+        apply_player_effect(Box::new(move |player_state| {
+            player_state.coins += coins;
+        })),
+    )
 }
 
 pub fn trade_effect(
     effect_directions: PlayerDirections<'static>,
     resource_types: ResourceTypes<'static>,
 ) -> Effect {
-    Box::new(move |game_state, player_name| {
-        let affected_players: HashSet<PName> = game_state
-            .neighbours
-            .get_player_names_from_directions(&player_name, effect_directions);
-        let action = Box::new(move |pname: &PName, resource_type: &ResourceType| {
-            if affected_players.contains(pname) && resource_types.contains(resource_type) {
-                1
-            } else {
-                2
-            }
-        });
-        game_state
-            .get_mut_player_state(&player_name)
-            .add_trade_action_mut(action.clone());
-    })
+    Effect::new(
+        EffectSpec::TradeDiscount {
+            directions: effect_directions.to_vec(),
+            resources: resource_types.to_vec(),
+        },
+        Box::new(move |game_state, player_name| {
+            let affected_players: HashSet<PName> = game_state
+                .neighbours
+                .get_player_names_from_directions(&player_name, effect_directions);
+            let action = Box::new(move |pname: &PName, resource_type: &ResourceType| {
+                if affected_players.contains(pname) && resource_types.contains(resource_type) {
+                    1
+                } else {
+                    2
+                }
+            });
+            game_state
+                .get_mut_player_state(&player_name)
+                .add_trade_action_mut(action.clone());
+        }),
+    )
 }
 
 pub fn dynamic_coin_effect(
@@ -436,14 +508,21 @@ pub fn dynamic_coin_effect(
     categories: Categories<'static>,
     coins: Coin,
 ) -> Effect {
-    Box::new(move |game_state, player_name| {
-        let affected_players: HashSet<PName> = game_state
-            .neighbours
-            .get_player_names_from_directions(&player_name, effect_directions);
-        let structures_count =
-            game_state.count_structures_for_players(&categories, &affected_players);
-        game_state.get_mut_player_state(&player_name).coins += coins * structures_count as Coin;
-    })
+    Effect::new(
+        EffectSpec::CoinsPerCard {
+            directions: effect_directions.to_vec(),
+            categories: categories.to_vec(),
+            coins,
+        },
+        Box::new(move |game_state, player_name| {
+            let affected_players: HashSet<PName> = game_state
+                .neighbours
+                .get_player_names_from_directions(&player_name, effect_directions);
+            let structures_count =
+                game_state.count_structures_for_players(&categories, &affected_players);
+            game_state.get_mut_player_state(&player_name).coins += coins * structures_count as Coin;
+        }),
+    )
 }
 
 pub fn dynamic_point_effect(
@@ -452,36 +531,51 @@ pub fn dynamic_point_effect(
     categories: Categories<'static>,
     points: Point,
 ) -> Effect {
-    Box::new(move |game_state, player_name| {
-        let affected_players: HashSet<PName> = game_state
-            .neighbours
-            .get_player_names_from_directions(&player_name, effect_directions);
-        let point_category = point_category.clone();
-        let action = Box::new(
-            move |gs: &GameState, points_by_categories: &mut PointsMap| {
-                let structures_count =
-                    gs.count_structures_for_players(&categories, &affected_players);
-                points_by_categories.add(&point_category, points * structures_count as Point);
-            },
-        );
-        game_state
-            .get_mut_player_state(&player_name)
-            .point_actions
-            .push(action);
-    })
+    Effect::new(
+        EffectSpec::PointsPerCard {
+            category: point_category.clone(),
+            directions: effect_directions.to_vec(),
+            categories: categories.to_vec(),
+            points,
+        },
+        Box::new(move |game_state, player_name| {
+            let affected_players: HashSet<PName> = game_state
+                .neighbours
+                .get_player_names_from_directions(&player_name, effect_directions);
+            let point_category = point_category.clone();
+            let action = Box::new(
+                move |gs: &GameState, points_by_categories: &mut PointsMap| {
+                    let structures_count =
+                        gs.count_structures_for_players(&categories, &affected_players);
+                    points_by_categories.add(&point_category, points * structures_count as Point);
+                },
+            );
+            game_state
+                .get_mut_player_state(&player_name)
+                .point_actions
+                .push(action);
+        }),
+    )
 }
 
 pub fn dynamic_wonder_coin_effect(
     effect_directions: PlayerDirections<'static>,
     coins: Coin,
 ) -> Effect {
-    Box::new(move |game_state, player_name| {
-        let affected_players: HashSet<PName> = game_state
-            .neighbours
-            .get_player_names_from_directions(&player_name, effect_directions);
-        let wonder_stages_count = game_state.count_wonder_stages_for_players(&affected_players);
-        game_state.get_mut_player_state(&player_name).coins += coins * wonder_stages_count as Coin;
-    })
+    Effect::new(
+        EffectSpec::CoinsPerWonderStage {
+            directions: effect_directions.to_vec(),
+            coins,
+        },
+        Box::new(move |game_state, player_name| {
+            let affected_players: HashSet<PName> = game_state
+                .neighbours
+                .get_player_names_from_directions(&player_name, effect_directions);
+            let wonder_stages_count = game_state.count_wonder_stages_for_players(&affected_players);
+            game_state.get_mut_player_state(&player_name).coins +=
+                coins * wonder_stages_count as Coin;
+        }),
+    )
 }
 
 pub fn dynamic_wonder_point_effect(
@@ -489,22 +583,30 @@ pub fn dynamic_wonder_point_effect(
     effect_directions: PlayerDirections<'static>,
     points: Point,
 ) -> Effect {
-    Box::new(move |game_state, player_name| {
-        let affected_players: HashSet<PName> = game_state
-            .neighbours
-            .get_player_names_from_directions(&player_name, effect_directions);
-        let point_category = point_category.clone();
-        let action = Box::new(
-            move |gs: &GameState, points_by_categories: &mut PointsMap| {
-                let wonder_stages_count = gs.count_wonder_stages_for_players(&affected_players);
-                points_by_categories.add(&point_category, points * wonder_stages_count as Point);
-            },
-        );
-        game_state
-            .get_mut_player_state(&player_name)
-            .point_actions
-            .push(action);
-    })
+    Effect::new(
+        EffectSpec::PointsPerWonderStage {
+            category: point_category.clone(),
+            directions: effect_directions.to_vec(),
+            points,
+        },
+        Box::new(move |game_state, player_name| {
+            let affected_players: HashSet<PName> = game_state
+                .neighbours
+                .get_player_names_from_directions(&player_name, effect_directions);
+            let point_category = point_category.clone();
+            let action = Box::new(
+                move |gs: &GameState, points_by_categories: &mut PointsMap| {
+                    let wonder_stages_count = gs.count_wonder_stages_for_players(&affected_players);
+                    points_by_categories
+                        .add(&point_category, points * wonder_stages_count as Point);
+                },
+            );
+            game_state
+                .get_mut_player_state(&player_name)
+                .point_actions
+                .push(action);
+        }),
+    )
 }
 
 pub fn dynamic_battle_lost_point_effect(
@@ -512,55 +614,76 @@ pub fn dynamic_battle_lost_point_effect(
     effect_directions: PlayerDirections<'static>,
     points: Point,
 ) -> Effect {
-    Box::new(move |game_state, player_name| {
-        let affected_players: HashSet<PName> = game_state
-            .neighbours
-            .get_player_names_from_directions(&player_name, effect_directions);
-        let point_category = point_category.clone();
-        let action = Box::new(
-            move |gs: &GameState, points_by_categories: &mut PointsMap| {
-                let battles_lost_count = gs.count_battles_lost_for_players(&affected_players);
-                points_by_categories.add(&point_category, points * battles_lost_count as Point);
-            },
-        );
-        game_state
-            .get_mut_player_state(&player_name)
-            .point_actions
-            .push(action);
-    })
+    Effect::new(
+        EffectSpec::PointsPerDefeat {
+            category: point_category.clone(),
+            directions: effect_directions.to_vec(),
+            points,
+        },
+        Box::new(move |game_state, player_name| {
+            let affected_players: HashSet<PName> = game_state
+                .neighbours
+                .get_player_names_from_directions(&player_name, effect_directions);
+            let point_category = point_category.clone();
+            let action = Box::new(
+                move |gs: &GameState, points_by_categories: &mut PointsMap| {
+                    let battles_lost_count = gs.count_battles_lost_for_players(&affected_players);
+                    points_by_categories.add(&point_category, points * battles_lost_count as Point);
+                },
+            );
+            game_state
+                .get_mut_player_state(&player_name)
+                .point_actions
+                .push(action);
+        }),
+    )
 }
 
 pub fn play_last_card_effect() -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state.can_play_last_card = true;
-    }))
+    Effect::new(
+        EffectSpec::PlayLastCard,
+        apply_player_effect(Box::new(move |player_state| {
+            player_state.can_play_last_card = true;
+        })),
+    )
 }
 
 pub fn construct_free_effect() -> Effect {
-    Box::new(move |game_state: &mut GameState, player_name: String| {
-        let current_age = game_state.current_age;
-        game_state
-            .get_mut_player_state(&player_name)
-            .structure_builder
-            .apply_construct_free_once_per_age(current_age);
-    })
+    Effect::new(
+        EffectSpec::BuildFreeOncePerAge,
+        Box::new(move |game_state: &mut GameState, player_name: String| {
+            let current_age = game_state.current_age;
+            game_state
+                .get_mut_player_state(&player_name)
+                .structure_builder
+                .apply_construct_free_once_per_age(current_age);
+        }),
+    )
 }
 
 pub fn copy_guild_effect() -> Effect {
-    apply_player_effect(Box::new(move |player_state| {
-        player_state.can_copy_guild = true;
-    }))
+    Effect::new(
+        EffectSpec::CopyGuild,
+        apply_player_effect(Box::new(move |player_state| {
+            player_state.can_copy_guild = true;
+        })),
+    )
 }
 
 pub fn build_free_from_discarded_cards_effect() -> Effect {
-    Box::new(|game_state, player_name| {
-        game_state
-            .events
-            .push((player_name, EventType::ConstructFromDiscarded))
-    })
+    Effect::new(
+        EffectSpec::BuildFromDiscard,
+        Box::new(|game_state, player_name| {
+            game_state
+                .events
+                .push((player_name, EventType::ConstructFromDiscarded))
+        }),
+    )
 }
 
-fn apply_player_effect(player_state_mapper: Box<dyn Fn(&mut PlayerState) + Sync + Send>) -> Effect {
+fn apply_player_effect(
+    player_state_mapper: Box<dyn Fn(&mut PlayerState) + Sync + Send>,
+) -> EffectFn {
     Box::new(move |game_state: &mut GameState, player_name: String| {
         player_state_mapper(game_state.get_mut_player_state(&player_name));
     })
