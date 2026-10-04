@@ -21,18 +21,19 @@ impl StructureBuilder {
             false
         }
     }
-    pub fn can_build_structure_from_dependencies<T>(
+    /// The first of `structure`'s prerequisites already built, in the card's
+    /// dependency order (deterministic: the `HashMap` is only queried).
+    pub fn built_dependency<T>(
         &self,
         structure: &'static Structure<'static, T>,
-    ) -> bool {
-        let all_structure_names_built: HashSet<SName<'static>> =
+    ) -> Option<SName<'static>> {
+        let built: HashSet<SName<'static>> =
             self.built_structures.values().flatten().cloned().collect();
-        for dependency in structure.dependencies() {
-            if all_structure_names_built.contains(dependency) {
-                return true;
-            }
-        }
-        false
+        structure
+            .dependencies()
+            .iter()
+            .find(|dependency| built.contains(*dependency))
+            .copied()
     }
     #[cfg(test)]
     pub fn can_build_structure_for_free<T>(

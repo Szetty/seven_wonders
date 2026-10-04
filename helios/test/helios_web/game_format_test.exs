@@ -27,6 +27,7 @@ defmodule HeliosWeb.GameFormatTest do
   test "option labels name the neighbours and skip the bank" do
     neighbours = %{west: "Bob", east: "Cid"}
     assert GameFormat.option_label(:free, neighbours) == "Free"
+    assert GameFormat.option_label({:chain, "Altar"}, neighbours) == "Free (you have Altar)"
     assert GameFormat.option_label({:coins, 1}, neighbours) == "Pay 1 coin"
     assert GameFormat.option_label({:coins, 3}, neighbours) == "Pay 3 coins"
 

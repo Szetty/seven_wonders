@@ -206,3 +206,54 @@ fn unknown_viewer_is_rejected() {
     discard_first(&mut game, "p1");
     assert_eq!(game.view("zed").err(), Some(ActionError::UnknownPlayer));
 }
+
+#[test]
+fn chain_builds_name_the_card_that_makes_them_free() {
+    let mut game = plain_game();
+    game.give("p1", "Altar");
+    game.set_hand("p1", &["Temple", "Altar"]);
+    let hand = game.view("p1").unwrap().hand;
+    assert_eq!(hand[0].build, BuildOption::Chain("Altar".to_string()));
+    assert_eq!(
+        hand[1].build,
+        BuildOption::Unavailable {
+            reason: ActionError::AlreadyBuilt
+        }
+    );
+    game.submit("p1", super::game_helpers::build("Temple"))
+        .unwrap();
+}
+
+#[test]
+fn forum_chains_from_either_trading_post_in_card_order() {
+    for (posts, expected) in [
+        (vec!["East trading post"], "East trading post"),
+        (vec!["West trading post"], "West trading post"),
+        (
+            vec!["West trading post", "East trading post"],
+            "East trading post",
+        ),
+    ] {
+        let mut game = plain_game();
+        for post in &posts {
+            game.give("p1", post);
+        }
+        game.set_hand("p1", &["Forum"]);
+        for _ in 0..5 {
+            let hand = game.view("p1").unwrap().hand;
+            assert_eq!(
+                hand[0].build,
+                BuildOption::Chain(expected.to_string()),
+                "{posts:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn own_production_is_free_not_chain() {
+    let mut game = plain_game();
+    game.give("p1", "Lumber Yard");
+    game.set_hand("p1", &["Stockade"]);
+    assert_eq!(game.view("p1").unwrap().hand[0].build, BuildOption::Free);
+}

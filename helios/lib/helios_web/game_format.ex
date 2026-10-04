@@ -76,6 +76,7 @@ defmodule HeliosWeb.GameFormat do
   defdelegate available?(option), to: Choice
 
   def option_label(:free, _neighbours), do: "Free"
+  def option_label({:chain, from}, _neighbours), do: "Free (you have #{from})"
   def option_label({:coins, 1}, _neighbours), do: "Pay 1 coin"
   def option_label({:coins, n}, _neighbours), do: "Pay #{n} coins"
 

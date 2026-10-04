@@ -102,6 +102,7 @@ defmodule Helios.GameDriver do
   end
 
   defp first_payment(:free), do: @empty_payment
+  defp first_payment({:chain, _}), do: @empty_payment
   defp first_payment({:coins, _}), do: @empty_payment
   defp first_payment({:trade, [option | _]}), do: option.payment
 end

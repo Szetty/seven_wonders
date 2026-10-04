@@ -21,6 +21,8 @@ defmodule Helios.CoreShapesTest do
     )
   end
 
+  defp build_option?({:chain, from}) when is_binary(from), do: true
+
   defp build_option?(_), do: false
 
   test "game_settings/0" do

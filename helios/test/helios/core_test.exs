@@ -233,5 +233,6 @@ defmodule Helios.CoreTest do
   defp options({:unavailable, _reason}, _make), do: []
   defp options(:free, make), do: [make.(@empty_payment)]
   defp options({:coins, _}, make), do: [make.(@empty_payment)]
+  defp options({:chain, _from}, make), do: [make.(@empty_payment)]
   defp options({:trade, choices}, make), do: Enum.map(choices, &make.(&1.payment))
 end

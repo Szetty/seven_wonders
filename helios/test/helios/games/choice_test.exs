@@ -34,6 +34,24 @@ defmodule Helios.Games.ChoiceTest do
   end
 
   describe "resolve/2" do
+    test "a chain build resolves to an empty payment", %{view: view} do
+      hand = [
+        %{
+          name: "Temple",
+          category: :civilian,
+          age: 2,
+          build: {:chain, "Altar"},
+          wonder_stage: {:unavailable, :cannot_afford},
+          free_build: false
+        }
+      ]
+
+      assert Choice.resolve(%{view | hand: hand}, %{card: "Temple", kind: "build", option: 0}) ==
+               {:ok, {:build, %{card: "Temple", payment: @empty}}}
+
+      assert Choice.available?({:chain, "Altar"})
+    end
+
     test "a trade option index resolves to the server-side payment", %{view: view} do
       assert Choice.resolve(view, %{card: "Baths", kind: "wonder_stage", option: 1}) ==
                {:ok,

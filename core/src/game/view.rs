@@ -56,8 +56,10 @@ pub enum BuildOption {
     Unavailable {
         reason: ActionError,
     },
-    /// Chain build or no cost at all: submit with an empty payment.
+    /// No cost at all, or own production covers it: submit with an empty payment.
     Free,
+    /// Free because the named prerequisite is built: submit with an empty payment.
+    Chain(String),
     /// Coin cost only (paid to the bank): submit with an empty payment.
     Coins(u32),
     /// Resources must be bought; submit one of these payments.
@@ -173,6 +175,7 @@ impl Game {
         match requirement {
             Err(reason) => BuildOption::Unavailable { reason },
             Ok(Requirement::Free) => BuildOption::Free,
+            Ok(Requirement::Chain(from)) => BuildOption::Chain(from),
             Ok(Requirement::Coins(coins)) => BuildOption::Coins(coins),
             Ok(Requirement::Trade {
                 coin_cost,

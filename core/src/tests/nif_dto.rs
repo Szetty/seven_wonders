@@ -142,6 +142,14 @@ fn view_parts_convert() {
 }
 
 #[test]
+fn chain_option_converts() {
+    assert_eq!(
+        BuildOptionDto::from(BuildOption::Chain("Altar".to_string())),
+        BuildOptionDto::Chain("Altar".to_string())
+    );
+}
+
+#[test]
 fn a_whole_view_converts() {
     let dto = PlayerViewDto::from(plain_game().view("p1").unwrap());
     assert_eq!(dto.me, "p1");

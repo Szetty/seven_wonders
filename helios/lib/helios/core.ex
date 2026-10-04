@@ -61,7 +61,11 @@ defmodule Helios.Core do
   @spec submit(game(), String.t(), action()) :: :ok | {:error, action_error()}
   def submit(game, player, action), do: Native.submit(game, player, action)
 
-  @doc "The table as seen by `player` (hidden information excluded)."
+  @doc """
+  The table as seen by `player` (hidden information excluded).
+
+  Build options: :free | {:chain, card} | {:coins, n} | {:trade, [option]} | {:unavailable, reason}.
+  """
   @spec view(game(), String.t()) :: {:ok, map()} | {:error, :unknown_player | :lock_fail}
   def view(game, player), do: Native.view(game, player)
 

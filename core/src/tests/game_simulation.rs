@@ -5,7 +5,9 @@ use crate::game::{Action, BuildOption, Game, Payment, Phase, PlayerView, WonderS
 fn push_options(out: &mut Vec<Action>, option: &BuildOption, make: impl Fn(Payment) -> Action) {
     match option {
         BuildOption::Unavailable { .. } => {}
-        BuildOption::Free | BuildOption::Coins(_) => out.push(make(Payment::default())),
+        BuildOption::Free | BuildOption::Chain(_) | BuildOption::Coins(_) => {
+            out.push(make(Payment::default()))
+        }
         BuildOption::Trade(options) => {
             out.extend(options.iter().map(|option| make(option.payment.clone())))
         }

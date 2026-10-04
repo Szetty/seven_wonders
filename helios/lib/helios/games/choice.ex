@@ -48,6 +48,7 @@ defmodule Helios.Games.Choice do
 
   @spec available?(term()) :: boolean()
   def available?(:free), do: true
+  def available?({:chain, _from}), do: true
   def available?({:coins, _}), do: true
   def available?({:trade, [_ | _]}), do: true
   def available?(_option), do: false
@@ -61,6 +62,7 @@ defmodule Helios.Games.Choice do
 
   defp payment({:unavailable, reason}, _option), do: {:error, reason}
   defp payment(:free, _option), do: {:ok, @empty_payment}
+  defp payment({:chain, _from}, _option), do: {:ok, @empty_payment}
   defp payment({:coins, _}, _option), do: {:ok, @empty_payment}
 
   defp payment({:trade, options}, option) when is_integer(option) and option >= 0 do

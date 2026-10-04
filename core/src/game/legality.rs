@@ -9,6 +9,8 @@ use crate::domain::{Card, ResourceCost, ALL_RESOURCE_TYPES};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Requirement {
     Free,
+    /// Free because the named prerequisite is built.
+    Chain(String),
     Coins(u32),
     Trade {
         coin_cost: u32,
@@ -127,8 +129,8 @@ impl Game {
         if builder.already_built(card.0) {
             return Err(ActionError::AlreadyBuilt);
         }
-        if builder.can_build_structure_from_dependencies(card.0) {
-            return Ok(Requirement::Free);
+        if let Some(from) = builder.built_dependency(card.0) {
+            return Ok(Requirement::Chain(from.to_string()));
         }
         let (coin_cost, resources) = *card.0.cost();
         self.requirement(seat, coin_cost, resources)
@@ -194,9 +196,11 @@ impl Game {
         payment: &Payment,
     ) -> Result<(u32, u32, u32), ActionError> {
         match requirement {
-            Requirement::Free if payment.is_empty() => Ok((0, 0, 0)),
+            Requirement::Free | Requirement::Chain(_) if payment.is_empty() => Ok((0, 0, 0)),
             Requirement::Coins(coins) if payment.is_empty() => Ok((*coins, 0, 0)),
-            Requirement::Free | Requirement::Coins(_) => Err(ActionError::InvalidPayment),
+            Requirement::Free | Requirement::Chain(_) | Requirement::Coins(_) => {
+                Err(ActionError::InvalidPayment)
+            }
             Requirement::Trade {
                 coin_cost,
                 resources,

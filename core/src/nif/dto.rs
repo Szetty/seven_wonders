@@ -386,11 +386,13 @@ impl From<PaymentOption> for PaymentOptionDto {
     }
 }
 
-/// `{:unavailable, reason}` | `:free` | `{:coins, n}` | `{:trade, [option]}`
+/// `{:unavailable, reason}` | `:free` | `{:chain, card}` | `{:coins, n}` | `{:trade, [option]}`
 #[derive(Debug, Clone, PartialEq, Eq, NifTaggedEnum)]
 pub enum BuildOptionDto {
     Unavailable(ActionErrorDto),
     Free,
+    /// `{:chain, "Altar"}`
+    Chain(String),
     Coins(u32),
     Trade(Vec<PaymentOptionDto>),
 }
@@ -400,6 +402,7 @@ impl From<BuildOption> for BuildOptionDto {
         match option {
             BuildOption::Unavailable { reason } => Self::Unavailable(reason.into()),
             BuildOption::Free => Self::Free,
+            BuildOption::Chain(from) => Self::Chain(from),
             BuildOption::Coins(coins) => Self::Coins(coins),
             BuildOption::Trade(options) => {
                 Self::Trade(options.into_iter().map(Into::into).collect())
