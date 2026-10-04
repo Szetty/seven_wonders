@@ -20,7 +20,7 @@ defmodule HeliosWeb.GameComponents.Hand do
       <h2 class="sr-only text-xs font-semibold uppercase tracking-wide text-zinc-700 sm:not-sr-only short:sr-only">
         Your hand
       </h2>
-      <div class="-mx-2 flex snap-x gap-2 overflow-x-auto px-2 pt-2 pb-1 sm:pt-3">
+      <div class="-mx-2 flex snap-x justify-center-safe gap-2 overflow-x-auto px-2 pt-2 pb-1 sm:pt-3">
         <button
           :for={{card, index} <- Enum.with_index(@hand)}
           type="button"

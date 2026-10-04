@@ -7,15 +7,21 @@ defmodule HeliosWeb.LayoutsTest do
   alias Helios.Accounts.{Scope, User}
   alias HeliosWeb.Layouts
 
-  defp render_app(scope) do
-    assigns = %{scope: scope}
+  defp render_app(scope, background \\ nil) do
+    assigns = %{scope: scope, background: background}
 
     rendered_to_string(~H"""
-    <Layouts.app flash={%{}} current_scope={@scope}>
+    <Layouts.app flash={%{}} current_scope={@scope} background={@background}>
       <p id="content">Hello</p>
     </Layouts.app>
     """)
     |> LazyHTML.from_fragment()
+  end
+
+  test "the background class wraps the header and the content" do
+    doc = render_app(Scope.for_user(%User{id: 1, name: "alice"}), "bg-test-paper")
+    assert doc |> LazyHTML.query(".bg-test-paper #site-header") |> Enum.count() == 1
+    assert doc |> LazyHTML.query(".bg-test-paper main #content") |> Enum.count() == 1
   end
 
   test "shows the site header with the user's name and a logout link" do

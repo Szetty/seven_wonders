@@ -28,4 +28,11 @@ defmodule HeliosWeb.DesignBaseTest do
 
     assert offenders == []
   end
+
+  test "app.css restores the pointer cursor on interactive elements" do
+    css = File.read!("assets/css/app.css")
+    assert css =~ ~s{button:not(:disabled)}
+    assert css =~ ~s{[role="button"]:not([aria-disabled="true"])}
+    assert css =~ "cursor: pointer"
+  end
 end

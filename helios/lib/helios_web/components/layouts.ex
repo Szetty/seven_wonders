@@ -32,11 +32,15 @@ defmodule HeliosWeb.Layouts do
     default: [],
     doc: "notifications from HeliosWeb.Notifications (authenticated pages)"
 
+  attr :background, :string,
+    default: nil,
+    doc: "classes painting the page background behind the header and the content"
+
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
-    <div class="min-h-dvh">
+    <div class={["min-h-dvh", @background]}>
       <div :if={@current_scope && @current_scope.user} class="px-2 pt-2 sm:px-6 sm:pt-4 lg:px-8">
         <.site_header current_scope={@current_scope} />
         <.notifications items={@notifications} />

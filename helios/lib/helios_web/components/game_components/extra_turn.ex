@@ -52,7 +52,7 @@ defmodule HeliosWeb.GameComponents.ExtraTurn do
         <h2 id="discard-picker-title" class="mb-3 font-semibold text-zinc-900">
           Build one card from the discard pile for free
         </h2>
-        <div class="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+        <div class="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-center">
           <button
             :for={{card, index} <- Enum.with_index(@view.discard_pile || [])}
             id={"discard-pick-#{index}"}

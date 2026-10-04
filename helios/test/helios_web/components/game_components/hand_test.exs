@@ -66,4 +66,10 @@ defmodule HeliosWeb.GameComponents.HandTest do
     assert text(html, "#pending-choice") =~ "You chose: Discard Baths"
     assert attrs(html, "#change-choice", "phx-value-card") == ["Baths"]
   end
+
+  test "the hand row centres its cards without clipping the first one" do
+    html = render_component(&Hand.hand/1, hand: SampleViews.hand(), selected: nil, pending: nil)
+    assert [class] = attrs(html, "#hand > div", "class")
+    assert class =~ "justify-center-safe"
+  end
 end

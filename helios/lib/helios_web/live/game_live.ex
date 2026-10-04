@@ -20,11 +20,13 @@ defmodule HeliosWeb.GameLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} notifications={@notifications}>
-      <div
-        id="game"
-        class="flex min-h-dvh flex-col bg-[url('/images/paper.jpg')] bg-cover lg:bg-fixed"
-      >
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      notifications={@notifications}
+      background="bg-[url('/images/paper.jpg')] bg-cover lg:bg-fixed"
+    >
+      <div id="game" class="flex min-h-dvh flex-col">
         <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-2 pt-3 sm:gap-4 sm:px-4 sm:pt-4 lg:px-8">
           <.top_bar view={@view} names={@names} connected={@connected} />
           <%= if @view.phase.kind == :game_over do %>

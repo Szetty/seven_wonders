@@ -27,6 +27,18 @@
 /* Landscape phones: too short for full-size cards and a sticky top bar. */
 @custom-variant short (@media (max-height: 500px));
 
+/* Tailwind v4 preflight gives buttons the default cursor; restore the pointer
+   on everything clickable (disabled buttons keep cursor-not-allowed). */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+}
+
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 

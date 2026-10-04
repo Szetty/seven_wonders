@@ -225,6 +225,15 @@ defmodule HeliosWeb.GameLiveTest do
     assert Registry.lookup(Helios.Games.Registry, game.id) == []
   end
 
+  test "the paper background covers the whole page, header included", %{
+    game: game,
+    players: [{_a, ta} | _]
+  } do
+    {:ok, view, _html} = open(ta, game.id)
+    assert has_element?(view, "[class*='paper.jpg'] #site-header")
+    refute has_element?(view, "#game[class*='paper.jpg']")
+  end
+
   # The shape the finish path persists: JSON-decoded, string keys.
   defp final_score(user_id, rank, total) do
     %{
