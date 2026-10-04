@@ -26,7 +26,14 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
            ]
 
     assert text(html, "#east-panel [data-stat='coins']") == "4"
-    assert text(html, "#east-panel [data-stat='shields']") == "1"
+    assert text(html, "#east-panel [data-stat='military']") == "1"
+    assert count(html, "#east-panel-details svg[data-icon='military']") == 1
+
+    assert attrs(html, "#east-panel-details [title='Military strength']", "title") == [
+             "Military strength"
+           ]
+
+    assert count(html, "#east-panel .hero-shield-check") == 0
     assert text(html, "#east-panel [data-stat='stages']") == "1/3"
 
     assert attrs(html, "#east-panel [data-token]", "src") == [

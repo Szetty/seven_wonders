@@ -25,4 +25,11 @@ defmodule HeliosWeb.GameComponents.BoardTest do
     assert attrs(html, "#built-lumberyard img", "src") == ["/images/cards/lumberyard.png"]
     assert text(html, "#my-board [data-stat='coins']") == "4"
   end
+
+  test "built stages sit on the top edge of the wonder image" do
+    html = render_component(&Board.my_board/1, player: SampleViews.player("1"))
+    assert [class] = attrs(html, "#wonder-stages", "class")
+    assert class =~ "top-0"
+    refute class =~ "bottom-0"
+  end
 end

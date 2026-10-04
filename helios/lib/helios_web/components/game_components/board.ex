@@ -29,7 +29,7 @@ defmodule HeliosWeb.GameComponents.Board do
         />
         <div
           id="wonder-stages"
-          class="absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-linear-to-t from-black/50 to-transparent p-2"
+          class="absolute inset-x-0 top-0 flex justify-center gap-2 bg-linear-to-b from-black/50 to-transparent p-2"
         >
           <div
             :for={stage <- 1..@player.stages_total//1}

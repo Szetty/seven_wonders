@@ -2,6 +2,8 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
   @moduledoc "Compact panels for neighbours and other players, plus the shared stats row."
   use HeliosWeb, :html
 
+  import HeliosWeb.GameComponents.Icons, only: [military_icon: 1]
+
   alias HeliosWeb.{GameAssets, GameFormat}
   alias Phoenix.LiveView.JS
 
@@ -46,8 +48,8 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
             <span class="flex items-center gap-0.5">
               <img src={GameAssets.token_path(:coin)} alt="" class="size-3.5" />{@player.coins}
             </span>
-            <span class="flex items-center gap-0.5">
-              <.icon name="hero-shield-check" class="size-3.5 text-red-700" />{@player.shields}
+            <span class="flex items-center gap-0.5" title="Military strength">
+              <.military_icon class="size-3.5" />{@player.shields}
             </span>
             <span class="flex items-center gap-0.5">
               <img src={GameAssets.token_path(:pyramid)} alt="" class="size-3.5" />{@player.stages_built}/{@player.stages_total}
@@ -141,9 +143,9 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
         <img src={GameAssets.token_path(:coin)} alt="Coins" class="size-5" />
         <span data-stat="coins">{@player.coins}</span>
       </span>
-      <span class="flex items-center gap-1" title="Shields">
-        <.icon name="hero-shield-check" class="size-5 text-red-700" />
-        <span data-stat="shields">{@player.shields}</span>
+      <span class="flex items-center gap-1" title="Military strength">
+        <.military_icon class="size-5" />
+        <span data-stat="military">{@player.shields}</span>
       </span>
       <span class="flex items-center gap-1" title="Wonder stages">
         <img src={GameAssets.token_path(:pyramid)} alt="Wonder stages" class="size-5" />
