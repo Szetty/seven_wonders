@@ -40,11 +40,28 @@ defmodule HeliosWeb.GameLive do
             </div>
           <% else %>
             <div id="table" class="flex flex-1 flex-col gap-3 pb-1 sm:gap-4">
-              <.others_strip :if={@others != []} players={@others} names={@names} />
+              <.others_strip
+                :if={@others != []}
+                players={@others}
+                names={@names}
+                statuses={@statuses}
+              />
               <div class="grid items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-[1fr_2fr_1fr]">
-                <.neighbour_panel id="west-panel" label="West" player={@west} names={@names} />
-                <.my_board player={@me} />
-                <.neighbour_panel id="east-panel" label="East" player={@east} names={@names} />
+                <.neighbour_panel
+                  id="west-panel"
+                  label="West"
+                  player={@west}
+                  names={@names}
+                  status={@statuses[@west.name]}
+                />
+                <.my_board player={@me} status={@statuses[@me.name]} />
+                <.neighbour_panel
+                  id="east-panel"
+                  label="East"
+                  player={@east}
+                  names={@names}
+                  status={@statuses[@east.name]}
+                />
               </div>
             </div>
             <div
@@ -248,7 +265,8 @@ defmodule HeliosWeb.GameLive do
       me: Map.fetch!(by_name, view.me),
       west: Map.fetch!(by_name, view.west),
       east: Map.fetch!(by_name, view.east),
-      others: others
+      others: others,
+      statuses: GameFormat.statuses(view)
     )
     |> assign_selection(socket.assigns[:selected])
   end

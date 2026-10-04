@@ -15,7 +15,8 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
         id: "east-panel",
         label: "East",
         player: player,
-        names: SampleViews.names()
+        names: SampleViews.names(),
+        status: nil
       )
 
     assert text(html, "#east-panel header") =~ "East"
@@ -50,7 +51,8 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
         id: "east-panel",
         label: "East",
         player: SampleViews.player("2", %{wonder: "Rhódos", side: :b}),
-        names: SampleViews.names()
+        names: SampleViews.names(),
+        status: nil
       )
 
     assert attrs(html, "#east-panel-toggle", "aria-controls") == ["east-panel-details"]
@@ -69,7 +71,8 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
     html =
       render_component(&PlayerPanels.others_strip/1,
         players: [SampleViews.player("3", %{wonder: "Éphesos"})],
-        names: SampleViews.names()
+        names: SampleViews.names(),
+        statuses: %{}
       )
 
     assert text(html, "#player-3 header") =~ "Cid"
@@ -80,5 +83,37 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
              "civilian",
              "military"
            ]
+  end
+
+  test "status chips say Chosen, Thinking… or Playing…" do
+    for {status, label} <- [chosen: "Chosen", thinking: "Thinking…", playing: "Playing…"] do
+      html = render_component(&PlayerPanels.status_chip/1, id: "status-2", status: status)
+      assert attrs(html, "#status-2", "data-status") == [Atom.to_string(status)]
+      assert text(html, "#status-2") == label
+    end
+
+    assert render_component(&PlayerPanels.status_chip/1, id: "status-2", status: nil) =~ ~r/^\s*$/
+  end
+
+  test "neighbour and other-player panels show their status" do
+    html =
+      render_component(&PlayerPanels.neighbour_panel/1,
+        id: "east-panel",
+        label: "East",
+        player: SampleViews.player("2", %{wonder: "Rhódos", side: :b}),
+        names: SampleViews.names(),
+        status: :thinking
+      )
+
+    assert attrs(html, "#east-panel-details #status-2", "data-status") == ["thinking"]
+
+    others =
+      render_component(&PlayerPanels.others_strip/1,
+        players: [SampleViews.player("3", %{wonder: "Éphesos"})],
+        names: SampleViews.names(),
+        statuses: %{"3" => :chosen}
+      )
+
+    assert attrs(others, "#player-3 #status-3", "data-status") == ["chosen"]
   end
 end

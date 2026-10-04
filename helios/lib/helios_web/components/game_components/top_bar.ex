@@ -12,7 +12,9 @@ defmodule HeliosWeb.GameComponents.TopBar do
     assigns =
       assign(assigns,
         phase: assigns.view.phase,
-        waiting: GameFormat.waiting_for(assigns.view, assigns.names)
+        waiting: GameFormat.waiting_for(assigns.view, assigns.names),
+        statuses: GameFormat.statuses(assigns.view),
+        pass_to: GameFormat.player_name(assigns.names, GameFormat.pass_target(assigns.view))
       )
 
     ~H"""
@@ -31,10 +33,10 @@ defmodule HeliosWeb.GameComponents.TopBar do
             <span id="turn-label" class="font-semibold">Game over</span>
           <% else %>
             <span id="turn-label">Turn {@phase.turn}/6</span>
-            <span id="pass-direction" class="flex items-center gap-1">
-              <.icon name={GameFormat.direction_icon(@phase.direction)} class="size-5" />
-              <span class="sr-only sm:not-sr-only">
-                Pass {GameFormat.direction_label(@phase.direction)}
+            <span id="pass-direction" class="flex min-w-0 items-center gap-1">
+              <.icon name={GameFormat.direction_icon(@phase.direction)} class="size-5 shrink-0" />
+              <span class="max-w-24 truncate sm:max-w-48">
+                <span class="sr-only sm:not-sr-only">Pass to </span>{@pass_to}
               </span>
             </span>
           <% end %>
@@ -59,6 +61,7 @@ defmodule HeliosWeb.GameComponents.TopBar do
           :for={player <- @view.players}
           id={"connection-#{player.name}"}
           data-connected={to_string(MapSet.member?(@connected, player.name))}
+          data-status={@statuses[player.name]}
           class="flex shrink-0 items-center gap-1.5 text-sm"
         >
           <span class={[
@@ -69,6 +72,11 @@ defmodule HeliosWeb.GameComponents.TopBar do
           <span class="max-w-32 truncate sm:max-w-none">
             {GameFormat.player_name(@names, player.name)}
           </span>
+          <.icon
+            :if={@statuses[player.name] == :chosen}
+            name="hero-check"
+            class="size-4 shrink-0 text-emerald-200"
+          />
         </li>
       </ul>
     </header>

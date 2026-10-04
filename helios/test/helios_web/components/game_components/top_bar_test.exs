@@ -19,7 +19,7 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     html = render_bar(SampleViews.view())
     assert text(html, "#age-label") == "Age II"
     assert text(html, "#turn-label") == "Turn 3/6"
-    assert text(html, "#pass-direction") == "Pass east"
+    assert text(html, "#pass-direction") == "Pass to Bob"
     assert text(html, "#waiting-for") == "Waiting for: Bob, Dee"
     assert text(html, "#waiting-count") == "Waiting for 2"
     assert attrs(html, "#waiting-count", "title") == ["Bob, Dee"]
@@ -37,5 +37,19 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     assert count(html, "#pass-direction") == 0
     assert count(html, "#waiting-for") == 0
     assert count(html, "#waiting-count") == 0
+  end
+
+  test "connected players who have chosen get a check mark" do
+    html = render_bar(SampleViews.view())
+    assert attrs(html, "#connection-1", "data-status") == ["chosen"]
+    assert attrs(html, "#connection-2", "data-status") == ["thinking"]
+    assert count(html, "#connection-1 .hero-check") == 1
+    assert count(html, "#connection-2 .hero-check") == 0
+  end
+
+  test "passing west names the west neighbour" do
+    view = SampleViews.view()
+    html = render_bar(%{view | phase: %{view.phase | direction: :west}})
+    assert text(html, "#pass-direction") == "Pass to Dee"
   end
 end

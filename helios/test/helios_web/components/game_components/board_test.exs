@@ -8,7 +8,7 @@ defmodule HeliosWeb.GameComponents.BoardTest do
   alias HeliosWeb.GameComponents.Board
 
   test "renders the wonder with stage slots and built cards in colour columns" do
-    html = render_component(&Board.my_board/1, player: SampleViews.player("1"))
+    html = render_component(&Board.my_board/1, player: SampleViews.player("1"), status: :chosen)
 
     assert attrs(html, "#my-board img[alt='Gizah A']", "src") == ["/images/wonders/gizahA.png"]
     assert count(html, "#wonder-stages [data-built='true']") == 1
@@ -27,9 +27,14 @@ defmodule HeliosWeb.GameComponents.BoardTest do
   end
 
   test "built stages sit on the top edge of the wonder image" do
-    html = render_component(&Board.my_board/1, player: SampleViews.player("1"))
+    html = render_component(&Board.my_board/1, player: SampleViews.player("1"), status: :chosen)
     assert [class] = attrs(html, "#wonder-stages", "class")
     assert class =~ "top-0"
     refute class =~ "bottom-0"
+  end
+
+  test "my board shows my status" do
+    html = render_component(&Board.my_board/1, player: SampleViews.player("1"), status: :chosen)
+    assert attrs(html, "#my-board #status-1", "data-status") == ["chosen"]
   end
 end

@@ -6,11 +6,12 @@ defmodule HeliosWeb.GameComponents.Board do
   """
   use HeliosWeb, :html
 
-  import HeliosWeb.GameComponents.PlayerPanels, only: [player_stats: 1]
+  import HeliosWeb.GameComponents.PlayerPanels, only: [player_stats: 1, status_chip: 1]
 
   alias HeliosWeb.{GameAssets, GameFormat}
 
   attr :player, :map, required: true
+  attr :status, :atom, default: nil
 
   def my_board(assigns) do
     assigns = assign(assigns, :columns, GameFormat.group_by_category(assigns.player.built))
@@ -21,6 +22,10 @@ defmodule HeliosWeb.GameComponents.Board do
       data-player={@player.name}
       class="min-w-0 order-first flex flex-col gap-3 rounded-xl bg-antique/90 p-2 shadow-lg sm:p-3 md:col-span-2 lg:order-none lg:col-span-1"
     >
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">You</span>
+        <.status_chip id={"status-#{@player.name}"} status={@status} />
+      </div>
       <div class="relative overflow-hidden rounded-lg">
         <img
           src={GameAssets.wonder_path(@player.wonder, @player.side)}

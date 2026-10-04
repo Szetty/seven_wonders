@@ -105,6 +105,28 @@ defmodule HeliosWeb.GameFormat do
 
   def waiting_for(view, names), do: for({id, false} <- view.submitted, do: player_name(names, id))
 
+  @doc "Who has chosen this turn: `:chosen`, `:thinking`, `:playing` (extra turn) or nil."
+  def player_status(%{phase: %{kind: :game_over}}, _player), do: nil
+
+  def player_status(%{phase: %{kind: :extra_turn, extra_turn_player: player}}, player),
+    do: :playing
+
+  def player_status(%{phase: %{kind: :extra_turn}}, _player), do: nil
+
+  def player_status(%{submitted: submitted}, player) do
+    case List.keyfind(submitted, player, 0) do
+      {_player, true} -> :chosen
+      {_player, false} -> :thinking
+      nil -> nil
+    end
+  end
+
+  def statuses(view), do: Map.new(view.players, &{&1.name, player_status(view, &1.name)})
+
+  @doc "The neighbour who receives our hand this turn."
+  def pass_target(%{phase: %{direction: :west}, west: west}), do: west
+  def pass_target(%{phase: %{direction: :east}, east: east}), do: east
+
   def show_hand?(%{hand: []}), do: false
 
   def show_hand?(%{phase: %{kind: :extra_turn, extra_turn_player: player}, me: me}),

@@ -105,4 +105,26 @@ defmodule HeliosWeb.GameFormatTest do
 
     refute GameFormat.dock?(%{view | hand: [], phase: %{view.phase | kind: :game_over}})
   end
+
+  describe "player_status/2" do
+    test "choosing cards: chosen when submitted, thinking otherwise" do
+      view = Helios.SampleViews.view()
+      assert GameFormat.player_status(view, "1") == :chosen
+      assert GameFormat.player_status(view, "2") == :thinking
+      assert GameFormat.player_status(view, "9") == nil
+    end
+
+    test "extra turn: only the acting player is playing" do
+      view = Helios.SampleViews.view()
+      extra = %{view | phase: %{view.phase | kind: :extra_turn, extra_turn_player: "3"}}
+      assert GameFormat.player_status(extra, "3") == :playing
+      assert GameFormat.player_status(extra, "1") == nil
+    end
+
+    test "game over: nobody has a status" do
+      view = Helios.SampleViews.view()
+      over = %{view | phase: %{view.phase | kind: :game_over}}
+      assert GameFormat.statuses(over) == %{"1" => nil, "2" => nil, "3" => nil, "4" => nil}
+    end
+  end
 end

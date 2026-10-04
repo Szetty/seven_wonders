@@ -111,6 +111,8 @@ defmodule HeliosWeb.GameLiveTest do
     view_a |> element("#hand-card-0") |> render_click()
     view_a |> element("#discard-button") |> render_click()
     assert has_element?(view_a, "#pending-choice")
+    assert has_element?(view_a, "#my-board [data-status='chosen']")
+    assert has_element?(view_a, "#west-panel [data-status='thinking']")
     assert has_element?(view_a, "#waiting-for", b.name)
     assert has_element?(view_a, "#waiting-for", c.name)
 

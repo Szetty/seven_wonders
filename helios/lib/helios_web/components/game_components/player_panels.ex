@@ -8,9 +8,41 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
   alias Phoenix.LiveView.JS
 
   attr :id, :string, required: true
+  attr :status, :atom, default: nil
+
+  def status_chip(assigns) do
+    ~H"""
+    <span
+      :if={@status}
+      id={@id}
+      data-status={@status}
+      class={[
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+        status_class(@status)
+      ]}
+    >
+      <.icon name={status_icon(@status)} class="size-3.5" />{status_label(@status)}
+    </span>
+    """
+  end
+
+  defp status_label(:chosen), do: "Chosen"
+  defp status_label(:thinking), do: "Thinking…"
+  defp status_label(:playing), do: "Playing…"
+
+  defp status_icon(:chosen), do: "hero-check"
+  defp status_icon(:thinking), do: "hero-ellipsis-horizontal"
+  defp status_icon(:playing), do: "hero-clock"
+
+  defp status_class(:chosen), do: "bg-emerald-100 text-emerald-800"
+  defp status_class(:thinking), do: "bg-sky-100 text-sky-800"
+  defp status_class(:playing), do: "bg-amber-100 text-amber-800"
+
+  attr :id, :string, required: true
   attr :label, :string, required: true
   attr :player, :map, required: true
   attr :names, :map, required: true
+  attr :status, :atom, default: nil
 
   def neighbour_panel(assigns) do
     ~H"""
@@ -43,6 +75,15 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
             <span class="truncate font-semibold text-zinc-900">
               {GameFormat.player_name(@names, @player.name)}
             </span>
+            <span
+              :if={@status}
+              data-status-dot={@status}
+              class={[
+                "size-2 shrink-0 rounded-full",
+                if(@status == :chosen, do: "bg-emerald-500", else: "bg-sky-400")
+              ]}
+            >
+            </span>
           </span>
           <span class="flex items-center gap-2 text-xs text-zinc-700">
             <span class="flex items-center gap-0.5">
@@ -71,7 +112,8 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
       <div id={"#{@id}-details"} class="hidden flex-col gap-2 group-[.is-open]:flex md:flex">
         <header class="flex items-center justify-between gap-2">
           <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">{@label}</span>
-          <span class="truncate font-semibold text-zinc-900">
+          <.status_chip id={"status-#{@player.name}"} status={@status} />
+          <span class="min-w-0 truncate font-semibold text-zinc-900">
             {GameFormat.player_name(@names, @player.name)}
           </span>
         </header>
@@ -100,6 +142,7 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
 
   attr :players, :list, required: true
   attr :names, :map, required: true
+  attr :statuses, :map, default: %{}
 
   def others_strip(assigns) do
     ~H"""
@@ -110,7 +153,10 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
         class="min-w-48 sm:min-w-56 shrink-0 rounded-xl bg-antique/90 p-2 sm:p-3 shadow"
       >
         <header class="mb-1 flex items-center justify-between gap-2">
-          <span class="truncate font-semibold">{GameFormat.player_name(@names, player.name)}</span>
+          <span class="min-w-0 truncate font-semibold">
+            {GameFormat.player_name(@names, player.name)}
+          </span>
+          <.status_chip id={"status-#{player.name}"} status={@statuses[player.name]} />
           <span class="text-xs text-zinc-600">
             {player.wonder} {GameFormat.side_label(player.side)}
           </span>
