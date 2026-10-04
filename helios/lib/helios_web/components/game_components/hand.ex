@@ -2,6 +2,8 @@ defmodule HeliosWeb.GameComponents.Hand do
   @moduledoc "The player's hand, the action panel for the selected card, and the pending-choice banner."
   use HeliosWeb, :html
 
+  import HeliosWeb.GameComponents.CardZoom, only: [card_zoom: 1, show_zoom: 0]
+
   alias Helios.Games
   alias HeliosWeb.{GameAssets, GameFormat}
 
@@ -54,6 +56,7 @@ defmodule HeliosWeb.GameComponents.Hand do
   end
 
   attr :card, :map, required: true
+  attr :neighbours, :map, required: true
 
   def action_panel(assigns) do
     assigns = assign(assigns, :button_class, @action_button)
@@ -86,11 +89,22 @@ defmodule HeliosWeb.GameComponents.Hand do
         <.icon name="hero-x-mark" class="size-5" />
       </button>
       <div class="flex items-start gap-3 sm:gap-4">
-        <img
-          src={GameAssets.card_path(@card.name)}
-          alt={@card.name}
-          class="h-[147px] w-24 shrink-0 rounded-lg sm:h-[183px] sm:w-[120px] short:h-[98px] short:w-16"
-        />
+        <button
+          id="zoom-card"
+          type="button"
+          phx-click={show_zoom()}
+          aria-label={"Enlarge #{@card.name}"}
+          class="relative shrink-0 cursor-zoom-in rounded-lg focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300"
+        >
+          <img
+            src={GameAssets.card_path(@card.name)}
+            alt={@card.name}
+            class="h-[147px] w-24 rounded-lg sm:h-[183px] sm:w-[120px] short:h-[98px] short:w-16"
+          />
+          <span class="absolute bottom-1 right-1 rounded-full bg-black/60 p-1 text-white">
+            <.icon name="hero-magnifying-glass-plus" class="size-4" />
+          </span>
+        </button>
         <div class="flex min-w-0 flex-1 flex-col gap-3">
           <h3 id="action-panel-title" class="pr-10 text-lg font-semibold text-zinc-900">
             {@card.name}
@@ -102,6 +116,7 @@ defmodule HeliosWeb.GameComponents.Hand do
             prefix="build"
             card={@card.name}
             option={@card.build}
+            neighbours={@neighbours}
           />
           <.option_group
             id="wonder-options"
@@ -110,6 +125,7 @@ defmodule HeliosWeb.GameComponents.Hand do
             prefix="wonder"
             card={@card.name}
             option={@card.wonder_stage}
+            neighbours={@neighbours}
           />
           <div :if={@card.free_build}>
             <button
@@ -139,6 +155,7 @@ defmodule HeliosWeb.GameComponents.Hand do
           </div>
         </div>
       </div>
+      <.card_zoom name={@card.name} />
     </section>
     """
   end
@@ -149,6 +166,7 @@ defmodule HeliosWeb.GameComponents.Hand do
   attr :prefix, :string, required: true
   attr :card, :string, required: true
   attr :option, :any, required: true
+  attr :neighbours, :map, required: true
 
   defp option_group(assigns) do
     assigns = assign(assigns, button_class: @action_button, disabled_class: @disabled_button)
@@ -164,6 +182,15 @@ defmodule HeliosWeb.GameComponents.Hand do
             </button>
           </div>
         <% {:trade, options} -> %>
+          <p
+            :if={GameFormat.card_cost(@option)}
+            id={"#{@prefix}-card-cost"}
+            class="text-xs text-zinc-600"
+          >
+            +{GameFormat.card_cost(@option)} {if GameFormat.card_cost(@option) == 1,
+              do: "coin",
+              else: "coins"} card cost
+          </p>
           <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               :for={{payment_option, index} <- Enum.with_index(options)}
@@ -175,7 +202,7 @@ defmodule HeliosWeb.GameComponents.Hand do
               phx-value-option={index}
               class={@button_class}
             >
-              {GameFormat.option_label(payment_option)}
+              {GameFormat.option_label(payment_option, @neighbours)}
             </button>
           </div>
         <% simple -> %>
@@ -189,7 +216,7 @@ defmodule HeliosWeb.GameComponents.Hand do
               phx-value-option="0"
               class={@button_class}
             >
-              {GameFormat.option_label(simple)}
+              {GameFormat.option_label(simple, @neighbours)}
             </button>
           </div>
       <% end %>

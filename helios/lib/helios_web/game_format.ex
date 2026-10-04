@@ -75,12 +75,19 @@ defmodule HeliosWeb.GameFormat do
 
   defdelegate available?(option), to: Choice
 
-  def option_label(:free), do: "Free"
-  def option_label({:coins, 1}), do: "Pay 1 coin"
-  def option_label({:coins, n}), do: "Pay #{n} coins"
+  def option_label(:free, _neighbours), do: "Free"
+  def option_label({:coins, 1}, _neighbours), do: "Pay 1 coin"
+  def option_label({:coins, n}, _neighbours), do: "Pay #{n} coins"
 
-  def option_label(%{west_coins: west, east_coins: east, bank_coins: bank}),
-    do: "West #{west} · East #{east} · Bank #{bank}"
+  def option_label(%{west_coins: west, east_coins: east}, %{west: west_name, east: east_name}) do
+    [{west_name, west}, {east_name, east}]
+    |> Enum.reject(fn {_name, coins} -> coins == 0 end)
+    |> Enum.map_join(" · ", fn {name, coins} -> "#{name} #{coins}" end)
+  end
+
+  @doc "The card's own coin cost when it is paid on top of a trade; nil otherwise."
+  def card_cost({:trade, [%{bank_coins: coins} | _]}) when coins > 0, do: coins
+  def card_cost(_option), do: nil
 
   def action_card(nil), do: nil
   def action_card({_type, %{card: card}}), do: card

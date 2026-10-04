@@ -82,7 +82,16 @@ defmodule HeliosWeb.GameLive do
               />
             </div>
             <.discard_picker view={@view} />
-            <.action_panel :if={@selected_card} card={@selected_card} />
+            <.action_panel
+              :if={@selected_card}
+              card={@selected_card}
+              neighbours={
+                %{
+                  west: GameFormat.player_name(@names, @view.west),
+                  east: GameFormat.player_name(@names, @view.east)
+                }
+              }
+            />
           <% end %>
         </div>
       </div>

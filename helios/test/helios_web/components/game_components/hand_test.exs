@@ -26,30 +26,88 @@ defmodule HeliosWeb.GameComponents.HandTest do
   end
 
   test "unavailable builds show the reason; trade options list who gets paid" do
-    html = render_component(&Hand.action_panel/1, card: card("Baths"))
+    html =
+      render_component(&Hand.action_panel/1,
+        card: card("Baths"),
+        neighbours: %{west: "Dee", east: "Bob"}
+      )
 
     assert text(html, "#build-unavailable") == "You can't afford that"
     assert attrs(html, "#build-unavailable", "disabled") == [""]
-    assert text(html, "#wonder-option-0") == "West 2 · East 0 · Bank 0"
-    assert text(html, "#wonder-option-1") == "West 0 · East 2 · Bank 0"
+    assert text(html, "#wonder-option-0") == "Dee 2"
+    assert text(html, "#wonder-option-1") == "Bob 2"
+    assert count(html, "#wonder-card-cost") == 0
     assert attrs(html, "#wonder-option-1", "phx-value-option") == ["1"]
     assert attrs(html, "#wonder-option-1", "phx-value-kind") == ["wonder_stage"]
     assert count(html, "#build-free-button") == 0
     assert attrs(html, "#discard-button", "phx-value-kind") == ["discard"]
   end
 
+  test "a coin-cost card shows its cost once above the trade options" do
+    card = %{
+      name: "Tree Farm",
+      category: :raw_material,
+      age: 1,
+      build:
+        {:trade,
+         [
+           %{
+             payment: %{west: [{:wood, 1}], east: []},
+             west_coins: 2,
+             east_coins: 0,
+             bank_coins: 1
+           }
+         ]},
+      wonder_stage: {:unavailable, :cannot_afford},
+      free_build: false
+    }
+
+    html =
+      render_component(&Hand.action_panel/1, card: card, neighbours: %{west: "Dee", east: "Bob"})
+
+    assert text(html, "#build-card-cost") == "+1 coin card cost"
+    assert text(html, "#build-option-0") == "Dee 2"
+  end
+
+  test "the card art opens a zoom" do
+    html =
+      render_component(&Hand.action_panel/1,
+        card: card("Tavern"),
+        neighbours: %{west: "Dee", east: "Bob"}
+      )
+
+    assert [js] = attrs(html, "#zoom-card", "phx-click")
+    assert js =~ "#card-zoom"
+    assert attrs(html, "#card-zoom img", "src") == ["/images/cards/tavern.png"]
+  end
+
   test "free, coin and Olympía free-build options" do
-    tavern = render_component(&Hand.action_panel/1, card: card("Tavern"))
+    tavern =
+      render_component(&Hand.action_panel/1,
+        card: card("Tavern"),
+        neighbours: %{west: "Dee", east: "Bob"}
+      )
+
     assert text(tavern, "#build-option-0") == "Free"
     assert text(tavern, "#wonder-unavailable") == "Your wonder is complete"
     assert attrs(tavern, "#build-free-button", "phx-value-kind") == ["build_free"]
 
-    farm = render_component(&Hand.action_panel/1, card: card("Tree Farm"))
+    farm =
+      render_component(&Hand.action_panel/1,
+        card: card("Tree Farm"),
+        neighbours: %{west: "Dee", east: "Bob"}
+      )
+
     assert text(farm, "#build-option-0") == "Pay 1 coin"
   end
 
   test "the action panel is a dismissable dialog" do
-    html = render_component(&Hand.action_panel/1, card: card("Tavern"))
+    html =
+      render_component(&Hand.action_panel/1,
+        card: card("Tavern"),
+        neighbours: %{west: "Dee", east: "Bob"}
+      )
+
     assert attrs(html, "#action-panel", "role") == ["dialog"]
     assert attrs(html, "#action-panel", "aria-modal") == ["true"]
     assert attrs(html, "#action-panel", "aria-labelledby") == ["action-panel-title"]

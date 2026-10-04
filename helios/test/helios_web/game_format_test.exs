@@ -24,18 +24,28 @@ defmodule HeliosWeb.GameFormatTest do
     assert GameFormat.category_label(:manufactured_good) == "Manufactured goods"
   end
 
-  test "option labels" do
-    assert GameFormat.option_label(:free) == "Free"
-    assert GameFormat.option_label({:coins, 1}) == "Pay 1 coin"
-    assert GameFormat.option_label({:coins, 3}) == "Pay 3 coins"
+  test "option labels name the neighbours and skip the bank" do
+    neighbours = %{west: "Bob", east: "Cid"}
+    assert GameFormat.option_label(:free, neighbours) == "Free"
+    assert GameFormat.option_label({:coins, 1}, neighbours) == "Pay 1 coin"
+    assert GameFormat.option_label({:coins, 3}, neighbours) == "Pay 3 coins"
 
-    assert GameFormat.option_label(%{
-             payment: %{west: [], east: []},
-             west_coins: 2,
-             east_coins: 1,
-             bank_coins: 0
-           }) ==
-             "West 2 · East 1 · Bank 0"
+    assert GameFormat.option_label(
+             %{west_coins: 2, east_coins: 1, bank_coins: 1, payment: %{}},
+             neighbours
+           ) == "Bob 2 · Cid 1"
+
+    assert GameFormat.option_label(
+             %{west_coins: 0, east_coins: 2, bank_coins: 0, payment: %{}},
+             neighbours
+           ) == "Cid 2"
+  end
+
+  test "card cost is the bank part of a trade, shown once" do
+    assert GameFormat.card_cost({:trade, [%{bank_coins: 1}, %{bank_coins: 1}]}) == 1
+    assert GameFormat.card_cost({:trade, [%{bank_coins: 0}]}) == nil
+    assert GameFormat.card_cost(:free) == nil
+    assert GameFormat.card_cost({:coins, 2}) == nil
   end
 
   test "describes pending actions" do
