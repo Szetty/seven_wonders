@@ -171,7 +171,7 @@ Phase C tests: LiveView table with 3, 5 and 7 players (count and order of `#othe
 
 ```rust
 pub enum HistoryEvent {
-    Turn { age: u8, turn: u8, kind: TurnKind, plays: Vec<Play> },
+    Turn { age: u8, turn: u8, kind: TurnKind, plays: Vec<Play>, coins: Vec<CoinChange> },
     Battles { age: u8, battles: Vec<Battle> },
 }
 pub enum TurnKind { Regular, PlayLastCard, BuildFromDiscard }
@@ -180,7 +180,10 @@ pub struct Play {
     pub action: PublicAction,
     pub coins_to_west: u32,
     pub coins_to_east: u32,
-    pub coins_delta: i32,
+}
+pub struct CoinChange {
+    pub player: String,
+    pub delta: i32,                    // every seat whose coins changed this turn, seat order
 }
 pub enum PublicAction {
     Built { card: String },
@@ -199,11 +202,11 @@ pub struct Battle {
 }
 ```
 
-- `Game.history: Vec<HistoryEvent>`; `apply_batch` appends one `Turn` (plays in seat order; `kind` from the phase being resolved; `turn`/`age` of the resolved turn; `coins_delta` = coins after the whole batch including trade credits minus before). `resolve_battles` appends one `Battles` (one entry per seat vs its east neighbour, consistent with the tokens it awards). End-of-turn-6 automatic discards are not player actions and are not recorded.
+- `Game.history: Vec<HistoryEvent>`; `apply_batch` appends one `Turn` (plays in seat order; `kind` from the phase being resolved; `turn`/`age` of the resolved turn; `coins` = one `CoinChange` per seat whose coins differ after the whole batch, trade credits included — this covers neighbours who sold resources during someone else's extra turn). `resolve_battles` appends one `Battles` (one entry per seat vs its east neighbour, consistent with the tokens it awards). End-of-turn-6 automatic discards are not player actions and are not recorded.
 - `pub fn history(&self) -> &[HistoryEvent]`; NIF `history(game)` → list of `{:turn, %{age, turn, kind, plays}}` | `{:battles, %{age, battles}}` (DTOs in `dto.rs`, pinned in `nif_dto.rs` and `core_shapes_test.exs`). `debug_json` includes it.
 - No `ENGINE_VERSION` bump.
 
-Core tests: unit tests for a turn with trades (coins to each side and deltas on both buyer and seller), a discard (+3, no card), a wonder stage (stage number, no card), Olympía free build, Halikarnassós extra turn, Babylon B last card, battles with win/loss/tie. Simulation invariants for random games: `3 + Σ coins_delta == final coins` per player; tokens from `Battles` == `military_tokens`; cards from `Built*` plays == `built` (in order); two replays of the same seed + actions give identical history.
+Core tests: unit tests for a turn with trades (coins to each side and deltas on both buyer and seller), a discard (+3, no card), a wonder stage (stage number, no card), Olympía free build, Halikarnassós extra turn, Babylon B last card, battles with win/loss/tie. Simulation invariants for random games: `3 + Σ CoinChange.delta == final coins` per player; tokens from `Battles` == `military_tokens`; cards from `Built*` plays == `built` (in order); two replays of the same seed + actions give identical history.
 
 ### Helios — live game
 
@@ -217,11 +220,11 @@ Core tests: unit tests for a turn with trades (coins to each side and deltas on 
   - The hand hook records hand-card rects in `beforeUpdate` (keyed by `data-card`).
   - My card: a ghost image flies from its old hand rect to `#built-<me>-<slug>` (build), `#stage-<me>-<n>` (wonder stage, flipping to the age back), or fades into my coin counter (discard).
   - Other players' new tiles: fade/scale in with a gold glow (`fx-arrive` class).
-  - Coin floats: "+3" / "−2" rising above each board's `[data-stat="coins"]` for every non-zero `coins_delta`.
+  - Coin floats: "+3" / "−2" rising above each board's `[data-stat="coins"]` for every `CoinChange`.
   - New hand slides in from the side it was passed from.
   - Total ≤ 1.2 s, never blocks input; if `matchMedia("(prefers-reduced-motion: reduce)")` matches, the hook does nothing.
 - **End-of-age summary** `#age-summary` (dialog over the table): "End of Age N — Military conflicts", one row per battle (the viewer's two battles first): names, military strengths, tokens (`tokens/victory{1,3,5}.png`, `victoryminus1.png`) or "tie". Rows reveal with CSS stagger (`motion-safe:`). Closes on click, Esc, `#close-age-summary`, or after ~6 s (hook timer → `dismiss_age_summary`); on close, token ghosts fly to each board's `[data-tokens]`. After Age III it appears over the game-over page.
-- **History drawer**: `#history-button` in the top bar toggles `#history-drawer` (right-side drawer from `lg`, bottom sheet below; client-side `JS.toggle`, content server-rendered and live). Newest first, grouped by age; each `Battles` event as a block; each turn lists every play: "Bob built [tile] Stockade, paid 2 coins to Cid", "Cid built wonder stage 1", "You discarded a card (+3 coins)", "Ann built Temple for free (Olympía)", "Dana built Gardens from the discard pile". Coins paid to neighbours shown by name; each play also shows its net `coins_delta` ("+5 coins") when non-zero. Card names open `#card-sheet`. Available during the game and at game over.
+- **History drawer**: `#history-button` in the top bar toggles `#history-drawer` (right-side drawer from `lg`, bottom sheet below; client-side `JS.toggle`, content server-rendered and live). Newest first, grouped by age; each `Battles` event as a block; each turn lists every play: "Bob built [tile] Stockade, paid 2 coins to Cid", "Cid built wonder stage 1", "You discarded a card (+3 coins)", "Ann built Temple for free (Olympía)", "Dana built Gardens from the discard pile". Coins paid to neighbours shown by name; each turn lists the net coin changes ("Bob +5 coins"). Card names open `#card-sheet`. Available during the game and at game over.
 
 ### Helios — finished games and replay
 
