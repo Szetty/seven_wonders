@@ -23,6 +23,7 @@ defmodule HeliosWeb.GameAssetsTest do
     assert GameAssets.token_path(:loom) == "/images/tokens/linen.png"
     assert GameAssets.token_path(:papyrus) == "/images/tokens/paper.png"
     assert GameAssets.token_path(:coin) == "/images/tokens/coin.png"
+    assert GameAssets.token_path(:check) == "/images/tokens/check.png"
     assert GameAssets.token_path({:military, -1}) == "/images/tokens/victoryminus1.png"
     assert GameAssets.token_path({:military, 5}) == "/images/tokens/victory5.png"
   end

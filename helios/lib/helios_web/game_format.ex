@@ -1,6 +1,7 @@
 defmodule HeliosWeb.GameFormat do
   @moduledoc "Pure presentation helpers for the game table: labels, colours, grouping."
 
+  alias Helios.Games
   alias Helios.Games.Choice
 
   @category_order [
@@ -89,6 +90,27 @@ defmodule HeliosWeb.GameFormat do
   @doc "The card's own coin cost when it is paid on top of a trade; nil otherwise."
   def card_cost({:trade, [%{bank_coins: coins} | _]}) when coins > 0, do: coins
   def card_cost(_option), do: nil
+
+  def cheapest(:free), do: :free
+  def cheapest({:chain, from}), do: {:chain, from}
+  def cheapest({:coins, n}), do: {:coins, n}
+
+  def cheapest({:trade, options}),
+    do: {:coins, options |> Enum.map(&option_total/1) |> Enum.min()}
+
+  def cheapest({:unavailable, reason}), do: {:unavailable, reason}
+
+  def option_total(%{west_coins: w, east_coins: e, bank_coins: b}), do: w + e + b
+
+  def cheapest_label(option) do
+    case cheapest(option) do
+      :free -> "Free"
+      {:chain, from} -> "Free (you have #{from})"
+      {:coins, 1} -> "1 coin"
+      {:coins, n} -> "#{n} coins"
+      {:unavailable, reason} -> Games.error_message(reason)
+    end
+  end
 
   def action_card(nil), do: nil
   def action_card({_type, %{card: card}}), do: card

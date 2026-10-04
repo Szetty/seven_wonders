@@ -25,6 +25,18 @@ defmodule HeliosWeb.GameComponents.HandTest do
     assert attrs(html, "#hand-card-0 img", "src") == ["/images/cards/baths.png"]
   end
 
+  test "each hand card shows the cheapest way to build it" do
+    html = render_component(&Hand.hand/1, hand: SampleViews.hand(), selected: nil, pending: nil)
+    assert attrs(html, "#hand-card-0 .cost-badge", "data-cost") == ["unavailable"]
+    assert attrs(html, "#hand-card-0 .cost-badge", "title") == ["You can't afford that"]
+    assert attrs(html, "#hand-card-1 .cost-badge", "data-cost") == ["free"]
+    assert attrs(html, "#hand-card-1 .cost-badge img", "src") == ["/images/tokens/check.png"]
+    assert attrs(html, "#hand-card-2 .cost-badge", "data-cost") == ["1"]
+    assert text(html, "#hand-card-2 .cost-badge") == "1"
+    assert [class] = attrs(html, "#hand-card-0 img[alt='Baths']", "class")
+    assert class =~ "grayscale"
+  end
+
   test "unavailable builds show the reason; trade options list who gets paid" do
     html =
       render_component(&Hand.action_panel/1,

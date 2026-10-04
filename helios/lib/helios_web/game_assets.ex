@@ -30,6 +30,7 @@ defmodule HeliosWeb.GameAssets do
   end
 
   def token_path(:coin), do: static("/images/tokens/coin.png")
+  def token_path(:check), do: static("/images/tokens/check.png")
   def token_path(:pyramid), do: static("/images/tokens/pyramid.png")
 
   def token_path({:military, value}) when value in [1, 3, 5],

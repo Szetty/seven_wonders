@@ -42,6 +42,28 @@ defmodule HeliosWeb.GameFormatTest do
            ) == "Cid 2"
   end
 
+  test "cheapest way to build" do
+    trade =
+      {:trade,
+       [
+         %{west_coins: 2, east_coins: 2, bank_coins: 1, payment: %{}},
+         %{west_coins: 1, east_coins: 0, bank_coins: 1, payment: %{}}
+       ]}
+
+    assert GameFormat.cheapest(:free) == :free
+    assert GameFormat.cheapest({:chain, "Altar"}) == {:chain, "Altar"}
+    assert GameFormat.cheapest({:coins, 1}) == {:coins, 1}
+    assert GameFormat.cheapest(trade) == {:coins, 2}
+    assert GameFormat.cheapest({:unavailable, :cannot_afford}) == {:unavailable, :cannot_afford}
+
+    assert GameFormat.cheapest_label({:chain, "Altar"}) == "Free (you have Altar)"
+    assert GameFormat.cheapest_label(trade) == "2 coins"
+    assert GameFormat.cheapest_label({:coins, 1}) == "1 coin"
+
+    assert GameFormat.cheapest_label({:unavailable, :already_built}) ==
+             "You already built that structure"
+  end
+
   test "card cost is the bank part of a trade, shown once" do
     assert GameFormat.card_cost({:trade, [%{bank_coins: 1}, %{bank_coins: 1}]}) == 1
     assert GameFormat.card_cost({:trade, [%{bank_coins: 0}]}) == nil

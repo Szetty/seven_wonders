@@ -41,8 +41,12 @@ defmodule HeliosWeb.GameComponents.Hand do
           <img
             src={GameAssets.card_path(card.name)}
             alt={card.name}
-            class="h-[98px] w-16 rounded-lg object-cover sm:h-[134px] sm:w-22 lg:h-[183px] lg:w-[120px] short:h-[86px] short:w-14"
+            class={[
+              "h-[98px] w-16 rounded-lg object-cover sm:h-[134px] sm:w-22 lg:h-[183px] lg:w-[120px] short:h-[86px] short:w-14",
+              !GameFormat.available?(card.build) && "opacity-70 grayscale"
+            ]}
           />
+          <.cost_badge option={card.build} />
           <span
             :if={@pending_card == card.name}
             class="absolute left-1 top-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-bold text-white"
@@ -54,6 +58,40 @@ defmodule HeliosWeb.GameComponents.Hand do
     </section>
     """
   end
+
+  attr :option, :any, required: true
+
+  defp cost_badge(assigns) do
+    assigns = assign(assigns, :cheapest, GameFormat.cheapest(assigns.option))
+
+    ~H"""
+    <span
+      class={[
+        "cost-badge pointer-events-none absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center gap-0.5 rounded-full px-1 text-xs font-extrabold shadow ring-1",
+        badge_class(@cheapest)
+      ]}
+      data-cost={badge_data(@cheapest)}
+      title={GameFormat.cheapest_label(@option)}
+    >
+      <%= case @cheapest do %>
+        <% {:coins, n} -> %>
+          {n}<img src={GameAssets.token_path(:coin)} alt="" class="size-3.5" />
+        <% {:unavailable, _} -> %>
+          <.icon name="hero-x-mark" class="size-4" />
+        <% _free -> %>
+          <img src={GameAssets.token_path(:check)} alt="" class="size-4" />
+      <% end %>
+    </span>
+    """
+  end
+
+  defp badge_data({:coins, n}), do: to_string(n)
+  defp badge_data({:unavailable, _}), do: "unavailable"
+  defp badge_data(_free), do: "free"
+
+  defp badge_class({:coins, _}), do: "bg-amber-50 text-zinc-900 ring-amber-500"
+  defp badge_class({:unavailable, _}), do: "bg-zinc-500 text-white ring-zinc-700"
+  defp badge_class(_free), do: "bg-emerald-600 text-white ring-emerald-800"
 
   attr :card, :map, required: true
   attr :neighbours, :map, required: true
