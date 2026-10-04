@@ -1,9 +1,10 @@
 //! Boundary DTOs: rustler encodings of `crate::game` types. Conversions only;
 //! no game logic lives here.
 use crate::game::{
-    Action, ActionError, BuildOption, BuiltCard, CardInfo, Category, ExtraTurnKind, FinalScore,
-    GameSettings, HandCard, PassDirection, Payment, PaymentOption, PhaseKind, PhaseView,
-    PlayerView, PublicPlayer, ResourceType, SetupError, Side, WonderInfo, WonderSelection,
+    Action, ActionError, BuildOption, BuiltCard, CardInfo, Category, CostInfo, EffectSpec,
+    ExtraTurnKind, FinalScore, GameSettings, HandCard, PassDirection, Payment, PaymentOption,
+    PhaseKind, PhaseView, PlayerDirection, PlayerView, PointCategory, PublicPlayer, ResourceType,
+    ScientificSymbol, SetupError, Side, StageInfo, WonderBoardInfo, WonderInfo, WonderSelection,
 };
 use rustler::{NifMap, NifTaggedEnum, NifUnitEnum};
 
@@ -498,10 +499,258 @@ impl From<PlayerView> for PlayerViewDto {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, NifUnitEnum)]
+pub enum PointCategoryDto {
+    Military,
+    Treasury,
+    Wonder,
+    Civilian,
+    Scientific,
+    Commercial,
+    Guild,
+}
+
+impl From<PointCategory> for PointCategoryDto {
+    fn from(category: PointCategory) -> Self {
+        match category {
+            PointCategory::MilitaryP => Self::Military,
+            PointCategory::TreasuryP => Self::Treasury,
+            PointCategory::WonderP => Self::Wonder,
+            PointCategory::CivilianP => Self::Civilian,
+            PointCategory::ScientificP => Self::Scientific,
+            PointCategory::CommercialP => Self::Commercial,
+            PointCategory::GuildP => Self::Guild,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, NifUnitEnum)]
+pub enum ScienceSymbolDto {
+    Compass,
+    Gears,
+    Tablet,
+}
+
+impl From<ScientificSymbol> for ScienceSymbolDto {
+    fn from(symbol: ScientificSymbol) -> Self {
+        match symbol {
+            ScientificSymbol::Compass => Self::Compass,
+            ScientificSymbol::Gears => Self::Gears,
+            ScientificSymbol::Tablet => Self::Tablet,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, NifUnitEnum)]
+pub enum EffectDirectionDto {
+    West,
+    East,
+    Own,
+}
+
+impl From<PlayerDirection> for EffectDirectionDto {
+    fn from(direction: PlayerDirection) -> Self {
+        match direction {
+            PlayerDirection::West => Self::West,
+            PlayerDirection::East => Self::East,
+            PlayerDirection::Own => Self::Own,
+        }
+    }
+}
+
+fn convert<A, B: From<A>>(items: Vec<A>) -> Vec<B> {
+    items.into_iter().map(Into::into).collect()
+}
+
+/// See `Helios.Core` docs for the Elixir shapes.
+#[derive(Debug, Clone, PartialEq, Eq, NifTaggedEnum)]
+pub enum EffectSpecDto {
+    Produces {
+        resources: Vec<ResourceDto>,
+        choice: bool,
+        tradable: bool,
+    },
+    Points {
+        category: PointCategoryDto,
+        points: i32,
+    },
+    Military(u32),
+    Science {
+        symbols: Vec<ScienceSymbolDto>,
+        choice: bool,
+    },
+    Coins(u32),
+    TradeDiscount {
+        directions: Vec<EffectDirectionDto>,
+        resources: Vec<ResourceDto>,
+    },
+    CoinsPerCard {
+        directions: Vec<EffectDirectionDto>,
+        categories: Vec<CategoryDto>,
+        coins: u32,
+    },
+    PointsPerCard {
+        category: PointCategoryDto,
+        directions: Vec<EffectDirectionDto>,
+        categories: Vec<CategoryDto>,
+        points: i32,
+    },
+    CoinsPerWonderStage {
+        directions: Vec<EffectDirectionDto>,
+        coins: u32,
+    },
+    PointsPerWonderStage {
+        category: PointCategoryDto,
+        directions: Vec<EffectDirectionDto>,
+        points: i32,
+    },
+    PointsPerDefeat {
+        category: PointCategoryDto,
+        directions: Vec<EffectDirectionDto>,
+        points: i32,
+    },
+    PlayLastCard,
+    BuildFreeOncePerAge,
+    CopyGuild,
+    BuildFromDiscard,
+}
+
+impl From<EffectSpec> for EffectSpecDto {
+    fn from(spec: EffectSpec) -> Self {
+        match spec {
+            EffectSpec::Produces {
+                resources,
+                choice,
+                tradable,
+            } => Self::Produces {
+                resources: convert(resources),
+                choice,
+                tradable,
+            },
+            EffectSpec::Points { category, points } => Self::Points {
+                category: category.into(),
+                points,
+            },
+            EffectSpec::Military(n) => Self::Military(n),
+            EffectSpec::Science { symbols, choice } => Self::Science {
+                symbols: convert(symbols),
+                choice,
+            },
+            EffectSpec::Coins(n) => Self::Coins(n),
+            EffectSpec::TradeDiscount {
+                directions,
+                resources,
+            } => Self::TradeDiscount {
+                directions: convert(directions),
+                resources: convert(resources),
+            },
+            EffectSpec::CoinsPerCard {
+                directions,
+                categories,
+                coins,
+            } => Self::CoinsPerCard {
+                directions: convert(directions),
+                categories: convert(categories),
+                coins,
+            },
+            EffectSpec::PointsPerCard {
+                category,
+                directions,
+                categories,
+                points,
+            } => Self::PointsPerCard {
+                category: category.into(),
+                directions: convert(directions),
+                categories: convert(categories),
+                points,
+            },
+            EffectSpec::CoinsPerWonderStage { directions, coins } => Self::CoinsPerWonderStage {
+                directions: convert(directions),
+                coins,
+            },
+            EffectSpec::PointsPerWonderStage {
+                category,
+                directions,
+                points,
+            } => Self::PointsPerWonderStage {
+                category: category.into(),
+                directions: convert(directions),
+                points,
+            },
+            EffectSpec::PointsPerDefeat {
+                category,
+                directions,
+                points,
+            } => Self::PointsPerDefeat {
+                category: category.into(),
+                directions: convert(directions),
+                points,
+            },
+            EffectSpec::PlayLastCard => Self::PlayLastCard,
+            EffectSpec::BuildFreeOncePerAge => Self::BuildFreeOncePerAge,
+            EffectSpec::CopyGuild => Self::CopyGuild,
+            EffectSpec::BuildFromDiscard => Self::BuildFromDiscard,
+        }
+    }
+}
+
+/// `%{coins: 1, resources: [{:wood, 2}]}`
+#[derive(Debug, Clone, PartialEq, Eq, NifMap)]
+pub struct CostInfoDto {
+    pub coins: u32,
+    pub resources: Vec<(ResourceDto, u8)>,
+}
+
+impl From<CostInfo> for CostInfoDto {
+    fn from(cost: CostInfo) -> Self {
+        Self {
+            coins: cost.coins,
+            resources: cost
+                .resources
+                .into_iter()
+                .map(|(r, n)| (r.into(), n))
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, NifMap)]
+pub struct StageInfoDto {
+    pub cost: CostInfoDto,
+    pub effects: Vec<EffectSpecDto>,
+}
+
+impl From<StageInfo> for StageInfoDto {
+    fn from(stage: StageInfo) -> Self {
+        Self {
+            cost: stage.cost.into(),
+            effects: convert(stage.effects),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, NifMap)]
+pub struct WonderBoardInfoDto {
+    pub side: SideDto,
+    pub effects: Vec<EffectSpecDto>,
+    pub stages: Vec<StageInfoDto>,
+}
+
+impl From<WonderBoardInfo> for WonderBoardInfoDto {
+    fn from(board: WonderBoardInfo) -> Self {
+        Self {
+            side: board.side.into(),
+            effects: convert(board.effects),
+            stages: convert(board.stages),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, NifMap)]
 pub struct WonderInfoDto {
     pub name: String,
     pub sides: Vec<SideDto>,
+    pub boards: Vec<WonderBoardInfoDto>,
 }
 
 impl From<WonderInfo> for WonderInfoDto {
@@ -509,6 +758,7 @@ impl From<WonderInfo> for WonderInfoDto {
         Self {
             name: wonder.name,
             sides: wonder.sides.into_iter().map(Into::into).collect(),
+            boards: convert(wonder.boards),
         }
     }
 }
@@ -518,6 +768,10 @@ pub struct CardInfoDto {
     pub name: String,
     pub category: CategoryDto,
     pub age: u8,
+    pub cost: CostInfoDto,
+    pub chains_from: Vec<String>,
+    pub chains_to: Vec<String>,
+    pub effects: Vec<EffectSpecDto>,
 }
 
 impl From<CardInfo> for CardInfoDto {
@@ -526,6 +780,10 @@ impl From<CardInfo> for CardInfoDto {
             name: card.name,
             category: card.category.into(),
             age: card.age,
+            cost: card.cost.into(),
+            chains_from: card.chains_from,
+            chains_to: card.chains_to,
+            effects: convert(card.effects),
         }
     }
 }

@@ -11,8 +11,12 @@ mod test_support;
 mod types;
 mod view;
 
-pub use crate::domain::{Category, ResourceType};
-pub use settings::{settings, CardInfo, GameSettings, WonderInfo};
+pub use crate::domain::{
+    Category, EffectSpec, PlayerDirection, PointCategory, ResourceType, ScientificSymbol,
+};
+pub use settings::{
+    settings, CardInfo, CostInfo, GameSettings, StageInfo, WonderBoardInfo, WonderInfo,
+};
 pub use types::{
     Action, ActionError, ExtraTurnKind, FinalScore, Payment, PaymentOption, Phase, SetupError,
     Side, WonderSelection,

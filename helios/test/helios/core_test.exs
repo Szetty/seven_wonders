@@ -12,10 +12,14 @@ defmodule Helios.CoreTest do
       settings = Core.game_settings()
       assert settings.engine_version == 1
       assert length(settings.wonders) == 7
-      assert %{name: "Halikarnassós", sides: [:a, :b]} in settings.wonders
+      assert Enum.any?(settings.wonders, &match?(%{name: "Halikarnassós", sides: [:a, :b]}, &1))
       assert length(settings.cards) == 78
-      assert %{name: "Altar", category: :civilian, age: 1} in settings.cards
-      assert %{name: "Loom", category: :manufactured_good, age: 2} in settings.cards
+      assert Enum.any?(settings.cards, &match?(%{name: "Altar", category: :civilian, age: 1}, &1))
+
+      assert Enum.any?(
+               settings.cards,
+               &match?(%{name: "Loom", category: :manufactured_good, age: 2}, &1)
+             )
     end
   end
 

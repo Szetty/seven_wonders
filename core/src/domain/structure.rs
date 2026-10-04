@@ -33,7 +33,6 @@ impl<'a, T> Structure<'a, T> {
     pub fn dependencies(&self) -> Dependencies<'_> {
         self.4
     }
-    #[cfg(test)]
     pub fn dependents(&self) -> Dependents<'a> {
         self.5
     }

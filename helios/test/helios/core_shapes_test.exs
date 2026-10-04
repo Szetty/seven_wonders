@@ -35,6 +35,27 @@ defmodule Helios.CoreShapesTest do
 
     assert %{name: name, category: category, age: age} = hd(settings.cards)
     assert is_binary(name) and is_atom(category) and age in 1..3
+
+    altar = Enum.find(settings.cards, &(&1.name == "Altar"))
+    assert %{cost: %{coins: 0, resources: []}, chains_from: [], chains_to: ["Temple"]} = altar
+    assert [{:points, %{category: :civilian, points: 2}}] = altar.effects
+
+    forum = Enum.find(settings.cards, &(&1.name == "Forum"))
+
+    assert [{:produces, %{resources: [:loom, :glass, :papyrus], choice: true, tradable: false}}] =
+             forum.effects
+
+    gizah = Enum.find(settings.wonders, &(&1.name == "Gizah"))
+    assert [%{side: :a, stages: [_, _, _]}, %{side: :b, stages: [_, _, _, _]}] = gizah.boards
+
+    assert %{
+             cost: %{coins: 0, resources: [{:wood, 3}]},
+             effects: [{:points, %{category: :wonder, points: 5}}]
+           } =
+             Enum.at(hd(gizah.boards).stages, 1)
+
+    babylon_b = Enum.find(settings.wonders, &(&1.name == "Babylon")).boards |> Enum.at(1)
+    assert [:play_last_card] = Enum.at(babylon_b.stages, 1).effects
   end
 
   test "view/2 at the start of a game" do

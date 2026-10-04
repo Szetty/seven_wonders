@@ -151,3 +151,26 @@ fn a_whole_view_converts() {
     assert_eq!(dto.submitted.len(), 3);
     assert_eq!(dto.my_pending, None);
 }
+
+#[test]
+fn settings_convert_with_catalogue() {
+    use crate::nif::dto::{CostInfoDto, EffectSpecDto, GameSettingsDto, PointCategoryDto};
+    let dto = GameSettingsDto::from(crate::game::settings());
+    let altar = dto.cards.iter().find(|c| c.name == "Altar").unwrap();
+    assert_eq!(
+        altar.cost,
+        CostInfoDto {
+            coins: 0,
+            resources: vec![]
+        }
+    );
+    assert_eq!(altar.chains_to, vec!["Temple".to_string()]);
+    assert_eq!(
+        altar.effects,
+        vec![EffectSpecDto::Points {
+            category: PointCategoryDto::Civilian,
+            points: 2
+        }]
+    );
+    assert_eq!(dto.wonders[0].boards.len(), 2);
+}

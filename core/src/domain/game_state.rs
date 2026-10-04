@@ -339,8 +339,7 @@ pub type EffectFn = Box<dyn Fn(&mut GameState, PName) + Sync>;
 /// A card or wonder-stage effect: what it does (`spec`, for clients) and how
 /// it changes the game (`run`).
 pub struct Effect {
-    // Read by tests/NIF clients, never by the rules (hence allow).
-    #[allow(dead_code)]
+    // Read by the settings catalogue and tests, never by the rules.
     pub spec: EffectSpec,
     run: EffectFn,
 }
