@@ -43,6 +43,8 @@ defmodule HeliosWeb.GameComponents.PlayerPanelsTest do
            ]
 
     assert attrs(html, "#east-panel [data-card]", "title") == ["Lumber Yard", "Altar", "Stockade"]
+
+    assert count(html, "#east-panel-details #stage-2-1") == 1
   end
 
   test "neighbour panel folds into a one-line summary toggle on phones" do

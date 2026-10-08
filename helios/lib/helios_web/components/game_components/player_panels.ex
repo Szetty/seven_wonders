@@ -3,6 +3,7 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
   use HeliosWeb, :html
 
   import HeliosWeb.GameComponents.Icons, only: [military_icon: 1]
+  import HeliosWeb.GameComponents.StageStrip, only: [stage_strip: 1]
 
   alias HeliosWeb.{GameAssets, GameFormat}
   alias Phoenix.LiveView.JS
@@ -117,11 +118,18 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
             {GameFormat.player_name(@names, @player.name)}
           </span>
         </header>
-        <img
-          src={GameAssets.wonder_path(@player.wonder, @player.side)}
-          alt={"#{@player.wonder} #{GameFormat.side_label(@player.side)}"}
-          class="aspect-[16/5] w-full rounded object-cover"
-        />
+        <div class="relative overflow-hidden rounded">
+          <img
+            src={GameAssets.wonder_path(@player.wonder, @player.side)}
+            alt={"#{@player.wonder} #{GameFormat.side_label(@player.side)}"}
+            class="aspect-[16/5] w-full object-cover"
+          />
+          <.stage_strip
+            id={"wonder-stages-#{@player.name}"}
+            player={@player}
+            owner={GameFormat.player_name(@names, @player.name)}
+          />
+        </div>
         <.player_stats player={@player} />
         <div class="flex flex-wrap gap-1">
           <span

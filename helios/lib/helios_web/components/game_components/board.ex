@@ -7,6 +7,7 @@ defmodule HeliosWeb.GameComponents.Board do
   use HeliosWeb, :html
 
   import HeliosWeb.GameComponents.PlayerPanels, only: [player_stats: 1, status_chip: 1]
+  import HeliosWeb.GameComponents.StageStrip, only: [stage_strip: 1]
 
   alias HeliosWeb.{GameAssets, GameFormat}
 
@@ -32,30 +33,7 @@ defmodule HeliosWeb.GameComponents.Board do
           alt={"#{@player.wonder} #{GameFormat.side_label(@player.side)}"}
           class="aspect-[16/5] w-full object-cover"
         />
-        <div
-          id="wonder-stages"
-          class="absolute inset-x-0 top-0 flex justify-center gap-2 bg-linear-to-b from-black/50 to-transparent p-2"
-        >
-          <div
-            :for={stage <- 1..@player.stages_total//1}
-            id={"stage-#{stage}"}
-            data-built={to_string(stage <= @player.stages_built)}
-            class={[
-              "h-12 w-8 overflow-hidden rounded ring-2 transition sm:h-16 sm:w-11",
-              if(stage <= @player.stages_built,
-                do: "ring-amber-400",
-                else: "bg-black/30 ring-white/60"
-              )
-            ]}
-          >
-            <img
-              :if={stage <= @player.stages_built}
-              src={GameAssets.card_back_path(min(stage, 3))}
-              alt={"Stage #{stage} built"}
-              class="h-full w-full object-cover"
-            />
-          </div>
-        </div>
+        <.stage_strip id="wonder-stages" player={@player} owner="You" />
       </div>
       <.player_stats player={@player} />
       <div id="my-built" class="flex gap-2 overflow-x-auto pb-1">
