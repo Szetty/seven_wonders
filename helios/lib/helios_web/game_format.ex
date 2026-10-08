@@ -166,6 +166,24 @@ defmodule HeliosWeb.GameFormat do
 
   def statuses(view), do: Map.new(view.players, &{&1.name, player_status(view, &1.name)})
 
+  @doc "Players other than me and my neighbours, in seat order starting after my east neighbour."
+  def others(%{players: players, me: me}) do
+    count = length(players)
+    index = Enum.find_index(players, &(&1.name == me))
+    for k <- 2..(count - 2)//1, do: Enum.at(players, rem(index + k, count))
+  end
+
+  @doc "Display names of `player`'s west and east neighbours."
+  def neighbours_of(%{players: players}, player, names) do
+    count = length(players)
+    index = Enum.find_index(players, &(&1.name == player))
+
+    %{
+      west: player_name(names, Enum.at(players, rem(index - 1 + count, count)).name),
+      east: player_name(names, Enum.at(players, rem(index + 1, count)).name)
+    }
+  end
+
   @doc "The neighbour who receives our hand this turn."
   def pass_target(%{phase: %{direction: :west}, west: west}), do: west
   def pass_target(%{phase: %{direction: :east}, east: east}), do: east

@@ -24,6 +24,20 @@ defmodule HeliosWeb.GameFormatTest do
     assert GameFormat.category_label(:manufactured_good) == "Manufactured goods"
   end
 
+  test "other players continue round the table from the east neighbour" do
+    players = for id <- ~w(1 2 3 4 5 6 7), do: %{name: id}
+    view = %{me: "3", players: players}
+    assert Enum.map(GameFormat.others(view), & &1.name) == ["5", "6", "7", "1"]
+    assert GameFormat.others(%{me: "1", players: Enum.take(players, 3)}) == []
+
+    assert Enum.map(GameFormat.others(%{me: "1", players: Enum.take(players, 4)}), & &1.name) == [
+             "3"
+           ]
+
+    assert GameFormat.neighbours_of(view, "1", %{"7" => "Gus", "2" => "Bob"}) ==
+             %{west: "Gus", east: "Bob"}
+  end
+
   test "option labels name the neighbours and skip the bank" do
     neighbours = %{west: "Bob", east: "Cid"}
     assert GameFormat.option_label(:free, neighbours) == "Free"
