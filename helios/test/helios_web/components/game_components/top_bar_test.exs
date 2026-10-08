@@ -52,4 +52,12 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     html = render_bar(%{view | phase: %{view.phase | direction: :west}})
     assert text(html, "#pass-direction") == "Pass to Dee"
   end
+
+  test "row one stays single-line so the phone bar fits 96px" do
+    html = render_bar(SampleViews.view())
+    assert hd(attrs(html, "#age-label", "class")) =~ "whitespace-nowrap"
+    assert hd(attrs(html, "#turn-label", "class")) =~ "whitespace-nowrap"
+    assert hd(attrs(html, "#waiting-count", "class")) =~ "whitespace-nowrap"
+    assert html =~ "flex min-w-0 items-center justify-between"
+  end
 end
