@@ -24,8 +24,8 @@ defmodule HeliosWeb.GameComponents.TopBar do
       data-turn-key={"#{@phase.age}-#{@phase.turn}"}
       class="sticky top-0 z-20 flex flex-col gap-1.5 rounded-xl bg-linear-to-r from-header-from to-header-to px-3 py-2 text-white shadow-lg short:static sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3"
     >
-      <div class="flex min-w-0 items-center justify-between gap-3 sm:justify-start">
-        <div class="flex items-center gap-3 sm:gap-4">
+      <div class="flex items-center justify-between gap-3 sm:justify-start">
+        <div class="flex min-w-0 items-center gap-3 sm:gap-4">
           <span id="age-label" class="text-lg font-bold tracking-wide whitespace-nowrap sm:text-xl">
             Age {GameFormat.roman(@phase.age)}
           </span>

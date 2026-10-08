@@ -58,6 +58,6 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     assert hd(attrs(html, "#age-label", "class")) =~ "whitespace-nowrap"
     assert hd(attrs(html, "#turn-label", "class")) =~ "whitespace-nowrap"
     assert hd(attrs(html, "#waiting-count", "class")) =~ "whitespace-nowrap"
-    assert html =~ "flex min-w-0 items-center justify-between"
+    assert html =~ "flex min-w-0 items-center gap-3 sm:gap-4"
   end
 end
