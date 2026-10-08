@@ -10,6 +10,7 @@ defmodule HeliosWeb.GameComponents.Hand do
 
   @row "flex w-full items-center justify-between gap-3 rounded-lg bg-zinc-900 px-3 py-2 text-left text-sm font-semibold text-white shadow transition hover:bg-zinc-700 active:bg-zinc-800 pointer-coarse:min-h-11"
   @row_disabled "flex w-full cursor-not-allowed items-center justify-between gap-3 rounded-lg bg-zinc-200 px-3 py-2 text-left text-sm text-zinc-500 pointer-coarse:min-h-11"
+  @row_discard "flex w-full items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-left text-sm font-semibold text-zinc-900 shadow transition ring-1 ring-zinc-300 hover:bg-zinc-100 active:bg-zinc-200 pointer-coarse:min-h-11"
   @payment "flex w-full items-center justify-between gap-3 rounded-lg bg-sky-50 px-3 py-2 text-left text-sm font-semibold text-sky-900 ring-1 ring-sky-200 transition hover:bg-sky-100 active:bg-sky-200 pointer-coarse:min-h-11"
 
   attr :hand, :list, required: true
@@ -101,7 +102,7 @@ defmodule HeliosWeb.GameComponents.Hand do
   attr :next_stage, :integer, default: nil
 
   def action_panel(assigns) do
-    assigns = assign(assigns, :row_class, @row)
+    assigns = assign(assigns, row_class: @row, discard_class: @row_discard)
 
     ~H"""
     <div
@@ -189,7 +190,7 @@ defmodule HeliosWeb.GameComponents.Hand do
             phx-value-card={@card.name}
             phx-value-kind="discard"
             phx-value-option="0"
-            class={[@row_class, "bg-white text-zinc-900 ring-1 ring-zinc-300 hover:bg-zinc-100"]}
+            class={@discard_class}
           >
             <span class="flex items-center gap-1">
               <.icon name="hero-trash" class="size-4" /> Discard

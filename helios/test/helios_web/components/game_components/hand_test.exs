@@ -109,6 +109,18 @@ defmodule HeliosWeb.GameComponents.HandTest do
     assert text(html, "#wonder-action") =~ "Your wonder is complete"
   end
 
+  test "discard button carries one coherent style with no conflicting duplicate utilities" do
+    classes = panel(card("Tavern")) |> attrs("#discard-button", "class") |> hd() |> String.split()
+
+    assert "bg-white" in classes
+    assert "text-zinc-900" in classes
+    assert "hover:bg-zinc-100" in classes
+    refute "bg-zinc-900" in classes
+    refute "text-white" in classes
+    refute "hover:bg-zinc-700" in classes
+    assert "pointer-coarse:min-h-11" in classes
+  end
+
   test "a coin cost on top of trading is stated once in the payments list" do
     two = %{payment: %{west: [{:wood, 1}], east: []}, west_coins: 2, east_coins: 0, bank_coins: 1}
 
