@@ -87,6 +87,19 @@ defmodule HeliosWeb.GameFormat do
     |> Enum.map_join(" · ", fn {name, coins} -> "#{name} #{coins}" end)
   end
 
+  def payment_label(%{payment: %{west: west, east: east}}, %{west: west_name, east: east_name}) do
+    parts =
+      [{west, "← #{west_name}"}, {east, "#{east_name} →"}]
+      |> Enum.reject(fn {bought, _who} -> bought == [] end)
+      |> Enum.map(fn {bought, who} ->
+        Enum.map_join(bought, ", ", fn {resource, count} -> "#{count} #{resource}" end) <>
+          " from " <>
+          who
+      end)
+
+    "Buy " <> Enum.join(parts, " · ")
+  end
+
   @doc "The card's own coin cost when it is paid on top of a trade; nil otherwise."
   def card_cost({:trade, [%{bank_coins: coins} | _]}) when coins > 0, do: coins
   def card_cost(_option), do: nil

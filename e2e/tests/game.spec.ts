@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   builtCards,
+  chooseBuild,
   handCards,
   playFirstBuildableOrDiscard,
   setupTable,
@@ -84,7 +85,7 @@ test("a player can change their choice before the turn resolves", async ({ brows
     await a.page.locator("#close-action-panel").click();
     await buildable.click();
   }
-  await a.page.locator("#build-option-0").click();
+  await chooseBuild(a.page);
   await expect(a.page.locator("#pending-choice")).toContainText(`Build ${built}`);
 
   for (const player of [b, c]) {

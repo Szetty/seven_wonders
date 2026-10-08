@@ -42,6 +42,18 @@ defmodule HeliosWeb.GameFormatTest do
            ) == "Cid 2"
   end
 
+  test "payment labels say what is bought from whom" do
+    option = %{
+      payment: %{west: [{:ore, 1}], east: [{:wood, 2}]},
+      west_coins: 2,
+      east_coins: 2,
+      bank_coins: 0
+    }
+
+    assert GameFormat.payment_label(option, %{west: "Bob", east: "Cid"}) ==
+             "Buy 1 ore from ← Bob · 2 wood from Cid →"
+  end
+
   test "cheapest way to build" do
     trade =
       {:trade,

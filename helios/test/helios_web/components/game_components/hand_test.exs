@@ -7,7 +7,18 @@ defmodule HeliosWeb.GameComponents.HandTest do
   alias Helios.SampleViews
   alias HeliosWeb.GameComponents.Hand
 
+  @neighbours %{west: "Dee", east: "Bob"}
+
   defp card(name), do: Enum.find(SampleViews.hand(), &(&1.name == name))
+
+  defp panel(card, opts \\ []) do
+    render_component(&Hand.action_panel/1,
+      card: card,
+      neighbours: @neighbours,
+      built: Keyword.get(opts, :built, []),
+      next_stage: Keyword.get(opts, :next_stage, 2)
+    )
+  end
 
   test "hand cards expose name and buildability and highlight selection and pending choice" do
     html =
@@ -37,88 +48,83 @@ defmodule HeliosWeb.GameComponents.HandTest do
     assert class =~ "grayscale"
   end
 
-  test "unavailable builds show the reason; trade options list who gets paid" do
-    html =
-      render_component(&Hand.action_panel/1,
-        card: card("Baths"),
-        neighbours: %{west: "Dee", east: "Bob"}
-      )
-
-    assert text(html, "#build-unavailable") == "You can't afford that"
-    assert attrs(html, "#build-unavailable", "disabled") == [""]
-    assert text(html, "#wonder-option-0") == "Dee 2"
-    assert text(html, "#wonder-option-1") == "Bob 2"
-    assert count(html, "#wonder-card-cost") == 0
-    assert attrs(html, "#wonder-option-1", "phx-value-option") == ["1"]
-    assert attrs(html, "#wonder-option-1", "phx-value-kind") == ["wonder_stage"]
-    assert count(html, "#build-free-button") == 0
-    assert attrs(html, "#discard-button", "phx-value-kind") == ["discard"]
+  test "a row with one way to pay submits directly" do
+    html = panel(card("Tree Farm"))
+    assert attrs(html, "#build-action", "phx-click") == ["submit"]
+    assert attrs(html, "#build-action", "phx-value-kind") == ["build"]
+    assert attrs(html, "#build-action", "phx-value-option") == ["0"]
+    assert text(html, "#build-action") =~ "1 coin"
+    assert count(html, "#build-payments") == 0
   end
 
-  test "a coin-cost card shows its cost once above the trade options" do
-    card = %{
-      name: "Tree Farm",
-      category: :raw_material,
-      age: 1,
-      build:
-        {:trade,
-         [
-           %{
-             payment: %{west: [{:wood, 1}], east: []},
-             west_coins: 2,
-             east_coins: 0,
-             bank_coins: 1
-           }
-         ]},
-      wonder_stage: {:unavailable, :cannot_afford},
-      free_build: false
+  test "a row with several trades reveals them sorted by cost, keeping the engine index" do
+    html = panel(card("Baths"))
+    assert text(html, "#wonder-action") =~ "Build wonder stage 2"
+    assert text(html, "#wonder-action") =~ "from 2 coins"
+    assert [js] = attrs(html, "#wonder-action", "phx-click")
+    assert js =~ "#wonder-payments"
+    assert [class] = attrs(html, "#wonder-payments", "class")
+    assert class =~ "hidden"
+    assert attrs(html, "#wonder-payments button", "id") == ["wonder-option-0", "wonder-option-1"]
+    assert text(html, "#wonder-option-0") =~ "Buy 1 stone from ← Dee"
+    assert text(html, "#wonder-option-1") =~ "Buy 1 stone from Bob →"
+    assert attrs(html, "#wonder-option-1", "phx-value-option") == ["1"]
+  end
+
+  test "sorted display never changes the index sent" do
+    expensive = %{
+      payment: %{west: [{:ore, 2}], east: []},
+      west_coins: 4,
+      east_coins: 0,
+      bank_coins: 0
     }
 
-    html =
-      render_component(&Hand.action_panel/1, card: card, neighbours: %{west: "Dee", east: "Bob"})
+    cheap = %{
+      payment: %{west: [], east: [{:ore, 2}]},
+      west_coins: 0,
+      east_coins: 2,
+      bank_coins: 0
+    }
 
-    assert text(html, "#build-card-cost") == "+1 coin card cost"
-    assert text(html, "#build-option-0") == "Dee 2"
+    card = %{card("Baths") | build: {:trade, [expensive, cheap]}}
+    html = panel(card)
+    assert attrs(html, "#build-payments button", "id") == ["build-option-1", "build-option-0"]
+    assert attrs(html, "#build-option-1", "phx-value-option") == ["1"]
   end
 
-  test "the card art opens a zoom" do
-    html =
-      render_component(&Hand.action_panel/1,
-        card: card("Tavern"),
-        neighbours: %{west: "Dee", east: "Bob"}
-      )
+  test "unavailable rows are disabled with the reason; chain rows name the prerequisite" do
+    html = panel(card("Baths"))
+    assert attrs(html, "#build-action", "disabled") == [""]
+    assert text(html, "#build-action") =~ "You can't afford that"
 
-    assert [js] = attrs(html, "#zoom-card", "phx-click")
-    assert js =~ "#card-zoom"
-    assert attrs(html, "#card-zoom img", "src") == ["/images/cards/tavern.png"]
+    chain = %{card("Tavern") | build: {:chain, "Altar"}}
+    assert text(panel(chain), "#build-action") =~ "Free (you have Altar)"
   end
 
-  test "free, coin and Olympía free-build options" do
-    tavern =
-      render_component(&Hand.action_panel/1,
-        card: card("Tavern"),
-        neighbours: %{west: "Dee", east: "Bob"}
-      )
+  test "Olympía free build and discard stay; the explanation box is present" do
+    html = panel(card("Tavern"))
+    assert attrs(html, "#build-free-button", "phx-value-kind") == ["build_free"]
+    assert text(html, "#discard-button") =~ "+3"
+    assert count(html, "#card-info") == 1
+    assert text(html, "#wonder-action") =~ "Your wonder is complete"
+  end
 
-    assert text(tavern, "#build-option-0") == "Free"
-    assert text(tavern, "#wonder-unavailable") == "Your wonder is complete"
-    assert attrs(tavern, "#build-free-button", "phx-value-kind") == ["build_free"]
+  test "a coin cost on top of trading is stated once in the payments list" do
+    two = %{payment: %{west: [{:wood, 1}], east: []}, west_coins: 2, east_coins: 0, bank_coins: 1}
 
-    farm =
-      render_component(&Hand.action_panel/1,
-        card: card("Tree Farm"),
-        neighbours: %{west: "Dee", east: "Bob"}
-      )
+    other = %{
+      payment: %{west: [], east: [{:wood, 1}]},
+      west_coins: 0,
+      east_coins: 2,
+      bank_coins: 1
+    }
 
-    assert text(farm, "#build-option-0") == "Pay 1 coin"
+    html = panel(%{card("Tree Farm") | build: {:trade, [two, other]}})
+    assert text(html, "#build-card-cost") == "includes 1 coin card cost"
   end
 
   test "the action panel is a dismissable dialog" do
-    html =
-      render_component(&Hand.action_panel/1,
-        card: card("Tavern"),
-        neighbours: %{west: "Dee", east: "Bob"}
-      )
+    html = panel(card("Tavern"))
 
     assert attrs(html, "#action-panel", "role") == ["dialog"]
     assert attrs(html, "#action-panel", "aria-modal") == ["true"]
@@ -129,6 +135,14 @@ defmodule HeliosWeb.GameComponents.HandTest do
     assert attrs(html, "#close-action-panel", "phx-click") == ["deselect"]
     assert attrs(html, "#close-action-panel", "aria-label") == ["Close"]
     assert attrs(html, "#action-scrim", "phx-click") == ["deselect"]
+  end
+
+  test "the card art opens a zoom" do
+    html = panel(card("Tavern"))
+
+    assert [js] = attrs(html, "#zoom-card", "phx-click")
+    assert js =~ "#card-zoom"
+    assert attrs(html, "#card-zoom img", "src") == ["/images/cards/tavern.png"]
   end
 
   test "pending choice banner describes the choice and offers Change" do

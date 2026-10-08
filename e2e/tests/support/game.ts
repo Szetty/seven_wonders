@@ -59,12 +59,24 @@ export async function builtCards(page: Page): Promise<string[]> {
   return page.locator("#my-built [data-card]").evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.card ?? ""));
 }
 
+/** Taps Build in the open action sheet; picks the first payment if a choice is offered. */
+export async function chooseBuild(page: Page): Promise<void> {
+  const payments = page.locator("#build-payments");
+  await page.locator("#build-action").click();
+  // A trade row renders #build-payments hidden and reveals it on tap; wait for
+  // the reveal instead of racing it, then submit the first payment.
+  if ((await payments.count()) > 0) {
+    await expect(payments).toBeVisible();
+    await payments.locator("button").first().click();
+  }
+}
+
 /** Picks the first card with an enabled Build option (else discards the first card) and submits. */
 export async function playFirstBuildableOrDiscard(page: Page): Promise<void> {
   const buildable = page.locator('#hand [data-buildable="true"]');
   if ((await buildable.count()) > 0) {
     await buildable.first().click();
-    await page.locator("#build-option-0").click();
+    await chooseBuild(page);
   } else {
     await page.locator("#hand [data-card]").first().click();
     await page.locator("#discard-button").click();

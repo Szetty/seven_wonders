@@ -91,6 +91,8 @@ defmodule HeliosWeb.GameLive do
                   east: GameFormat.player_name(@names, @view.east)
                 }
               }
+              built={Enum.map(@me.built, & &1.name)}
+              next_stage={if @me.stages_built < @me.stages_total, do: @me.stages_built + 1}
             />
           <% end %>
         </div>

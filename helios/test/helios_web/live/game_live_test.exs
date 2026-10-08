@@ -57,12 +57,10 @@ defmodule HeliosWeb.GameLiveTest do
     {:ok, view, _html} = open(ta, game.id)
     view |> element("#hand-card-0") |> render_click()
     assert has_element?(view, "#action-panel")
-    assert has_element?(view, "#build-options")
-    assert has_element?(view, "#wonder-options")
+    assert has_element?(view, "#build-action")
+    assert has_element?(view, "#wonder-action")
     assert has_element?(view, "#discard-button")
-
-    assert has_element?(view, "#build-options #build-unavailable") or
-             has_element?(view, "#build-option-0")
+    assert has_element?(view, "#card-info")
 
     view |> element("#hand-card-0") |> render_click()
     refute has_element?(view, "#action-panel")

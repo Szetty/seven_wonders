@@ -2,13 +2,15 @@ defmodule HeliosWeb.GameComponents.Hand do
   @moduledoc "The player's hand, the action panel for the selected card, and the pending-choice banner."
   use HeliosWeb, :html
 
+  import HeliosWeb.GameComponents.CardInfo, only: [card_info: 1]
   import HeliosWeb.GameComponents.CardZoom, only: [card_zoom: 1, show_zoom: 0]
 
   alias Helios.Games
   alias HeliosWeb.{GameAssets, GameFormat}
 
-  @action_button "inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white shadow transition hover:-translate-y-0.5 hover:bg-zinc-700 active:translate-y-0 active:bg-zinc-800 sm:w-auto pointer-coarse:min-h-11"
-  @disabled_button "inline-flex w-full cursor-not-allowed items-center justify-center rounded-lg bg-zinc-200 px-3 py-2 text-sm text-zinc-500 sm:w-auto pointer-coarse:min-h-11"
+  @row "flex w-full items-center justify-between gap-3 rounded-lg bg-zinc-900 px-3 py-2 text-left text-sm font-semibold text-white shadow transition hover:bg-zinc-700 active:bg-zinc-800 pointer-coarse:min-h-11"
+  @row_disabled "flex w-full cursor-not-allowed items-center justify-between gap-3 rounded-lg bg-zinc-200 px-3 py-2 text-left text-sm text-zinc-500 pointer-coarse:min-h-11"
+  @payment "flex w-full items-center justify-between gap-3 rounded-lg bg-sky-50 px-3 py-2 text-left text-sm font-semibold text-sky-900 ring-1 ring-sky-200 transition hover:bg-sky-100 active:bg-sky-200 pointer-coarse:min-h-11"
 
   attr :hand, :list, required: true
   attr :selected, :string, default: nil
@@ -95,9 +97,11 @@ defmodule HeliosWeb.GameComponents.Hand do
 
   attr :card, :map, required: true
   attr :neighbours, :map, required: true
+  attr :built, :list, default: [], doc: "names of the viewer's built cards (for the ✓ on chains)"
+  attr :next_stage, :integer, default: nil
 
   def action_panel(assigns) do
-    assigns = assign(assigns, :button_class, @action_button)
+    assigns = assign(assigns, :row_class, @row)
 
     ~H"""
     <div
@@ -143,54 +147,57 @@ defmodule HeliosWeb.GameComponents.Hand do
             <.icon name="hero-magnifying-glass-plus" class="size-4" />
           </span>
         </button>
-        <div class="flex min-w-0 flex-1 flex-col gap-3">
+        <div class="flex min-w-0 flex-1 flex-col gap-2">
           <h3 id="action-panel-title" class="pr-10 text-lg font-semibold text-zinc-900">
             {@card.name}
           </h3>
-          <.option_group
-            id="build-options"
-            title="Build"
+          <.card_info name={@card.name} neighbours={@neighbours} built={@built} />
+          <.action_row
+            id="build"
             kind="build"
-            prefix="build"
+            title="Build"
             card={@card.name}
             option={@card.build}
             neighbours={@neighbours}
           />
-          <.option_group
-            id="wonder-options"
-            title="Build wonder stage"
+          <.action_row
+            id="wonder"
             kind="wonder_stage"
-            prefix="wonder"
+            title={
+              if @next_stage, do: "Build wonder stage #{@next_stage}", else: "Build wonder stage"
+            }
             card={@card.name}
             option={@card.wonder_stage}
             neighbours={@neighbours}
           />
-          <div :if={@card.free_build}>
-            <button
-              id="build-free-button"
-              type="button"
-              phx-click="submit"
-              phx-value-card={@card.name}
-              phx-value-kind="build_free"
-              phx-value-option="0"
-              class={@button_class}
-            >
-              Build for free (Olympía)
-            </button>
-          </div>
-          <div>
-            <button
-              id="discard-button"
-              type="button"
-              phx-click="submit"
-              phx-value-card={@card.name}
-              phx-value-kind="discard"
-              phx-value-option="0"
-              class="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 transition hover:bg-zinc-100 active:bg-zinc-200 sm:w-auto pointer-coarse:min-h-11"
-            >
-              <.icon name="hero-trash" class="size-4" /> Discard (+3 coins)
-            </button>
-          </div>
+          <button
+            :if={@card.free_build}
+            id="build-free-button"
+            type="button"
+            phx-click="submit"
+            phx-value-card={@card.name}
+            phx-value-kind="build_free"
+            phx-value-option="0"
+            class={@row_class}
+          >
+            <span>Build for free (Olympía)</span><span class="font-bold">Free</span>
+          </button>
+          <button
+            id="discard-button"
+            type="button"
+            phx-click="submit"
+            phx-value-card={@card.name}
+            phx-value-kind="discard"
+            phx-value-option="0"
+            class={[@row_class, "bg-white text-zinc-900 ring-1 ring-zinc-300 hover:bg-zinc-100"]}
+          >
+            <span class="flex items-center gap-1">
+              <.icon name="hero-trash" class="size-4" /> Discard
+            </span>
+            <span class="flex items-center gap-1 font-bold">
+              +3 <img src={GameAssets.token_path(:coin)} alt="coins" class="size-4" />
+            </span>
+          </button>
         </div>
       </div>
       <.card_zoom name={@card.name} />
@@ -199,66 +206,80 @@ defmodule HeliosWeb.GameComponents.Hand do
   end
 
   attr :id, :string, required: true
-  attr :title, :string, required: true
   attr :kind, :string, required: true
-  attr :prefix, :string, required: true
+  attr :title, :string, required: true
   attr :card, :string, required: true
   attr :option, :any, required: true
   attr :neighbours, :map, required: true
 
-  defp option_group(assigns) do
-    assigns = assign(assigns, button_class: @action_button, disabled_class: @disabled_button)
+  defp action_row(assigns) do
+    assigns = assign(assigns, row: @row, row_disabled: @row_disabled, payment: @payment)
 
     ~H"""
-    <div id={@id} class="flex flex-col gap-1">
-      <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">{@title}</span>
-      <%= case @option do %>
-        <% {:unavailable, reason} -> %>
-          <div>
-            <button id={"#{@prefix}-unavailable"} type="button" disabled class={@disabled_class}>
-              {Games.error_message(reason)}
-            </button>
-          </div>
-        <% {:trade, options} -> %>
-          <p
-            :if={GameFormat.card_cost(@option)}
-            id={"#{@prefix}-card-cost"}
-            class="text-xs text-zinc-600"
-          >
-            +{GameFormat.card_cost(@option)} {if GameFormat.card_cost(@option) == 1,
+    <%= case @option do %>
+      <% {:unavailable, reason} -> %>
+        <button id={"#{@id}-action"} type="button" disabled class={@row_disabled}>
+          <span>{@title}</span><span>{Games.error_message(reason)}</span>
+        </button>
+      <% {:trade, [_, _ | _] = options} -> %>
+        <button
+          id={"#{@id}-action"}
+          type="button"
+          aria-expanded="false"
+          aria-controls={"#{@id}-payments"}
+          phx-click={
+            JS.toggle(to: "##{@id}-payments", display: "flex")
+            |> JS.toggle_attribute({"aria-expanded", "true", "false"})
+          }
+          class={@row}
+        >
+          <span>{@title}</span>
+          <span class="flex items-center gap-1 font-bold">
+            from {GameFormat.cheapest_label(@option)}
+            <.icon name="hero-chevron-down" class="size-4" />
+          </span>
+        </button>
+        <div
+          id={"#{@id}-payments"}
+          class="ml-2 hidden flex-col gap-1.5 border-l-4 border-sky-400 pl-2"
+        >
+          <p :if={GameFormat.card_cost(@option)} id={"#{@id}-card-cost"} class="text-xs text-zinc-600">
+            includes {GameFormat.card_cost(@option)} {if GameFormat.card_cost(@option) == 1,
               do: "coin",
               else: "coins"} card cost
           </p>
-          <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <button
-              :for={{payment_option, index} <- Enum.with_index(options)}
-              id={"#{@prefix}-option-#{index}"}
-              type="button"
-              phx-click="submit"
-              phx-value-card={@card}
-              phx-value-kind={@kind}
-              phx-value-option={index}
-              class={@button_class}
-            >
-              {GameFormat.option_label(payment_option, @neighbours)}
-            </button>
-          </div>
-        <% simple -> %>
-          <div>
-            <button
-              id={"#{@prefix}-option-0"}
-              type="button"
-              phx-click="submit"
-              phx-value-card={@card}
-              phx-value-kind={@kind}
-              phx-value-option="0"
-              class={@button_class}
-            >
-              {GameFormat.option_label(simple, @neighbours)}
-            </button>
-          </div>
-      <% end %>
-    </div>
+          <button
+            :for={
+              {payment_option, index} <-
+                options
+                |> Enum.with_index()
+                |> Enum.sort_by(fn {o, i} -> {GameFormat.option_total(o), i} end)
+            }
+            id={"#{@id}-option-#{index}"}
+            type="button"
+            phx-click="submit"
+            phx-value-card={@card}
+            phx-value-kind={@kind}
+            phx-value-option={index}
+            class={@payment}
+          >
+            <span>{GameFormat.payment_label(payment_option, @neighbours)}</span>
+            <span class="shrink-0 font-bold">{GameFormat.option_total(payment_option)} coins</span>
+          </button>
+        </div>
+      <% single -> %>
+        <button
+          id={"#{@id}-action"}
+          type="button"
+          phx-click="submit"
+          phx-value-card={@card}
+          phx-value-kind={@kind}
+          phx-value-option="0"
+          class={@row}
+        >
+          <span>{@title}</span><span class="font-bold">{GameFormat.cheapest_label(single)}</span>
+        </button>
+    <% end %>
     """
   end
 
