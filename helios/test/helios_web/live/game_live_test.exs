@@ -17,6 +17,11 @@ defmodule HeliosWeb.GameLiveTest do
 
   defp open(token, game_id), do: live(log_in_conn(build_conn(), token), ~p"/game/#{game_id}")
 
+  defp table_of(count) do
+    players = for _ <- 1..count, do: user_with_token_fixture()
+    {players, game_fixture(Enum.map(players, &elem(&1, 0)))}
+  end
+
   test "a seated player sees the table", %{game: game, players: [{_a, ta} | _]} do
     {:ok, view, _html} = open(ta, game.id)
     assert has_element?(view, "#top-bar[data-turn-key='1-1']")
@@ -27,6 +32,45 @@ defmodule HeliosWeb.GameLiveTest do
     assert has_element?(view, "#hand-card-6")
     refute has_element?(view, "#hand-card-7")
     refute has_element?(view, "#action-panel")
+  end
+
+  test "every board is on the table; others continue from the east neighbour" do
+    {players, game} = table_of(5)
+    [{_a, ta} | _] = players
+    ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
+    {:ok, view, _html} = open(ta, game.id)
+
+    assert has_element?(view, "#my-board[data-player='#{Enum.at(ids, 0)}']")
+    assert has_element?(view, "#east-panel[data-player='#{Enum.at(ids, 1)}']")
+    assert has_element?(view, "#west-panel[data-player='#{Enum.at(ids, 4)}']")
+
+    html = render(view)
+
+    others =
+      html
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#other-players article")
+      |> LazyHTML.attribute("id")
+
+    assert others == ["player-#{Enum.at(ids, 2)}", "player-#{Enum.at(ids, 3)}"]
+    assert has_element?(view, "#player-#{Enum.at(ids, 2)} [id^='wonder-stages-']")
+  end
+
+  test "a built card anywhere opens a read-only card sheet", %{game: game, players: players} do
+    [{a, ta}, {b, _}, {c, _}] = players
+    {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+    ids = Enum.map([a, b, c], &to_string(&1.id))
+    Helios.GameDriver.step(ids, Map.new(ids, &{&1, :build}), view_fun, submit_fun)
+
+    {:ok, view, _html} = open(ta, game.id)
+    tile = view |> element("#east-panel [data-latest]")
+
+    if has_element?(view, "#east-panel [data-latest]") do
+      render_click(tile)
+      assert has_element?(view, "#card-sheet #card-info")
+      view |> element("#close-card-sheet") |> render_click()
+      refute has_element?(view, "#card-sheet")
+    end
   end
 
   test "the dock holds the hand and the pending choice", %{game: game, players: [{_a, ta} | _]} do

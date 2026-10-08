@@ -6,10 +6,10 @@ defmodule HeliosWeb.GameLive do
   """
   use HeliosWeb, :live_view
 
-  import HeliosWeb.GameComponents.Board
+  import HeliosWeb.GameComponents.CardSheet
   import HeliosWeb.GameComponents.ExtraTurn
   import HeliosWeb.GameComponents.Hand
-  import HeliosWeb.GameComponents.PlayerPanels
+  import HeliosWeb.GameComponents.PlayerBoard
   import HeliosWeb.GameComponents.Scoreboard
   import HeliosWeb.GameComponents.TopBar
 
@@ -39,31 +39,14 @@ defmodule HeliosWeb.GameLive do
               />
             </div>
           <% else %>
-            <div id="table" class="flex flex-1 flex-col gap-3 pb-1 sm:gap-4">
-              <.others_strip
-                :if={@others != []}
-                players={@others}
-                names={@names}
-                statuses={@statuses}
-              />
-              <div class="grid items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-[1fr_2fr_1fr]">
-                <.neighbour_panel
-                  id="west-panel"
-                  label="West"
-                  player={@west}
-                  names={@names}
-                  status={@statuses[@west.name]}
-                />
-                <.my_board player={@me} status={@statuses[@me.name]} />
-                <.neighbour_panel
-                  id="east-panel"
-                  label="East"
-                  player={@east}
-                  names={@names}
-                  status={@statuses[@east.name]}
-                />
-              </div>
-            </div>
+            <.table_area
+              me={@me}
+              west={@west}
+              east={@east}
+              others={@others}
+              names={@names}
+              statuses={@statuses}
+            />
             <div
               :if={GameFormat.dock?(@view)}
               id="dock"
@@ -94,10 +77,70 @@ defmodule HeliosWeb.GameLive do
               built={Enum.map(@me.built, & &1.name)}
               next_stage={if @me.stages_built < @me.stages_total, do: @me.stages_built + 1}
             />
+            <.card_sheet
+              :if={@info_card}
+              name={@info_card.name}
+              neighbours={GameFormat.neighbours_of(@view, @info_card.owner, @names)}
+              built={Enum.map(@me.built, & &1.name)}
+            />
           <% end %>
         </div>
       </div>
     </Layouts.app>
+    """
+  end
+
+  attr :me, :map, required: true
+  attr :west, :map, required: true
+  attr :east, :map, required: true
+  attr :others, :list, required: true
+  attr :names, :map, required: true
+  attr :statuses, :map, required: true
+
+  defp table_area(assigns) do
+    ~H"""
+    <div id="table" class="flex flex-1 flex-col gap-3 pb-1 sm:gap-4">
+      <div class="grid items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-[1fr_1.6fr_1fr]">
+        <.player_board
+          id="west-panel"
+          label="West"
+          player={@west}
+          names={@names}
+          status={@statuses[@west.name]}
+        />
+        <.player_board
+          id="my-board"
+          label="You"
+          player={@me}
+          names={@names}
+          status={@statuses[@me.name]}
+          mine
+          class="order-first md:col-span-2 lg:order-none lg:col-span-1"
+        />
+        <.player_board
+          id="east-panel"
+          label="East"
+          player={@east}
+          names={@names}
+          status={@statuses[@east.name]}
+        />
+      </div>
+      <section
+        :if={@others != []}
+        id="other-players"
+        class="grid items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4"
+      >
+        <article :for={player <- @others} id={"player-#{player.name}"} class="min-w-0">
+          <.player_board
+            id={"board-#{player.name}"}
+            label=""
+            player={player}
+            names={@names}
+            status={@statuses[player.name]}
+          />
+        </article>
+      </section>
+    </div>
     """
   end
 
@@ -147,7 +190,7 @@ defmodule HeliosWeb.GameLive do
     names = Map.new(Games.players(game), &{to_string(&1.user_id), &1.user.name})
 
     socket
-    |> assign(page_title: "7 Wonders", game: game, names: names)
+    |> assign(page_title: "7 Wonders", game: game, names: names, info_card: nil)
     |> assign_connected()
   end
 
@@ -222,6 +265,23 @@ defmodule HeliosWeb.GameLive do
 
   def handle_event("deselect", _params, socket), do: {:noreply, assign_selection(socket, nil)}
 
+  # Only cards actually on the table can be opened — a forged event names nothing.
+  def handle_event("show_card", %{"card" => card, "owner" => owner}, socket)
+      when is_binary(card) and is_binary(owner) do
+    known? =
+      Enum.any?(socket.assigns.view.players, fn player ->
+        player.name == owner and Enum.any?(player.built, &(&1.name == card))
+      end)
+
+    info = if known?, do: %{name: card, owner: owner}
+    {:noreply, socket |> assign_selection(nil) |> assign(:info_card, info)}
+  end
+
+  def handle_event("hide_card", %{"key" => key}, socket) when key != "Escape",
+    do: {:noreply, socket}
+
+  def handle_event("hide_card", _params, socket), do: {:noreply, assign(socket, :info_card, nil)}
+
   def handle_event("submit", params, socket) do
     %{game: game, current_scope: %{user: user}} = socket.assigns
 
@@ -268,7 +328,7 @@ defmodule HeliosWeb.GameLive do
 
   defp assign_view(socket, view) do
     by_name = Map.new(view.players, &{&1.name, &1})
-    others = Enum.reject(view.players, &(&1.name in [view.me, view.west, view.east]))
+    others = GameFormat.others(view)
 
     socket
     |> assign(
