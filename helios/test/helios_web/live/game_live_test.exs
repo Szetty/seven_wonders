@@ -401,7 +401,12 @@ defmodule HeliosWeb.GameLiveTest do
       :ok = Games.submit(game.id, user.id, {:discard, hd(other.hand).name})
     end
 
-    assert_push_event(view, "turn_resolved", %{my_card: ^first, pass: "west", plays: [_, _, _]})
+    assert_push_event(
+      view,
+      "turn_resolved",
+      %{my_card: ^first, pass: "west", plays: [_, _, _]},
+      1_000
+    )
   end
 
   test "my own submit that resolves the turn still names my card", %{game: game, players: players} do
@@ -417,7 +422,7 @@ defmodule HeliosWeb.GameLiveTest do
     [first | _] = Enum.map(state.hand, & &1.name)
     view |> element("#hand-card-0") |> render_click()
     view |> element("#discard-button") |> render_click()
-    assert_push_event(view, "turn_resolved", %{my_card: ^first})
+    assert_push_event(view, "turn_resolved", %{my_card: ^first}, 1_000)
   end
 
   test "mounting mid-game animates nothing", %{game: game, players: players} do
@@ -429,6 +434,15 @@ defmodule HeliosWeb.GameLiveTest do
     refute_push_event(view, "turn_resolved", %{})
     assert has_element?(view, "#fx-layer[phx-update='ignore']")
     assert has_element?(view, "#hand[phx-hook]")
+  end
+
+  test "the dock clips horizontal overflow so the hand slide cannot scroll the page", %{
+    game: game,
+    players: players
+  } do
+    [{_a, ta} | _] = players
+    {:ok, view, _html} = open(ta, game.id)
+    assert has_element?(view, "#dock.overflow-x-clip")
   end
 
   # The trade_discount line of a card, rendered for a given neighbour map.

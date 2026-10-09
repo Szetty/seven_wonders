@@ -82,7 +82,7 @@ defmodule HeliosWeb.GameLive do
             <div
               :if={GameFormat.dock?(@view)}
               id="dock"
-              class="sticky bottom-0 z-30 -mx-2 flex flex-col gap-2 rounded-t-xl bg-antique/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.2)] sm:mx-0 sm:px-3"
+              class="sticky bottom-0 z-30 -mx-2 flex flex-col gap-2 overflow-x-clip rounded-t-xl bg-antique/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.2)] sm:mx-0 sm:px-3"
             >
               <.extra_turn_notice view={@view} names={@names} />
               <.discard_restore view={@view} minimised={@discard_minimised} />
