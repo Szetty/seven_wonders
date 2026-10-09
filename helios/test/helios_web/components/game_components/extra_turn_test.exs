@@ -27,7 +27,8 @@ defmodule HeliosWeb.GameComponents.ExtraTurnTest do
   defp render_notice(view),
     do: render_component(&ExtraTurn.extra_turn_notice/1, view: view, names: SampleViews.names())
 
-  defp render_picker(view), do: render_component(&ExtraTurn.discard_picker/1, view: view)
+  defp render_picker(view),
+    do: render_component(&ExtraTurn.discard_picker/1, view: view, minimised: false)
 
   test "my build-from-discard turn shows a picker over the discard pile and no notice" do
     view = extra("1", :build_from_discard, %{discard_pile: ["Altar", "Loom"], hand: []})
@@ -58,6 +59,22 @@ defmodule HeliosWeb.GameComponents.ExtraTurnTest do
     view = extra("2", :build_from_discard)
     assert text(render_notice(view), "#waiting-extra-turn") =~ "Waiting for Bob"
     assert count(render_picker(view), "#discard-picker") == 0
+  end
+
+  test "the picker can be minimised to a bar that restores it" do
+    view = extra("1", :build_from_discard, %{discard_pile: ["Altar"], hand: []})
+    open = render_component(&ExtraTurn.discard_picker/1, view: view, minimised: false)
+    assert attrs(open, "#discard-minimise", "phx-click") == ["minimise_discard"]
+
+    closed = render_component(&ExtraTurn.discard_picker/1, view: view, minimised: true)
+    assert count(closed, "#discard-picker") == 0
+    assert count(closed, "#discard-scrim") == 0
+
+    bar = render_component(&ExtraTurn.discard_restore/1, view: view, minimised: true)
+    assert attrs(bar, "#discard-restore", "phx-click") == ["restore_discard"]
+
+    assert render_component(&ExtraTurn.discard_restore/1, view: view, minimised: false) =~
+             ~r/^\s*$/
   end
 
   test "renders nothing outside extra turns" do

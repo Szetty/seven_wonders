@@ -15,6 +15,7 @@ defmodule HeliosWeb.GameLive do
 
   alias Helios.{Games, Lobbies}
   alias Helios.Games.Choice
+  alias HeliosWeb.GameComponents.ExtraTurn
   alias HeliosWeb.{GameFormat, Presence}
 
   @impl true
@@ -53,6 +54,7 @@ defmodule HeliosWeb.GameLive do
               class="sticky bottom-0 z-30 -mx-2 flex flex-col gap-2 rounded-t-xl bg-antique/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.2)] sm:mx-0 sm:px-3"
             >
               <.extra_turn_notice view={@view} names={@names} />
+              <.discard_restore view={@view} minimised={@discard_minimised} />
               <.pending_choice
                 :if={@view.my_pending && is_nil(@selected)}
                 action={@view.my_pending}
@@ -64,7 +66,7 @@ defmodule HeliosWeb.GameLive do
                 pending={@view.my_pending}
               />
             </div>
-            <.discard_picker view={@view} />
+            <.discard_picker view={@view} minimised={@discard_minimised} />
             <.action_panel
               :if={@selected_card}
               card={@selected_card}
@@ -190,7 +192,13 @@ defmodule HeliosWeb.GameLive do
     names = Map.new(Games.players(game), &{to_string(&1.user_id), &1.user.name})
 
     socket
-    |> assign(page_title: "7 Wonders", game: game, names: names, info_card: nil)
+    |> assign(
+      page_title: "7 Wonders",
+      game: game,
+      names: names,
+      info_card: nil,
+      discard_minimised: false
+    )
     |> assign_connected()
   end
 
@@ -283,6 +291,12 @@ defmodule HeliosWeb.GameLive do
 
   def handle_event("hide_card", _params, socket), do: {:noreply, assign(socket, :info_card, nil)}
 
+  def handle_event("minimise_discard", _params, socket),
+    do: {:noreply, assign(socket, :discard_minimised, true)}
+
+  def handle_event("restore_discard", _params, socket),
+    do: {:noreply, assign(socket, :discard_minimised, false)}
+
   def handle_event("submit", params, socket) do
     %{game: game, current_scope: %{user: user}} = socket.assigns
 
@@ -341,6 +355,10 @@ defmodule HeliosWeb.GameLive do
       statuses: GameFormat.statuses(view)
     )
     |> assign_selection(socket.assigns[:selected])
+    |> assign(
+      :discard_minimised,
+      socket.assigns[:discard_minimised] == true and ExtraTurn.my_discard_turn?(view)
+    )
   end
 
   defp assign_selection(socket, name) do

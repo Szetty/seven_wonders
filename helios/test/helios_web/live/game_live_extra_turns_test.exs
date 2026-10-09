@@ -43,6 +43,14 @@ defmodule HeliosWeb.GameLiveExtraTurnsTest do
     index = Enum.find_index(state.discard_pile, &(&1 not in built))
     card = Enum.at(state.discard_pile, index)
 
+    view_a |> element("#discard-minimise") |> render_click()
+    refute has_element?(view_a, "#discard-picker")
+    assert has_element?(view_a, "#dock #discard-restore")
+    send(view_a.pid, {:game_updated, 0})
+    assert has_element?(view_a, "#dock #discard-restore")
+    view_a |> element("#discard-restore") |> render_click()
+    assert has_element?(view_a, "#discard-picker")
+
     view_a |> element("#discard-pick-#{index}") |> render_click()
 
     refute has_element?(view_a, "#discard-picker")
