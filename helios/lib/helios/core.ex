@@ -74,4 +74,8 @@ defmodule Helios.Core do
   def debug_game(game) do
     with {:ok, json} <- Native.debug_game(game), do: {:ok, Jason.decode!(json)}
   end
+
+  @doc "Public history: one `{:turn, …}` per resolved turn and one `{:battles, …}` per age."
+  @spec history(game()) :: {:ok, [term()]} | {:error, :lock_fail}
+  def history(game), do: Native.history(game)
 end

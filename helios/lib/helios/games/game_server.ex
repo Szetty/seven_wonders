@@ -75,6 +75,10 @@ defmodule Helios.Games.GameServer do
     {:reply, Core.view(state.ref, to_string(user_id)), state, state.idle_timeout}
   end
 
+  def handle_call(:history, _from, state) do
+    {:reply, Core.history(state.ref), state, state.idle_timeout}
+  end
+
   @impl true
   def handle_info(:timeout, state), do: {:stop, :normal, state}
   def handle_info(_message, state), do: {:noreply, state, state.idle_timeout}

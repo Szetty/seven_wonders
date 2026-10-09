@@ -1,10 +1,11 @@
 //! Boundary DTOs: rustler encodings of `crate::game` types. Conversions only;
 //! no game logic lives here.
 use crate::game::{
-    Action, ActionError, BuildOption, BuiltCard, CardInfo, Category, CostInfo, EffectSpec,
-    ExtraTurnKind, FinalScore, GameSettings, HandCard, PassDirection, Payment, PaymentOption,
-    PhaseKind, PhaseView, PlayerDirection, PlayerView, PointCategory, PublicPlayer, ResourceType,
-    ScientificSymbol, SetupError, Side, StageInfo, WonderBoardInfo, WonderInfo, WonderSelection,
+    Action, ActionError, Battle, BuildOption, BuiltCard, CardInfo, Category, CoinChange, CostInfo,
+    EffectSpec, ExtraTurnKind, FinalScore, GameSettings, HandCard, HistoryEvent, PassDirection,
+    Payment, PaymentOption, PhaseKind, PhaseView, Play, PlayerDirection, PlayerView, PointCategory,
+    PublicAction, PublicPlayer, ResourceType, ScientificSymbol, SetupError, Side, StageInfo,
+    TurnKind, WonderBoardInfo, WonderInfo, WonderSelection,
 };
 use rustler::{NifMap, NifTaggedEnum, NifUnitEnum};
 
@@ -804,6 +805,142 @@ impl From<GameSettings> for GameSettingsDto {
             engine_version: settings.engine_version,
             wonders: settings.wonders.into_iter().map(Into::into).collect(),
             cards: settings.cards.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, NifUnitEnum)]
+pub enum TurnKindDto {
+    Regular,
+    PlayLastCard,
+    BuildFromDiscard,
+}
+
+impl From<TurnKind> for TurnKindDto {
+    fn from(kind: TurnKind) -> Self {
+        match kind {
+            TurnKind::Regular => Self::Regular,
+            TurnKind::PlayLastCard => Self::PlayLastCard,
+            TurnKind::BuildFromDiscard => Self::BuildFromDiscard,
+        }
+    }
+}
+
+/// `{:built, card}` | `{:built_free, card}` | `{:built_from_discard, card}` | `{:wonder_stage, n}` | `:discarded`
+#[derive(Debug, Clone, PartialEq, Eq, NifTaggedEnum)]
+pub enum PublicActionDto {
+    Built(String),
+    BuiltFree(String),
+    BuiltFromDiscard(String),
+    WonderStage(u8),
+    Discarded,
+}
+
+impl From<PublicAction> for PublicActionDto {
+    fn from(action: PublicAction) -> Self {
+        match action {
+            PublicAction::Built { card } => Self::Built(card),
+            PublicAction::BuiltFree { card } => Self::BuiltFree(card),
+            PublicAction::BuiltFromDiscard { card } => Self::BuiltFromDiscard(card),
+            PublicAction::WonderStage { stage } => Self::WonderStage(stage),
+            PublicAction::Discarded => Self::Discarded,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, NifMap)]
+pub struct PlayDto {
+    pub player: String,
+    pub action: PublicActionDto,
+    pub coins_to_west: u32,
+    pub coins_to_east: u32,
+}
+
+impl From<Play> for PlayDto {
+    fn from(play: Play) -> Self {
+        Self {
+            player: play.player,
+            action: play.action.into(),
+            coins_to_west: play.coins_to_west,
+            coins_to_east: play.coins_to_east,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, NifMap)]
+pub struct CoinChangeDto {
+    pub player: String,
+    pub delta: i32,
+}
+
+impl From<CoinChange> for CoinChangeDto {
+    fn from(change: CoinChange) -> Self {
+        Self {
+            player: change.player,
+            delta: change.delta,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, NifMap)]
+pub struct BattleDto {
+    pub player: String,
+    pub rival: String,
+    pub player_strength: u32,
+    pub rival_strength: u32,
+    pub player_token: Option<i32>,
+    pub rival_token: Option<i32>,
+}
+
+impl From<Battle> for BattleDto {
+    fn from(b: Battle) -> Self {
+        Self {
+            player: b.player,
+            rival: b.rival,
+            player_strength: b.player_strength,
+            rival_strength: b.rival_strength,
+            player_token: b.player_token,
+            rival_token: b.rival_token,
+        }
+    }
+}
+
+/// `{:turn, %{age, turn, kind, plays, coins}}` | `{:battles, %{age, battles}}`
+#[derive(Debug, Clone, PartialEq, Eq, NifTaggedEnum)]
+pub enum HistoryEventDto {
+    Turn {
+        age: u8,
+        turn: u8,
+        kind: TurnKindDto,
+        plays: Vec<PlayDto>,
+        coins: Vec<CoinChangeDto>,
+    },
+    Battles {
+        age: u8,
+        battles: Vec<BattleDto>,
+    },
+}
+
+impl From<HistoryEvent> for HistoryEventDto {
+    fn from(event: HistoryEvent) -> Self {
+        match event {
+            HistoryEvent::Turn {
+                age,
+                turn,
+                kind,
+                plays,
+                coins,
+            } => Self::Turn {
+                age,
+                turn,
+                kind: kind.into(),
+                plays: convert(plays),
+                coins: convert(coins),
+            },
+            HistoryEvent::Battles { age, battles } => Self::Battles {
+                age,
+                battles: convert(battles),
+            },
         }
     }
 }

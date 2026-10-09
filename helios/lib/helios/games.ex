@@ -212,6 +212,9 @@ defmodule Helios.Games do
   @spec view(term(), integer()) :: {:ok, map()} | {:error, term()}
   def view(game_id, user_id), do: call(game_id, {:view, user_id})
 
+  @spec history(term()) :: {:ok, [term()]} | {:error, term()}
+  def history(game_id), do: call(game_id, :history)
+
   @doc """
   Rebuilds a finished game from its log in a throwaway engine and returns the
   viewer's final view. `{:error, :not_finished}` if the log stops short of game over.

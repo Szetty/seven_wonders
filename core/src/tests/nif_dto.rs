@@ -161,6 +161,23 @@ fn a_whole_view_converts() {
 }
 
 #[test]
+fn history_converts() {
+    use crate::nif::dto::{HistoryEventDto, PublicActionDto, TurnKindDto};
+    let mut game = plain_game();
+    super::game_helpers::discard_turn(&mut game);
+    let dto: Vec<HistoryEventDto> = game.history().iter().cloned().map(Into::into).collect();
+    let HistoryEventDto::Turn {
+        kind, plays, coins, ..
+    } = &dto[0]
+    else {
+        panic!()
+    };
+    assert_eq!(*kind, TurnKindDto::Regular);
+    assert_eq!(plays[0].action, PublicActionDto::Discarded);
+    assert_eq!(coins[0].delta, 3);
+}
+
+#[test]
 fn settings_convert_with_catalogue() {
     use crate::nif::dto::{CostInfoDto, EffectSpecDto, GameSettingsDto, PointCategoryDto};
     let dto = GameSettingsDto::from(crate::game::settings());

@@ -161,4 +161,37 @@ defmodule Helios.CoreShapesTest do
              } = score
     end
   end
+
+  test "history/1 lists public turn and battle events" do
+    {:ok, ref} = Core.new_game(@players, @wonders, 1)
+    assert {:ok, []} = Core.history(ref)
+
+    for _turn <- 1..6, player <- @players do
+      {:ok, view} = Core.view(ref, player)
+      :ok = Core.submit(ref, player, {:discard, hd(view.hand).name})
+    end
+
+    assert {:ok, events} = Core.history(ref)
+    assert [{:turn, first} | _] = events
+
+    assert %{
+             age: 1,
+             turn: 1,
+             kind: :regular,
+             plays: [play | _],
+             coins: [%{player: "1", delta: 3} | _]
+           } = first
+
+    assert %{player: "1", action: :discarded, coins_to_west: 0, coins_to_east: 0} = play
+    assert {:battles, %{age: 1, battles: [battle, _, _]}} = List.last(events)
+
+    assert %{
+             player: "1",
+             rival: "2",
+             player_strength: 0,
+             rival_strength: 0,
+             player_token: nil,
+             rival_token: nil
+           } = battle
+  end
 end

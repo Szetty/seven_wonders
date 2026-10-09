@@ -7,4 +7,5 @@ defmodule Helios.Core.Native do
   def submit(_game, _player, _action), do: :erlang.nif_error(:nif_not_loaded)
   def view(_game, _player), do: :erlang.nif_error(:nif_not_loaded)
   def debug_game(_game), do: :erlang.nif_error(:nif_not_loaded)
+  def history(_game), do: :erlang.nif_error(:nif_not_loaded)
 end

@@ -78,6 +78,15 @@ defmodule Helios.Games.GameServerTest do
     end
   end
 
+  test "history/1 goes through the GameServer", %{game: game, users: users} do
+    for user <- users do
+      [card | _] = hand_names(game, user)
+      :ok = Games.submit(game.id, user.id, {:discard, card})
+    end
+
+    assert {:ok, [{:turn, %{turn: 1, plays: [_, _, _]}}]} = Games.history(game.id)
+  end
+
   describe "ensure_started/1" do
     test "reports missing, finished and malformed games", %{game: game} do
       assert {:error, :not_found} = Games.ensure_started(Ecto.UUID.generate())

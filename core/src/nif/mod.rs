@@ -4,7 +4,10 @@
 pub(crate) mod dto;
 
 use crate::game::{self, Game};
-use dto::{ActionDto, ActionErrorDto, GameSettingsDto, PlayerViewDto, SetupErrorDto, WondersDto};
+use dto::{
+    ActionDto, ActionErrorDto, GameSettingsDto, HistoryEventDto, PlayerViewDto, SetupErrorDto,
+    WondersDto,
+};
 use rustler::{Atom, Decoder, Encoder, Env, ResourceArc, Term};
 use std::sync::Mutex;
 
@@ -69,4 +72,11 @@ fn view<'a>(env: Env<'a>, resource: ResourceArc<GameResource>, player: String) -
 fn debug_game(resource: ResourceArc<GameResource>) -> Result<String, Atom> {
     let game = resource.0.lock().map_err(|_| atoms::lock_fail())?;
     Ok(game.debug_json())
+}
+
+/// `{:ok, [event]}` | `{:error, :lock_fail}` — public, the same for every player.
+#[rustler::nif]
+fn history(resource: ResourceArc<GameResource>) -> Result<Vec<HistoryEventDto>, Atom> {
+    let game = resource.0.lock().map_err(|_| atoms::lock_fail())?;
+    Ok(game.history().iter().cloned().map(Into::into).collect())
 }
