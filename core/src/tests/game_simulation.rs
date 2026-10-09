@@ -180,3 +180,76 @@ fn identical_inputs_produce_identical_views() {
     assert_eq!(record(3), record(3));
     assert_ne!(record(3), record(4));
 }
+
+use crate::game::{HistoryEvent, PublicAction};
+use std::collections::HashMap;
+
+#[test]
+fn history_agrees_with_the_final_table() {
+    for players in [3, 5, 7] {
+        for seed in 0..5 {
+            let game = play_random_game(players, seed, |_| {});
+            let mut coins: HashMap<String, i32> = HashMap::new();
+            let mut built: HashMap<String, Vec<String>> = HashMap::new();
+            let mut tokens: HashMap<String, Vec<i32>> = HashMap::new();
+            for event in game.history() {
+                match event {
+                    HistoryEvent::Turn {
+                        plays,
+                        coins: changes,
+                        ..
+                    } => {
+                        for change in changes {
+                            *coins.entry(change.player.clone()).or_insert(3) += change.delta;
+                        }
+                        for play in plays {
+                            if let PublicAction::Built { card }
+                            | PublicAction::BuiltFree { card }
+                            | PublicAction::BuiltFromDiscard { card } = &play.action
+                            {
+                                built
+                                    .entry(play.player.clone())
+                                    .or_default()
+                                    .push(card.clone());
+                            }
+                        }
+                    }
+                    HistoryEvent::Battles { battles, .. } => {
+                        for battle in battles {
+                            if let Some(t) = battle.player_token {
+                                tokens.entry(battle.player.clone()).or_default().push(t);
+                            }
+                            if let Some(t) = battle.rival_token {
+                                tokens.entry(battle.rival.clone()).or_default().push(t);
+                            }
+                        }
+                    }
+                }
+            }
+            for player in game.players() {
+                assert_eq!(
+                    coins.get(player).copied().unwrap_or(3),
+                    game.coins(player) as i32,
+                    "coins {player} {players}/{seed}"
+                );
+                assert_eq!(
+                    built.get(player).cloned().unwrap_or_default(),
+                    game.built_names(player),
+                    "built {player}"
+                );
+                let mut expected = game.tokens(player);
+                let mut got = tokens.get(player).cloned().unwrap_or_default();
+                expected.sort();
+                got.sort();
+                assert_eq!(got, expected, "tokens {player}");
+            }
+        }
+    }
+}
+
+#[test]
+fn identical_inputs_produce_identical_history() {
+    let a = play_random_game(5, 3, |_| {});
+    let b = play_random_game(5, 3, |_| {});
+    assert_eq!(a.history(), b.history());
+}

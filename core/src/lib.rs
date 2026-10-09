@@ -14,6 +14,7 @@ mod tests {
     pub mod game_effects;
     pub mod game_extra_turns;
     pub mod game_helpers;
+    pub mod game_history;
     pub mod game_legality;
     pub mod game_olympia;
     pub mod game_payment;

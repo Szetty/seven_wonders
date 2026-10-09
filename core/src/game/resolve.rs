@@ -1,5 +1,6 @@
 //! Turn resolution: all pending actions are applied at once, then the game
 //! moves on (pass hands / extra turns / end of age / game over).
+use super::history::{Battle, CoinChange, HistoryEvent, Play, PublicAction, TurnKind};
 use super::types::{ExtraTurnKind, Kind, Phase, Resolved};
 use super::Game;
 use crate::domain::{Card, EventType, PlayerDecision};
@@ -18,10 +19,21 @@ impl Game {
     }
 
     pub(super) fn resolve(&mut self) {
-        let was_choosing = matches!(self.phase, Phase::ChoosingCards { .. });
+        let kind = match &self.phase {
+            Phase::ChoosingCards { .. } => TurnKind::Regular,
+            Phase::ExtraTurn {
+                kind: ExtraTurnKind::PlayLastCard,
+                ..
+            } => TurnKind::PlayLastCard,
+            Phase::ExtraTurn {
+                kind: ExtraTurnKind::BuildFromDiscard,
+                ..
+            } => TurnKind::BuildFromDiscard,
+            Phase::GameOver { .. } => return,
+        };
         let batch = self.take_pending();
-        let build_from_discard = self.apply_batch(batch);
-        if was_choosing && self.hands.iter().all(|hand| hand.len() == 1) {
+        let build_from_discard = self.apply_batch(kind, batch);
+        if kind == TurnKind::Regular && self.hands.iter().all(|hand| hand.len() == 1) {
             self.handle_last_cards();
         }
         for seat in build_from_discard {
@@ -43,11 +55,32 @@ impl Game {
     /// pre-turn balances; trade coins are credited only after every action
     /// (structures, stages, effects) has been applied. Returns the seats that
     /// triggered Halikarnassós' build-from-discard.
-    fn apply_batch(&mut self, batch: Vec<(usize, Resolved)>) -> Vec<usize> {
+    fn apply_batch(&mut self, kind: TurnKind, batch: Vec<(usize, Resolved)>) -> Vec<usize> {
+        let coins_before: Vec<u32> = (0..self.seats.len())
+            .map(|seat| self.player(seat).coins)
+            .collect();
         let mut decisions = Vec::with_capacity(batch.len());
         let mut credits: Vec<(usize, u32)> = Vec::new();
+        let mut plays = Vec::with_capacity(batch.len());
         for (seat, resolved) in batch {
             let card = self.take_card(seat, &resolved);
+            let name_of_card = card.0.name().to_string();
+            let action = match resolved.kind {
+                Kind::Build => PublicAction::Built { card: name_of_card },
+                Kind::BuildFree => PublicAction::BuiltFree { card: name_of_card },
+                Kind::FromDiscard => PublicAction::BuiltFromDiscard { card: name_of_card },
+                // Stages are applied after the loop, so the count is still the old one.
+                Kind::Wonder => PublicAction::WonderStage {
+                    stage: self.player(seat).wonder_stages_built + 1,
+                },
+                Kind::Discard => PublicAction::Discarded,
+            };
+            plays.push(Play {
+                player: self.seats[seat].clone(),
+                action,
+                coins_to_west: resolved.west,
+                coins_to_east: resolved.east,
+            });
             if resolved.west > 0 {
                 credits.push((self.west_of(seat), resolved.west));
             }
@@ -76,6 +109,22 @@ impl Game {
             let name = self.seats[seat].clone();
             self.state.get_mut_player_state(&name).coins += coins;
         }
+        let coins = (0..self.seats.len())
+            .filter_map(|seat| {
+                let delta = self.player(seat).coins as i32 - coins_before[seat] as i32;
+                (delta != 0).then(|| CoinChange {
+                    player: self.seats[seat].clone(),
+                    delta,
+                })
+            })
+            .collect();
+        self.history.push(HistoryEvent::Turn {
+            age: self.age,
+            turn: self.turn,
+            kind,
+            plays,
+            coins,
+        });
         let events = std::mem::take(&mut self.state.events);
         events
             .into_iter()
@@ -180,6 +229,28 @@ impl Game {
                 .battle_tokens
                 .extend(tokens);
         }
+        let outcome = |mine: u32, theirs: u32| match mine.cmp(&theirs) {
+            Ordering::Greater => Some(victory),
+            Ordering::Less => Some(-1),
+            Ordering::Equal => None,
+        };
+        let battles = (0..self.seats.len())
+            .map(|seat| {
+                let rival = self.east_of(seat);
+                Battle {
+                    player: self.seats[seat].clone(),
+                    rival: self.seats[rival].clone(),
+                    player_strength: shields[seat],
+                    rival_strength: shields[rival],
+                    player_token: outcome(shields[seat], shields[rival]),
+                    rival_token: outcome(shields[rival], shields[seat]),
+                }
+            })
+            .collect();
+        self.history.push(HistoryEvent::Battles {
+            age: self.age,
+            battles,
+        });
     }
 
     /// Ages I and III pass to the west neighbour, Age II to the east.

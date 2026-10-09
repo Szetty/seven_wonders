@@ -1,5 +1,6 @@
 //! Rustler-free game API. A [`Game`] owns the whole table: seats, hands,
 //! phase and pending actions. Every public operation is deterministic.
+mod history;
 mod legality;
 pub(crate) mod payment;
 mod resolve;
@@ -14,6 +15,7 @@ mod view;
 pub use crate::domain::{
     Category, EffectSpec, PlayerDirection, PointCategory, ResourceType, ScientificSymbol,
 };
+pub use history::{Battle, CoinChange, HistoryEvent, Play, PublicAction, TurnKind};
 pub use settings::{
     settings, CardInfo, CostInfo, GameSettings, StageInfo, WonderBoardInfo, WonderInfo,
 };
@@ -49,6 +51,8 @@ pub struct Game {
     pending: Vec<Option<Pending>>,
     /// Extra turns still to be played before the game moves on.
     extra_turns: VecDeque<(usize, ExtraTurnKind)>,
+    /// Public events, appended as turns and ages resolve.
+    history: Vec<history::HistoryEvent>,
 }
 
 impl Game {
@@ -76,12 +80,18 @@ impl Game {
             "phase": self.phase,
             "hands": hands,
             "state": self.state,
+            "history": self.history,
         })
         .to_string()
     }
 
     pub fn phase(&self) -> &Phase {
         &self.phase
+    }
+
+    /// Public history of the game (same for every player).
+    pub fn history(&self) -> &[HistoryEvent] {
+        &self.history
     }
 
     /// Player ids in seat order.

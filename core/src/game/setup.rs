@@ -59,6 +59,7 @@ pub(super) fn new_game(
         phase: Phase::ChoosingCards { age: 1, turn: 1 },
         pending: vec![None; count],
         extra_turns: VecDeque::new(),
+        history: Vec::new(),
         seats: players,
     };
     game.deal_age(1);
