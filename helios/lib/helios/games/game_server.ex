@@ -12,11 +12,10 @@ defmodule Helios.Games.GameServer do
   """
   use GenServer, restart: :transient
 
-  import Ecto.Query
   require Logger
 
   alias Helios.{Core, Games, Repo}
-  alias Helios.Games.{ActionCodec, Choice, Game, GameAction, GamePlayer}
+  alias Helios.Games.{ActionCodec, Choice, Game, GameAction, Replay}
 
   def start_link(opts) do
     game_id = Keyword.fetch!(opts, :game_id)
@@ -30,31 +29,24 @@ defmodule Helios.Games.GameServer do
   def init(opts) do
     game = Repo.get!(Game, Keyword.fetch!(opts, :game_id))
     idle_timeout = Keyword.fetch!(opts, :idle_timeout)
-
-    player_ids =
-      from(p in GamePlayer, where: p.game_id == ^game.id, order_by: p.seat, select: p.user_id)
-      |> Repo.all()
-      |> Enum.map(&to_string/1)
-
-    actions = Repo.all(from a in GameAction, where: a.game_id == ^game.id, order_by: a.seq)
+    actions = Replay.actions(game.id)
     warn_on_engine_version(game)
 
-    with {:ok, wonders} <- ActionCodec.decode_wonders(game.wonders),
-         {:ok, ref} <- Core.new_game(player_ids, wonders, game.seed),
-         :ok <- replay(ref, actions) do
-      state = %{
-        game_id: game.id,
-        lobby_id: game.lobby_id,
-        ref: ref,
-        seq: last_seq(actions),
-        players: player_ids,
-        status: game.status,
-        idle_timeout: idle_timeout
-      }
+    case Replay.rebuild(game, actions, fn _ref -> nil end, fn _row, _ref, acc -> acc end) do
+      {:ok, ref, nil} ->
+        state = %{
+          game_id: game.id,
+          lobby_id: game.lobby_id,
+          ref: ref,
+          seq: last_seq(actions),
+          players: Replay.player_ids(game.id),
+          status: game.status,
+          idle_timeout: idle_timeout
+        }
 
-      state = maybe_finish(state)
-      {:ok, state, state.idle_timeout}
-    else
+        state = maybe_finish(state)
+        {:ok, state, state.idle_timeout}
+
       {:error, reason} ->
         Logger.error(
           "Game #{game.id} could not be rebuilt (#{inspect(reason)}); marking it aborted"
@@ -107,17 +99,6 @@ defmodule Helios.Games.GameServer do
       {:error, reason} ->
         {:reply, {:error, reason}, state, state.idle_timeout}
     end
-  end
-
-  defp replay(ref, actions) do
-    Enum.reduce_while(actions, :ok, fn %GameAction{} = row, :ok ->
-      with {:ok, action} <- ActionCodec.decode(row.action),
-           :ok <- Core.submit(ref, to_string(row.user_id), action) do
-        {:cont, :ok}
-      else
-        {:error, reason} -> {:halt, {:error, {:replay_failed, row.seq, reason}}}
-      end
-    end)
   end
 
   defp maybe_finish(%{status: "active"} = state) do

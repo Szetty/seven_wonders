@@ -79,7 +79,7 @@ defmodule HeliosWeb.GameLiveExtraTurnsTest do
     assert kind in [:choosing_cards, :game_over]
   end
 
-  test "the scoreboard replaces the table at game end, even with a card selected",
+  test "the scoreboard heads the final table at game end, even with a card selected",
        %{players: [{_a, ta}, {_b, tb}, _] = players, ids: ids} do
     game = game_fixture(Enum.map(players, &elem(&1, 0)))
     {:ok, view_a, _html} = open(ta, game)
@@ -92,6 +92,7 @@ defmodule HeliosWeb.GameLiveExtraTurnsTest do
              GameDriver.play_until(ids, %{}, view_fun, submit_fun, &(&1.phase.kind == :game_over))
 
     assert has_element?(view_a, "#scoreboard")
+    assert has_element?(view_a, "#table #my-board")
     refute has_element?(view_a, "#hand")
     refute has_element?(view_a, "#dock")
     refute has_element?(view_a, "#action-panel")

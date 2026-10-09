@@ -6,6 +6,8 @@ defmodule HeliosWeb.GameLive do
   """
   use HeliosWeb, :live_view
 
+  require Logger
+
   import HeliosWeb.GameComponents.CardSheet
   import HeliosWeb.GameComponents.ExtraTurn
   import HeliosWeb.GameComponents.Hand
@@ -31,12 +33,34 @@ defmodule HeliosWeb.GameLive do
         <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-2 pt-3 sm:gap-4 sm:px-4 sm:pt-4 lg:px-8">
           <.top_bar view={@view} names={@names} connected={@connected} />
           <%= if @view.phase.kind == :game_over do %>
-            <div class="pb-4">
+            <div class="flex flex-col gap-3 pb-4 sm:gap-4">
               <.scoreboard
                 scores={@view.scores}
                 names={@names}
                 me={@view.me}
                 lobby_id={@game.lobby_id}
+              />
+              <p
+                :if={!@boards_available}
+                id="boards-unavailable"
+                class="mx-auto rounded-lg bg-antique/90 px-3 py-2 text-sm text-zinc-700"
+              >
+                Boards are unavailable for this game
+              </p>
+              <.table_area
+                :if={@boards_available}
+                me={@me}
+                west={@west}
+                east={@east}
+                others={@others}
+                names={@names}
+                statuses={@statuses}
+              />
+              <.card_sheet
+                :if={@info_card}
+                name={@info_card.name}
+                neighbours={GameFormat.neighbours_of(@view, @info_card.owner, @names)}
+                built={Enum.map(@me.built, & &1.name)}
               />
             </div>
           <% else %>
@@ -177,10 +201,20 @@ defmodule HeliosWeb.GameLive do
   end
 
   # A finished game is read-only: the GameServer is never started for it (which
-  # would raise `:not_active`), so the table renders from the scores the finish
-  # path persisted on the `games` row.
+  # would raise `:not_active`). The final boards come from replaying the action
+  # log in a throwaway engine; if the log no longer replays, the table falls
+  # back to the scores the finish path persisted on the `games` row.
   defp mount_finished(socket, game, user) do
-    {:ok, socket |> setup(game, user) |> assign_finished_view(game, user)}
+    socket = setup(socket, game, user)
+
+    case Games.replay(game, user.id) do
+      {:ok, %{view: view}} ->
+        {:ok, socket |> assign(:boards_available, true) |> assign_view(view)}
+
+      {:error, reason} ->
+        Logger.warning("Game #{game.id} boards unavailable: #{inspect(reason)}")
+        {:ok, socket |> assign(:boards_available, false) |> assign_finished_view(game, user)}
+    end
   end
 
   defp setup(socket, game, user) do
@@ -197,7 +231,8 @@ defmodule HeliosWeb.GameLive do
       game: game,
       names: names,
       info_card: nil,
-      discard_minimised: false
+      discard_minimised: false,
+      boards_available: true
     )
     |> assign_connected()
   end

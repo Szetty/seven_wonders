@@ -8,7 +8,7 @@ defmodule Helios.Games do
   alias Ecto.Multi
   alias Helios.{Core, Lobbies, Repo}
   alias Helios.Accounts.Scope
-  alias Helios.Games.{ActionCodec, Game, GamePlayer, GameServer}
+  alias Helios.Games.{ActionCodec, Game, GamePlayer, GameServer, Replay}
   alias HeliosWeb.Presence
 
   @min_players 3
@@ -198,6 +198,22 @@ defmodule Helios.Games do
 
   @spec view(term(), integer()) :: {:ok, map()} | {:error, term()}
   def view(game_id, user_id), do: call(game_id, {:view, user_id})
+
+  @doc """
+  Rebuilds a finished game from its log in a throwaway engine and returns the
+  viewer's final view. `{:error, :not_finished}` if the log stops short of game over.
+  """
+  @spec replay(Game.t(), integer()) :: {:ok, %{view: map()}} | {:error, term()}
+  def replay(%Game{} = game, user_id) do
+    with {:ok, ref, nil} <-
+           Replay.rebuild(game, Replay.actions(game.id), fn _ -> nil end, fn _, _, acc -> acc end),
+         {:ok, %{phase: %{kind: :game_over}} = view} <- Core.view(ref, to_string(user_id)) do
+      {:ok, %{view: view}}
+    else
+      {:ok, _view} -> {:error, :not_finished}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   defp cast_id(game_id) do
     case Ecto.UUID.cast(game_id) do

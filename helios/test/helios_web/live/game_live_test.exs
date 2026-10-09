@@ -321,7 +321,32 @@ defmodule HeliosWeb.GameLiveTest do
     assert has_element?(view, "#back-to-lobby[href='/lobby/#{game.lobby_id}']")
     refute has_element?(view, "#hand")
 
+    assert has_element?(view, "#boards-unavailable")
+    refute has_element?(view, "#table")
+
     assert Registry.lookup(Helios.Games.Registry, game.id) == []
+  end
+
+  test "a finished game shows the scoreboard and every final board", %{
+    game: game,
+    players: players
+  } do
+    [{a, ta} | _] = players
+    ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
+    {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+
+    {:game_over, _} =
+      Helios.GameDriver.play_until(ids, %{}, view_fun, submit_fun, fn _ -> false end)
+
+    stop_game_servers()
+
+    {:ok, view, _html} = open(ta, game.id)
+    assert has_element?(view, "#scoreboard")
+    assert has_element?(view, "#table #my-board[data-player='#{a.id}']")
+    assert has_element?(view, "#table #west-panel")
+    refute has_element?(view, "#dock")
+    refute has_element?(view, "[data-status]")
+    refute has_element?(view, "#boards-unavailable")
   end
 
   test "a forged show_card on a finished game does not crash the page", %{
