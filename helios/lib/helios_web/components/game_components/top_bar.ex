@@ -29,6 +29,18 @@ defmodule HeliosWeb.GameComponents.TopBar do
           <span id="age-label" class="text-lg font-bold tracking-wide whitespace-nowrap sm:text-xl">
             Age {GameFormat.roman(@phase.age)}
           </span>
+          <button
+            id="history-button"
+            type="button"
+            phx-click={JS.toggle(to: "#history-drawer", display: "block")}
+            aria-controls="history-drawer"
+            class="inline-flex items-center justify-center gap-1 rounded-md bg-white/15 px-2 py-1 text-sm font-semibold transition hover:bg-white/25 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+          >
+            <.icon name="hero-book-open" class="size-4" />
+            <span class="sr-only sm:not-sr-only">
+              History
+            </span>
+          </button>
           <%= if @phase.kind == :game_over do %>
             <span id="turn-label" class="whitespace-nowrap font-semibold">Game over</span>
           <% else %>

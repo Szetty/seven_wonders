@@ -224,6 +224,8 @@ defmodule HeliosWeb.GameLiveTest do
       assert has_element?(view, "#hand-card-5")
       refute has_element?(view, "#hand-card-6")
     end
+
+    assert has_element?(view_a, "#history-drawer #history-0")
   end
 
   test "a player can change their choice before the turn resolves", %{

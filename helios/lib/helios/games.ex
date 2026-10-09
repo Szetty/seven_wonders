@@ -217,14 +217,16 @@ defmodule Helios.Games do
 
   @doc """
   Rebuilds a finished game from its log in a throwaway engine and returns the
-  viewer's final view. `{:error, :not_finished}` if the log stops short of game over.
+  viewer's final view plus the public history. `{:error, :not_finished}` if the
+  log stops short of game over.
   """
-  @spec replay(Game.t(), integer()) :: {:ok, %{view: map()}} | {:error, term()}
+  @spec replay(Game.t(), integer()) :: {:ok, %{view: map(), history: [term()]}} | {:error, term()}
   def replay(%Game{} = game, user_id) do
     with {:ok, ref, nil} <-
            Replay.rebuild(game, Replay.actions(game.id), fn _ -> nil end, fn _, _, acc -> acc end),
-         {:ok, %{phase: %{kind: :game_over}} = view} <- Core.view(ref, to_string(user_id)) do
-      {:ok, %{view: view}}
+         {:ok, %{phase: %{kind: :game_over}} = view} <- Core.view(ref, to_string(user_id)),
+         {:ok, history} <- Core.history(ref) do
+      {:ok, %{view: view, history: history}}
     else
       {:ok, _view} -> {:error, :not_finished}
       {:error, reason} -> {:error, reason}

@@ -11,6 +11,7 @@ defmodule HeliosWeb.GameLive do
   import HeliosWeb.GameComponents.CardSheet
   import HeliosWeb.GameComponents.ExtraTurn
   import HeliosWeb.GameComponents.Hand
+  import HeliosWeb.GameComponents.HistoryDrawer
   import HeliosWeb.GameComponents.PlayerBoard
   import HeliosWeb.GameComponents.Scoreboard
   import HeliosWeb.GameComponents.TopBar
@@ -30,6 +31,10 @@ defmodule HeliosWeb.GameLive do
       background="bg-[url('/images/paper.jpg')] bg-cover lg:bg-fixed"
     >
       <div id="game" class="flex min-h-dvh flex-col">
+        <.history_drawer
+          history={@history}
+          ctx={%{me: @view.me, names: @names, view: @view}}
+        />
         <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-2 pt-3 sm:gap-4 sm:px-4 sm:pt-4 lg:px-8">
           <.top_bar view={@view} names={@names} connected={@connected} />
           <%= if @view.phase.kind == :game_over do %>
@@ -195,8 +200,12 @@ defmodule HeliosWeb.GameLive do
 
   defp mount_active(socket, game, user) do
     case Games.view(game.id, user.id) do
-      {:ok, view} -> {:ok, socket |> setup(game, user) |> assign_view(view)}
-      {:error, reason} -> {:ok, leave(socket, reason, game.lobby_id)}
+      {:ok, view} ->
+        history = fetch_history(game.id)
+        {:ok, socket |> setup(game, user) |> assign_view(view) |> assign(:history, history)}
+
+      {:error, reason} ->
+        {:ok, leave(socket, reason, game.lobby_id)}
     end
   end
 
@@ -208,12 +217,28 @@ defmodule HeliosWeb.GameLive do
     socket = setup(socket, game, user)
 
     case Games.replay(game, user.id) do
-      {:ok, %{view: view}} ->
-        {:ok, socket |> assign(:boards_available, true) |> assign_view(view)}
+      {:ok, %{view: view, history: history}} ->
+        {:ok,
+         socket
+         |> assign(:boards_available, true)
+         |> assign_view(view)
+         |> assign(:history, history)}
 
       {:error, reason} ->
         Logger.warning("Game #{game.id} boards unavailable: #{inspect(reason)}")
-        {:ok, socket |> assign(:boards_available, false) |> assign_finished_view(game, user)}
+
+        {:ok,
+         socket
+         |> assign(:boards_available, false)
+         |> assign(:history, [])
+         |> assign_finished_view(game, user)}
+    end
+  end
+
+  defp fetch_history(game_id) do
+    case Games.history(game_id) do
+      {:ok, history} -> history
+      {:error, _reason} -> []
     end
   end
 
@@ -371,7 +396,7 @@ defmodule HeliosWeb.GameLive do
     %{game: game, current_scope: %{user: user}} = socket.assigns
 
     case Games.view(game.id, user.id) do
-      {:ok, view} -> assign_view(socket, view)
+      {:ok, view} -> socket |> assign_view(view) |> assign(:history, fetch_history(game.id))
       {:error, reason} -> leave(socket, reason, game.lobby_id)
     end
   end
