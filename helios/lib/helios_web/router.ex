@@ -30,6 +30,7 @@ defmodule HeliosWeb.Router do
 
     live_session :authenticated,
       on_mount: [{HeliosWeb.UserAuth, :require_user}, HeliosWeb.Notifications] do
+      live "/games", PastGamesLive
       live "/lobby/:game_id", LobbyLive, :show
       live "/game/:game_id", GameLive
     end

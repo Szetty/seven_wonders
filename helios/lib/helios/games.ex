@@ -48,6 +48,19 @@ defmodule Helios.Games do
     Repo.one(from g in Game, where: g.lobby_id == ^lobby_id and g.status == "active")
   end
 
+  @spec finished_games_for(Helios.Accounts.User.t(), pos_integer()) :: [Game.t()]
+  def finished_games_for(%{id: user_id}, limit \\ 50) do
+    Repo.all(
+      from g in Game,
+        join: p in GamePlayer,
+        on: p.game_id == g.id and p.user_id == ^user_id,
+        where: g.status == "finished",
+        order_by: [desc: g.finished_at, desc: g.inserted_at],
+        limit: ^limit,
+        preload: [players: :user]
+    )
+  end
+
   @spec connected_user_ids(String.t()) :: MapSet.t(String.t())
   def connected_user_ids(topic), do: topic |> Presence.list() |> Map.keys() |> MapSet.new()
 

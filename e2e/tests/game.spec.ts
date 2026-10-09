@@ -33,6 +33,14 @@ test("three players play a full game to the scoreboard", async ({ browser }) => 
     await expect(player.page.locator("#scoreboard tbody tr td:first-child").first()).toBeInViewport();
   }
 
+  await owner.page.locator("#past-games-link").click();
+  await expect(owner.page).toHaveURL(/\/games$/);
+  const row = owner.page.locator("[id^='past-game-']").first();
+  await expect(row).toBeVisible();
+  await row.locator("a").click();
+  await expect(owner.page.locator("#scoreboard")).toBeVisible();
+  await expect(owner.page.locator("#table #my-board")).toBeVisible();
+
   for (const player of players) await player.context.close();
 });
 

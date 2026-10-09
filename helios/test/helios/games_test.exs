@@ -165,4 +165,47 @@ defmodule Helios.GamesTest do
       assert Games.error_message(:game_in_progress) == "A game is already running at this table"
     end
   end
+
+  describe "finished_games_for/2" do
+    test "lists only my finished games, newest first" do
+      [me, b, c] = users = for _ <- 1..3, do: player_fixture()
+      lobby = Helios.Lobbies.get_or_create_own_lobby(me)
+
+      finish = fn finished_at ->
+        game = game_fixture(users, lobby: lobby)
+
+        game
+        |> Ecto.Changeset.change(
+          status: "finished",
+          finished_at: finished_at,
+          final_scores: %{"scores" => []}
+        )
+        |> Repo.update!()
+      end
+
+      old = finish.(~U[2026-01-01 10:00:00Z])
+      new = finish.(~U[2026-02-01 10:00:00Z])
+
+      aborted =
+        game_fixture(users, lobby: lobby)
+        |> Ecto.Changeset.change(status: "aborted")
+        |> Repo.update!()
+
+      _active = game_fixture(users, lobby: lobby)
+
+      [x, y, z] = for _ <- 1..3, do: player_fixture()
+      other_lobby = Helios.Lobbies.get_or_create_own_lobby(x)
+
+      game_fixture([x, y, z], lobby: other_lobby)
+      |> Ecto.Changeset.change(status: "finished", finished_at: ~U[2026-03-01 10:00:00Z])
+      |> Repo.update!()
+
+      assert Enum.map(Games.finished_games_for(me), & &1.id) == [new.id, old.id]
+      refute aborted.id in Enum.map(Games.finished_games_for(me), & &1.id)
+      assert [%{players: [%{user: %{name: _}} | _]} | _] = Games.finished_games_for(me)
+      assert length(Games.finished_games_for(me, 1)) == 1
+      assert Games.finished_games_for(b) |> length() == 2
+      assert Games.finished_games_for(c) |> length() == 2
+    end
+  end
 end

@@ -35,6 +35,10 @@ defmodule HeliosWeb.LayoutsTest do
     logout = LazyHTML.query(doc, "#site-header #logout-link")
     assert LazyHTML.attribute(logout, "href") == ["/session"]
     assert LazyHTML.attribute(logout, "data-method") == ["delete"]
+
+    assert doc |> LazyHTML.query("#site-header #past-games-link") |> LazyHTML.attribute("href") ==
+             ["/games"]
+
     assert doc |> LazyHTML.query("main #content") |> Enum.count() == 1
   end
 

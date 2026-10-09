@@ -130,6 +130,13 @@ defmodule HeliosWeb.Layouts do
         {@current_scope.user.name}
       </span>
       <.link
+        navigate={~p"/games"}
+        id="past-games-link"
+        class="inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold text-white/90 transition hover:bg-white/15 hover:text-white active:bg-white/25 pointer-coarse:min-h-11"
+      >
+        Past games
+      </.link>
+      <.link
         href={~p"/"}
         id="my-table-link"
         class="inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold text-white/90 transition hover:bg-white/15 hover:text-white active:bg-white/25 pointer-coarse:min-h-11"
