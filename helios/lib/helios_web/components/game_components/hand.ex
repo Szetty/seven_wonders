@@ -21,7 +21,7 @@ defmodule HeliosWeb.GameComponents.Hand do
     assigns = assign(assigns, :pending_card, GameFormat.action_card(assigns.pending))
 
     ~H"""
-    <section id="hand" aria-label="Your hand">
+    <section id="hand" phx-hook=".HandRects" aria-label="Your hand">
       <h2 class="sr-only text-xs font-semibold uppercase tracking-wide text-zinc-700 sm:not-sr-only short:sr-only">
         Your hand
       </h2>
@@ -59,6 +59,21 @@ defmodule HeliosWeb.GameComponents.Hand do
         </button>
       </div>
     </section>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".HandRects">
+      export default {
+        mounted() { this.snapshot() },
+        beforeUpdate() { this.snapshot() },
+        snapshot() {
+          const rects = {}
+          this.el.querySelectorAll("[data-card] > img").forEach((img) => {
+            const r = img.getBoundingClientRect()
+            rects[img.closest("[data-card]").dataset.card] =
+              {left: r.left, top: r.top, width: r.width, height: r.height, src: img.currentSrc || img.src}
+          })
+          window.sevenWondersHandRects = rects
+        },
+      }
+    </script>
     """
   end
 

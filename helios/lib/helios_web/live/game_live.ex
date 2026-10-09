@@ -10,6 +10,7 @@ defmodule HeliosWeb.GameLive do
 
   import HeliosWeb.GameComponents.CardSheet
   import HeliosWeb.GameComponents.ExtraTurn
+  import HeliosWeb.GameComponents.Fx
   import HeliosWeb.GameComponents.Hand
   import HeliosWeb.GameComponents.HistoryDrawer
   import HeliosWeb.GameComponents.PlayerBoard
@@ -19,7 +20,7 @@ defmodule HeliosWeb.GameLive do
   alias Helios.{Games, Lobbies}
   alias Helios.Games.Choice
   alias HeliosWeb.GameComponents.ExtraTurn
-  alias HeliosWeb.{GameFormat, Presence}
+  alias HeliosWeb.{GameFormat, Presence, TurnFx}
 
   @impl true
   def render(assigns) do
@@ -31,6 +32,7 @@ defmodule HeliosWeb.GameLive do
       background="bg-[url('/images/paper.jpg')] bg-cover lg:bg-fixed"
     >
       <div id="game" class="flex min-h-dvh flex-col">
+        <.fx_layer />
         <.history_drawer
           history={@history}
           ctx={%{me: @view.me, names: @names, view: @view}}
@@ -257,7 +259,8 @@ defmodule HeliosWeb.GameLive do
       names: names,
       info_card: nil,
       discard_minimised: false,
-      boards_available: true
+      boards_available: true,
+      last_choice: nil
     )
     |> assign_connected()
   end
@@ -361,14 +364,18 @@ defmodule HeliosWeb.GameLive do
     %{game: game, current_scope: %{user: user}} = socket.assigns
 
     result =
-      with {:ok, choice} <- Choice.parse(params) do
-        Games.submit_choice(game.id, user.id, choice)
+      with {:ok, choice} <- Choice.parse(params),
+           :ok <- Games.submit_choice(game.id, user.id, choice) do
+        {:ok, choice}
       end
 
     socket =
       case result do
-        :ok -> assign_selection(socket, nil)
-        {:error, reason} -> put_flash(socket, :error, Games.error_message(reason))
+        {:ok, choice} ->
+          socket |> assign(:last_choice, choice.card) |> assign_selection(nil)
+
+        {:error, reason} ->
+          put_flash(socket, :error, Games.error_message(reason))
       end
 
     {:noreply, refresh(socket)}
@@ -396,9 +403,35 @@ defmodule HeliosWeb.GameLive do
     %{game: game, current_scope: %{user: user}} = socket.assigns
 
     case Games.view(game.id, user.id) do
-      {:ok, view} -> socket |> assign_view(view) |> assign(:history, fetch_history(game.id))
-      {:error, reason} -> leave(socket, reason, game.lobby_id)
+      {:ok, view} ->
+        history = fetch_history(game.id)
+
+        socket
+        |> animate_new_events(history, view)
+        |> assign(:history, history)
+        |> assign(:last_choice, GameFormat.action_card(view.my_pending))
+        |> assign_view(view)
+
+      {:error, reason} ->
+        leave(socket, reason, game.lobby_id)
     end
+  end
+
+  defp animate_new_events(socket, history, view) do
+    new = Enum.drop(history, length(socket.assigns.history))
+    pass = if view.phase.kind == :choosing_cards and view.phase.turn > 1, do: view.phase.direction
+
+    Enum.reduce(new, socket, fn
+      {:turn, _} = event, socket ->
+        push_event(
+          socket,
+          "turn_resolved",
+          TurnFx.payload(event, %{me: view.me, my_card: socket.assigns.last_choice, pass: pass})
+        )
+
+      {:battles, _}, socket ->
+        socket
+    end)
   end
 
   defp assign_view(socket, view) do

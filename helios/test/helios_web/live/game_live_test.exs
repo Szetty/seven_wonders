@@ -383,6 +383,54 @@ defmodule HeliosWeb.GameLiveTest do
     refute has_element?(view, "#game[class*='paper.jpg']")
   end
 
+  test "a resolved turn is pushed to the animation hook, with my card", %{
+    game: game,
+    players: players
+  } do
+    [{a, ta}, {b, _}, {c, _}] = players
+    {:ok, view, _html} = open(ta, game.id)
+    refute_push_event(view, "turn_resolved", %{})
+
+    {:ok, state} = Games.view(game.id, a.id)
+    [first | _] = Enum.map(state.hand, & &1.name)
+    view |> element("#hand-card-0") |> render_click()
+    view |> element("#discard-button") |> render_click()
+
+    for user <- [b, c] do
+      {:ok, other} = Games.view(game.id, user.id)
+      :ok = Games.submit(game.id, user.id, {:discard, hd(other.hand).name})
+    end
+
+    assert_push_event(view, "turn_resolved", %{my_card: ^first, pass: "west", plays: [_, _, _]})
+  end
+
+  test "my own submit that resolves the turn still names my card", %{game: game, players: players} do
+    [{a, ta}, {b, _}, {c, _}] = players
+
+    for user <- [b, c] do
+      {:ok, other} = Games.view(game.id, user.id)
+      :ok = Games.submit(game.id, user.id, {:discard, hd(other.hand).name})
+    end
+
+    {:ok, view, _html} = open(ta, game.id)
+    {:ok, state} = Games.view(game.id, a.id)
+    [first | _] = Enum.map(state.hand, & &1.name)
+    view |> element("#hand-card-0") |> render_click()
+    view |> element("#discard-button") |> render_click()
+    assert_push_event(view, "turn_resolved", %{my_card: ^first})
+  end
+
+  test "mounting mid-game animates nothing", %{game: game, players: players} do
+    ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
+    {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+    Helios.GameDriver.step(ids, %{}, view_fun, submit_fun)
+    [{_a, ta} | _] = players
+    {:ok, view, _html} = open(ta, game.id)
+    refute_push_event(view, "turn_resolved", %{})
+    assert has_element?(view, "#fx-layer[phx-update='ignore']")
+    assert has_element?(view, "#hand[phx-hook]")
+  end
+
   # The trade_discount line of a card, rendered for a given neighbour map.
   defp trade_line(info, neighbours) do
     index = Enum.find_index(info.effects, &match?({:trade_discount, _}, &1))
