@@ -266,11 +266,12 @@ defmodule HeliosWeb.GameLive do
   def handle_event("deselect", _params, socket), do: {:noreply, assign_selection(socket, nil)}
 
   # Only cards actually on the table can be opened — a forged event names nothing.
+  # Finished views carry players without :built, so guard the lookup.
   def handle_event("show_card", %{"card" => card, "owner" => owner}, socket)
       when is_binary(card) and is_binary(owner) do
     known? =
       Enum.any?(socket.assigns.view.players, fn player ->
-        player.name == owner and Enum.any?(player.built, &(&1.name == card))
+        player.name == owner and Enum.any?(Map.get(player, :built, []), &(&1.name == card))
       end)
 
     info = if known?, do: %{name: card, owner: owner}

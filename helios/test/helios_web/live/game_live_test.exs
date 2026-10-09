@@ -6,7 +6,9 @@ defmodule HeliosWeb.GameLiveTest do
   import Helios.GamesFixtures
 
   alias Helios.{Games, Repo}
+  alias Helios.Catalogue
   alias Helios.Games.{Game, GameAction}
+  alias HeliosWeb.{CardText, GameFormat}
 
   setup do
     on_exit(&stop_game_servers/0)
@@ -56,21 +58,74 @@ defmodule HeliosWeb.GameLiveTest do
     assert has_element?(view, "#player-#{Enum.at(ids, 2)} [id^='wonder-stages-']")
   end
 
-  test "a built card anywhere opens a read-only card sheet", %{game: game, players: players} do
+  test "a neighbour's tile opens their card sheet with their terms relative to me", %{
+    game: game,
+    players: players
+  } do
     [{a, ta}, {b, _}, {c, _}] = players
     {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
     ids = Enum.map([a, b, c], &to_string(&1.id))
-    Helios.GameDriver.step(ids, Map.new(ids, &{&1, :build}), view_fun, submit_fun)
+
+    for _ <- 1..4 do
+      Helios.GameDriver.step(ids, Map.new(ids, &{&1, :build}), view_fun, submit_fun)
+    end
+
+    {:ok, state} = Games.view(game.id, a.id)
+    names = Map.new(players, fn {user, _} -> {to_string(user.id), user.name} end)
+    owner = state.east
+    owner_player = Enum.find(state.players, &(&1.name == owner))
+    owner_rel = GameFormat.neighbours_of(state, owner, names)
+    viewer_rel = GameFormat.neighbours_of(state, state.me, names)
+
+    suitable =
+      Enum.find(owner_player.built, fn card ->
+        info = Catalogue.card(card.name)
+        owner_line = info && trade_line(info, owner_rel)
+        viewer_line = info && trade_line(info, viewer_rel)
+        is_binary(owner_line) and owner_line != viewer_line
+      end)
+
+    assert suitable,
+           "seed-1 deal must give the east neighbour a built trade card, got: " <>
+             inspect(Enum.map(owner_player.built, & &1.name))
 
     {:ok, view, _html} = open(ta, game.id)
-    tile = view |> element("#east-panel [data-latest]")
+    tile = "#east-panel [data-card='#{suitable.name}']"
+    assert has_element?(view, tile)
 
-    if has_element?(view, "#east-panel [data-latest]") do
-      render_click(tile)
-      assert has_element?(view, "#card-sheet #card-info")
-      view |> element("#close-card-sheet") |> render_click()
-      refute has_element?(view, "#card-sheet")
-    end
+    [tile_name] =
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query(tile)
+      |> LazyHTML.attribute("data-card")
+
+    view |> element(tile) |> render_click()
+    assert has_element?(view, "#card-sheet #card-info")
+
+    sheet_title =
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#card-sheet-title")
+      |> LazyHTML.text()
+
+    assert String.trim(sheet_title) == tile_name
+
+    info = Catalogue.card(suitable.name)
+    owner_line = trade_line(info, owner_rel)
+    viewer_line = trade_line(info, viewer_rel)
+
+    seat_ids = Enum.map(state.players, & &1.name)
+    owner_index = Enum.find_index(seat_ids, &(&1 == owner))
+    owner_east = Enum.at(seat_ids, rem(owner_index + 1, length(seat_ids)))
+
+    assert owner_line =~ "from #{names[owner_east]} for 1 coin"
+    assert has_element?(view, "#card-sheet .effect-line", owner_line)
+    refute has_element?(view, "#card-sheet .effect-line", viewer_line)
+
+    view |> element("#close-card-sheet") |> render_click()
+    refute has_element?(view, "#card-sheet")
   end
 
   test "the dock holds the hand and the pending choice", %{game: game, players: [{_a, ta} | _]} do
@@ -269,6 +324,29 @@ defmodule HeliosWeb.GameLiveTest do
     assert Registry.lookup(Helios.Games.Registry, game.id) == []
   end
 
+  test "a forged show_card on a finished game does not crash the page", %{
+    game: game,
+    players: [{a, ta}, {b, _}, {c, _}]
+  } do
+    final_scores = %{
+      "scores" => [
+        final_score(a.id, 1, 25),
+        final_score(b.id, 2, 19),
+        final_score(c.id, 3, 12)
+      ]
+    }
+
+    game |> Game.finish_changeset(final_scores) |> Repo.update!()
+
+    {:ok, view, _html} = open(ta, game.id)
+    assert has_element?(view, "#scoreboard")
+
+    render_click(view, "show_card", %{"card" => "Lumber Yard", "owner" => to_string(a.id)})
+
+    assert has_element?(view, "#scoreboard")
+    refute has_element?(view, "#card-sheet")
+  end
+
   test "the paper background covers the whole page, header included", %{
     game: game,
     players: [{_a, ta} | _]
@@ -276,6 +354,12 @@ defmodule HeliosWeb.GameLiveTest do
     {:ok, view, _html} = open(ta, game.id)
     assert has_element?(view, "[class*='paper.jpg'] #site-header")
     refute has_element?(view, "#game[class*='paper.jpg']")
+  end
+
+  # The trade_discount line of a card, rendered for a given neighbour map.
+  defp trade_line(info, neighbours) do
+    index = Enum.find_index(info.effects, &match?({:trade_discount, _}, &1))
+    index && Enum.at(CardText.effects(info.effects, neighbours), index)
   end
 
   # The shape the finish path persists: JSON-decoded, string keys.
