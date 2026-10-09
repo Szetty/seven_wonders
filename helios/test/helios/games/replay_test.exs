@@ -35,6 +35,7 @@ defmodule Helios.Games.ReplayTest do
     assert {:ok, %{view: view}} = Games.replay(game, a.id)
     assert view.phase.kind == :game_over
     assert view.me == to_string(a.id)
+    assert view.scores == live.scores
     assert Enum.map(view.players, & &1.built) == Enum.map(live.players, & &1.built)
     assert Registry.lookup(Helios.Games.Registry, game.id) == []
   end
