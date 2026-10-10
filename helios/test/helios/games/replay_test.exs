@@ -55,4 +55,32 @@ defmodule Helios.Games.ReplayTest do
     assert {:error, {:replay_failed, 10_000, _}} = Games.replay(game, a.id)
     assert Repo.get!(Game, game.id).status == "finished"
   end
+
+  test "frames: one per turn plus the final table, with only my hand and my choice", %{
+    game: game,
+    users: [a | _],
+    ids: [ia | _]
+  } do
+    assert {:ok, %{frames: frames, history: history}} = Games.replay(game, a.id)
+    turns = Enum.count(history, &match?({:turn, _}, &1))
+    assert length(frames) == turns + 1
+
+    [first | _] = frames
+    assert %{phase: %{age: 1, turn: 1, kind: :choosing_cards}, event_index: 0} = first
+    assert length(first.hand) == 7
+    assert first.my_choice == {:discard, hd(first.hand)}
+
+    final = List.last(frames)
+    assert %{phase: %{kind: :game_over}, event_index: nil, my_choice: nil, hand: []} = final
+
+    for frame <- frames, frame.phase.kind == :choosing_cards do
+      assert length(frame.hand) == 8 - frame.phase.turn
+    end
+
+    for frame <- Enum.drop(frames, -1) do
+      assert {:turn, %{}} = Enum.at(history, frame.event_index)
+    end
+
+    assert Enum.all?(frames, fn frame -> Enum.any?(frame.players, &(&1.name == ia)) end)
+  end
 end

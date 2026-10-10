@@ -224,21 +224,65 @@ defmodule Helios.Games do
   def snapshot(game_id, user_id), do: call(game_id, {:snapshot, user_id})
 
   @doc """
-  Rebuilds a finished game from its log in a throwaway engine and returns the
-  viewer's final view plus the public history. `{:error, :not_finished}` if the
-  log stops short of game over.
+  Rebuilds a finished game from its log in a throwaway engine: the viewer's
+  final view, the public history, and one frame per turn (public boards plus
+  the viewer's own hand and final choice that turn). `{:error, :not_finished}`
+  if the log stops short of game over.
   """
-  @spec replay(Game.t(), integer()) :: {:ok, %{view: map(), history: [term()]}} | {:error, term()}
+  @spec replay(Game.t(), integer()) ::
+          {:ok, %{view: map(), history: [term()], frames: [map()]}} | {:error, term()}
   def replay(%Game{} = game, user_id) do
-    with {:ok, ref, nil} <-
-           Replay.rebuild(game, Replay.actions(game.id), fn _ -> nil end, fn _, _, acc -> acc end),
-         {:ok, %{phase: %{kind: :game_over}} = view} <- Core.view(ref, to_string(user_id)),
+    me = to_string(user_id)
+    init = fn ref -> %{current: frame_snapshot(ref, me), done: [], turns: 0, my_last: nil} end
+    step = fn row, ref, acc -> frame_step(row, ref, acc, me) end
+
+    with {:ok, ref, acc} <- Replay.rebuild(game, Replay.actions(game.id), init, step),
+         {:ok, %{phase: %{kind: :game_over}} = view} <- Core.view(ref, me),
          {:ok, history} <- Core.history(ref) do
-      {:ok, %{view: view, history: history}}
+      {:ok, %{view: view, history: history, frames: Enum.reverse(acc.done, [acc.current])}}
     else
       {:ok, _view} -> {:error, :not_finished}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  defp frame_step(row, ref, acc, me) do
+    acc =
+      if to_string(row.user_id) == me do
+        {:ok, action} = ActionCodec.decode(row.action)
+        %{acc | my_last: action}
+      else
+        acc
+      end
+
+    {:ok, history} = Core.history(ref)
+    turn_indexes = for {{:turn, _}, index} <- Enum.with_index(history), do: index
+
+    if length(turn_indexes) > acc.turns do
+      ended = %{acc.current | my_choice: acc.my_last, event_index: List.last(turn_indexes)}
+
+      %{
+        acc
+        | done: [ended | acc.done],
+          current: frame_snapshot(ref, me),
+          turns: length(turn_indexes),
+          my_last: nil
+      }
+    else
+      acc
+    end
+  end
+
+  defp frame_snapshot(ref, me) do
+    {:ok, view} = Core.view(ref, me)
+
+    %{
+      players: view.players,
+      hand: Enum.map(view.hand, & &1.name),
+      phase: view.phase,
+      my_choice: nil,
+      event_index: nil
+    }
   end
 
   defp cast_id(game_id) do
