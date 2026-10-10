@@ -463,6 +463,68 @@ defmodule HeliosWeb.GameLiveTest do
     refute has_element?(view, "#age-summary")
   end
 
+  describe "replay of a finished game" do
+    setup %{game: game, players: players} do
+      ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
+      {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+
+      {:game_over, _} =
+        Helios.GameDriver.play_until(ids, %{}, view_fun, submit_fun, fn _ -> false end)
+
+      stop_game_servers()
+      :ok
+    end
+
+    test "starts on the final table and steps through turns", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = open(ta, game.id)
+      assert has_element?(view, "#replay-position", "Final")
+      assert has_element?(view, "#scoreboard")
+
+      view |> element("#replay-first") |> render_click()
+      assert has_element?(view, "#replay-position", "Age I · Turn 1")
+      assert has_element?(view, "#replay-hand [data-card]")
+      assert has_element?(view, "#replay-choice", "You chose: Discard")
+      assert has_element?(view, "#my-board [data-stat='coins']", "3")
+      refute has_element?(view, "#scoreboard")
+      assert has_element?(view, "#show-final-scores")
+
+      view |> element("#replay-next") |> render_click()
+      assert_push_event(view, "turn_resolved", %{plays: [_, _, _]})
+      assert has_element?(view, "#replay-position", "Age I · Turn 2")
+
+      render_click(view, "replay_goto", %{"frame" => "6"})
+      refute has_element?(view, "#age-summary")
+      assert has_element?(view, "#replay-position", "Age II · Turn 1")
+
+      render_click(view, "replay_goto", %{"frame" => "999"})
+      render_click(view, "replay_goto", %{"frame" => "x"})
+      assert has_element?(view, "#replay-position", "Age II · Turn 1")
+
+      view |> element("#replay-last") |> render_click()
+      assert has_element?(view, "#replay-position", "Final")
+      assert has_element?(view, "#scoreboard")
+    end
+
+    test "stepping across the end of an age shows the conflicts", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = open(ta, game.id)
+      render_click(view, "replay_goto", %{"frame" => "5"})
+      assert has_element?(view, "#replay-position", "Age I · Turn 6")
+      view |> element("#replay-next") |> render_click()
+      assert has_element?(view, "#age-summary")
+    end
+
+    test "history entries jump to their frame", %{game: game, players: [{_a, ta} | _]} do
+      {:ok, view, _html} = open(ta, game.id)
+      assert has_element?(view, "#history-0 [phx-click='replay_goto'][phx-value-frame='0']")
+    end
+  end
+
   # The trade_discount line of a card, rendered for a given neighbour map.
   defp trade_line(info, neighbours) do
     index = Enum.find_index(info.effects, &match?({:trade_discount, _}, &1))

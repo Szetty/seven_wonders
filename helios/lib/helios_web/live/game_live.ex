@@ -15,6 +15,7 @@ defmodule HeliosWeb.GameLive do
   import HeliosWeb.GameComponents.Hand
   import HeliosWeb.GameComponents.HistoryDrawer
   import HeliosWeb.GameComponents.PlayerBoard
+  import HeliosWeb.GameComponents.ReplayBar
   import HeliosWeb.GameComponents.Scoreboard
   import HeliosWeb.GameComponents.TopBar
 
@@ -37,6 +38,7 @@ defmodule HeliosWeb.GameLive do
         <.history_drawer
           history={@history}
           ctx={%{me: @view.me, names: @names, view: @view}}
+          frames={if @replay, do: frame_links(@replay), else: %{}}
         />
         <.age_summary
           :if={@age_summary}
@@ -44,15 +46,41 @@ defmodule HeliosWeb.GameLive do
           ctx={%{me: @view.me, names: @names, view: @view}}
         />
         <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-2 pt-3 sm:gap-4 sm:px-4 sm:pt-4 lg:px-8">
-          <.top_bar view={@view} names={@names} connected={@connected} />
+          <.top_bar
+            view={
+              if @replay,
+                do: %{@view | phase: current_frame(@replay).phase, submitted: []},
+                else: @view
+            }
+            names={@names}
+            connected={@connected}
+          />
           <%= if @view.phase.kind == :game_over do %>
             <div class="flex flex-col gap-3 pb-4 sm:gap-4">
-              <.scoreboard
-                scores={@view.scores}
-                names={@names}
-                me={@view.me}
-                lobby_id={@game.lobby_id}
+              <.replay_bar
+                :if={@replay}
+                frame={current_frame(@replay)}
+                index={@replay.index}
+                last={length(@replay.frames) - 1}
+                playing={@replay.playing}
               />
+              <%= if is_nil(@replay) or @replay.index == length(@replay.frames) - 1 or @show_scores do %>
+                <.scoreboard
+                  scores={@view.scores}
+                  names={@names}
+                  me={@view.me}
+                  lobby_id={@game.lobby_id}
+                />
+              <% else %>
+                <button
+                  id="show-final-scores"
+                  type="button"
+                  phx-click="toggle_final_scores"
+                  class="mx-auto rounded-lg bg-white/80 px-3 py-1.5 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 hover:bg-white pointer-coarse:min-h-11"
+                >
+                  Final scores
+                </button>
+              <% end %>
               <p
                 :if={!@boards_available}
                 id="boards-unavailable"
@@ -69,6 +97,15 @@ defmodule HeliosWeb.GameLive do
                 names={@names}
                 statuses={@statuses}
               />
+              <div
+                :if={@replay && current_frame(@replay).hand != []}
+                class="sticky bottom-0 z-30 overflow-x-clip rounded-t-xl bg-antique/95 p-2 shadow"
+              >
+                <.replay_hand
+                  hand={current_frame(@replay).hand}
+                  chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
+                />
+              </div>
               <.card_sheet
                 :if={@info_card}
                 name={@info_card.name}
@@ -224,12 +261,8 @@ defmodule HeliosWeb.GameLive do
     socket = setup(socket, game, user)
 
     case Games.replay(game, user.id) do
-      {:ok, %{view: view, history: history}} ->
-        {:ok,
-         socket
-         |> assign(:boards_available, true)
-         |> assign_view(view)
-         |> assign(:history, history)}
+      {:ok, replay} ->
+        {:ok, socket |> assign(:boards_available, true) |> enter_replay(replay)}
 
       {:error, reason} ->
         Logger.warning("Game #{game.id} boards unavailable: #{inspect(reason)}")
@@ -240,6 +273,83 @@ defmodule HeliosWeb.GameLive do
          |> assign(:history, [])
          |> assign_finished_view(game, user)}
     end
+  end
+
+  defp enter_replay(socket, %{view: view, history: history, frames: frames}) do
+    socket
+    |> assign(history: history, show_scores: false)
+    |> assign(:replay, %{frames: frames, index: length(frames) - 1, playing: false})
+    |> assign_view(view)
+    |> assign_frame()
+  end
+
+  defp current_frame(%{frames: frames, index: index}), do: Enum.at(frames, index)
+
+  # The table shows the frame's public boards; @view keeps the final view (scores, me, neighbours).
+  defp assign_frame(socket) do
+    frame = current_frame(socket.assigns.replay)
+    table = %{socket.assigns.view | players: frame.players}
+    by_name = Map.new(frame.players, &{&1.name, &1})
+
+    assign(socket,
+      me: Map.fetch!(by_name, table.me),
+      west: Map.fetch!(by_name, table.west),
+      east: Map.fetch!(by_name, table.east),
+      others: GameFormat.others(table),
+      statuses: %{}
+    )
+  end
+
+  defp frame_links(%{frames: frames}) do
+    for {%{event_index: index}, frame} <- Enum.with_index(frames),
+        index != nil,
+        into: %{},
+        do: {index, frame}
+  end
+
+  defp goto_param(socket, frame, last) do
+    case Integer.parse(to_string(frame)) do
+      {index, ""} when index >= 0 and index <= last -> goto(socket, index)
+      _ -> socket
+    end
+  end
+
+  defp goto(socket, index) do
+    socket
+    |> update(:replay, &%{&1 | index: index, playing: false})
+    |> assign(age_summary: nil)
+    |> assign_frame()
+  end
+
+  defp step_forward(socket) do
+    %{replay: replay, history: history, view: view} = socket.assigns
+    frame = current_frame(replay)
+    turn = Enum.at(history, frame.event_index)
+    next = Enum.at(replay.frames, replay.index + 1)
+    pass = if next.phase.kind == :choosing_cards and next.phase.turn > 1, do: next.phase.direction
+
+    socket =
+      push_event(
+        socket,
+        "turn_resolved",
+        TurnFx.payload(turn, %{
+          me: view.me,
+          my_card: GameFormat.action_card(frame.my_choice),
+          pass: pass
+        })
+      )
+
+    socket =
+      case Enum.at(history, frame.event_index + 1) do
+        {:battles, _} = battles -> assign(socket, :age_summary, battles)
+        _ -> socket
+      end
+
+    last = length(replay.frames) - 1
+
+    socket
+    |> update(:replay, &%{&1 | index: &1.index + 1, playing: &1.playing and &1.index + 1 < last})
+    |> assign_frame()
   end
 
   defp setup(socket, game, user) do
@@ -259,7 +369,9 @@ defmodule HeliosWeb.GameLive do
       discard_minimised: false,
       boards_available: true,
       age_summary: nil,
-      last_choice: nil
+      last_choice: nil,
+      replay: nil,
+      show_scores: false
     )
     |> assign_connected()
   end
@@ -323,6 +435,44 @@ defmodule HeliosWeb.GameLive do
   defp persisted_scores(_game), do: []
 
   @impl true
+  def handle_event("replay_" <> action, params, %{assigns: %{replay: %{} = replay}} = socket) do
+    last = length(replay.frames) - 1
+
+    socket =
+      case {action, params} do
+        {"first", _} ->
+          goto(socket, 0)
+
+        {"prev", _} ->
+          goto(socket, max(replay.index - 1, 0))
+
+        {"last", _} ->
+          goto(socket, last)
+
+        {"next", _} when replay.index < last ->
+          step_forward(socket)
+
+        {"next", _} ->
+          update(socket, :replay, &%{&1 | playing: false})
+
+        {"toggle", _} ->
+          update(socket, :replay, &%{&1 | playing: not &1.playing and &1.index < last})
+
+        {"goto", %{"frame" => frame}} ->
+          goto_param(socket, frame, last)
+
+        _ ->
+          socket
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("replay_" <> _, _params, socket), do: {:noreply, socket}
+
+  def handle_event("toggle_final_scores", _params, socket),
+    do: {:noreply, update(socket, :show_scores, &(!&1))}
+
   def handle_event("select_card", %{"card" => card}, socket) do
     name = if socket.assigns.selected == card, do: nil, else: card
     {:noreply, assign_selection(socket, name)}
@@ -406,11 +556,21 @@ defmodule HeliosWeb.GameLive do
 
     case Games.snapshot(game.id, user.id) do
       {:ok, %{view: view, history: history}} ->
-        socket
-        |> animate_new_events(history, view)
-        |> assign(:history, history)
-        |> assign(:last_choice, GameFormat.action_card(view.my_pending))
-        |> assign_view(view)
+        socket =
+          socket
+          |> animate_new_events(history, view)
+          |> assign(:history, history)
+          |> assign(:last_choice, GameFormat.action_card(view.my_pending))
+          |> assign_view(view)
+
+        if view.phase.kind == :game_over and is_nil(socket.assigns[:replay]) do
+          case Games.replay(game, user.id) do
+            {:ok, replay} -> enter_replay(socket, replay)
+            {:error, _reason} -> socket
+          end
+        else
+          socket
+        end
 
       {:error, reason} ->
         leave(socket, reason, game.lobby_id)

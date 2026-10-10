@@ -41,6 +41,13 @@ test("three players play a full game to the scoreboard", async ({ browser }) => 
   await expect(owner.page.locator("#scoreboard")).toBeVisible();
   await expect(owner.page.locator("#table #my-board")).toBeVisible();
 
+  await expect(owner.page.locator("#replay-position")).toHaveText("Final");
+  await owner.page.locator("#replay-first").click();
+  await expect(owner.page.locator("#replay-position")).toHaveText("Age I · Turn 1");
+  await expect(owner.page.locator("#replay-hand [data-card]")).toHaveCount(7);
+  await owner.page.locator("#replay-next").click();
+  await expect(owner.page.locator("#replay-position")).toHaveText("Age I · Turn 2");
+
   for (const player of players) await player.context.close();
 });
 

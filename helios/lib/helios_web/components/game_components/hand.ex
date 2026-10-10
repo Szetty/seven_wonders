@@ -77,6 +77,35 @@ defmodule HeliosWeb.GameComponents.Hand do
     """
   end
 
+  attr :hand, :list, required: true, doc: "card names"
+  attr :chosen, :string, default: nil
+
+  def replay_hand(assigns) do
+    ~H"""
+    <section id="replay-hand" phx-hook=".HandRects" aria-label="Your hand that turn">
+      <div class="-mx-2 flex justify-center-safe gap-2 overflow-x-auto px-2 pt-2 pb-1">
+        <div
+          :for={card <- @hand}
+          data-card={card}
+          class={["relative shrink-0 rounded-lg", card == @chosen && "ring-4 ring-amber-500"]}
+        >
+          <img
+            src={GameAssets.card_path(card)}
+            alt={card}
+            class="h-[98px] w-16 rounded-lg object-cover sm:h-[134px] sm:w-22 short:h-[86px] short:w-14"
+          />
+          <span
+            :if={card == @chosen}
+            class="absolute left-1 top-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-bold text-white"
+          >
+            Chosen
+          </span>
+        </div>
+      </div>
+    </section>
+    """
+  end
+
   attr :option, :any, required: true
 
   defp cost_badge(assigns) do
