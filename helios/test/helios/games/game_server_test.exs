@@ -87,6 +87,25 @@ defmodule Helios.Games.GameServerTest do
     assert {:ok, [{:turn, %{turn: 1, plays: [_, _, _]}}]} = Games.history(game.id)
   end
 
+  test "snapshot/2 pairs the view with the history from the same moment", %{
+    game: game,
+    users: [a | _],
+    ids: ids
+  } do
+    {view_fun, submit_fun} = GameDriver.games_funs(game.id)
+    GameDriver.step(ids, %{}, view_fun, submit_fun)
+
+    assert {:ok, %{view: view, history: history}} = Games.snapshot(game.id, a.id)
+    assert {:ok, ^view} = Games.view(game.id, a.id)
+    assert {:ok, ^history} = Games.history(game.id)
+
+    # The halves agree on how much the game has advanced: the one resolved
+    # turn is in the history, and the view has moved exactly past it.
+    assert [{:turn, %{age: 1, turn: 1, plays: [_, _, _]}}] = history
+    assert view.phase.age == 1
+    assert view.phase.turn == 2
+  end
+
   describe "ensure_started/1" do
     test "reports missing, finished and malformed games", %{game: game} do
       assert {:error, :not_found} = Games.ensure_started(Ecto.UUID.generate())

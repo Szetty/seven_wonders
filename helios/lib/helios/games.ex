@@ -216,6 +216,14 @@ defmodule Helios.Games do
   def history(game_id), do: call(game_id, :history)
 
   @doc """
+  The viewer's view and the public history read in one `GameServer` call, so
+  the two can never be split by a concurrent submit the way separate
+  `view/2` + `history/1` calls can.
+  """
+  @spec snapshot(term(), integer()) :: {:ok, %{view: map(), history: [term()]}} | {:error, term()}
+  def snapshot(game_id, user_id), do: call(game_id, {:snapshot, user_id})
+
+  @doc """
   Rebuilds a finished game from its log in a throwaway engine and returns the
   viewer's final view plus the public history. `{:error, :not_finished}` if the
   log stops short of game over.

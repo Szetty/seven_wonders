@@ -43,7 +43,7 @@ defmodule HeliosWeb.GameComponents.AgeSummary do
             class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-lg bg-white/70 px-3 py-2 motion-safe:animate-[battle-in_400ms_ease-out_both]"
             style={"animation-delay: #{index * 350}ms"}
           >
-            <span class="flex items-center justify-end gap-1 text-right">
+            <span class="flex min-w-0 items-center justify-end gap-1 truncate text-right">
               {HistoryText.actor(battle.player, @ctx)} {battle.player_strength}
               <img
                 :if={battle.player_token}
@@ -56,7 +56,7 @@ defmodule HeliosWeb.GameComponents.AgeSummary do
             <span class="text-xs font-bold uppercase text-zinc-500">
               {if battle.player_token, do: "vs", else: "tie"}
             </span>
-            <span class="flex items-center gap-1">
+            <span class="flex min-w-0 items-center gap-1 truncate">
               <img
                 :if={battle.rival_token}
                 data-token-for={battle.rival}

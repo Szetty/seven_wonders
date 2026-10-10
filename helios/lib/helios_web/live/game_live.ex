@@ -207,9 +207,8 @@ defmodule HeliosWeb.GameLive do
   end
 
   defp mount_active(socket, game, user) do
-    case Games.view(game.id, user.id) do
-      {:ok, view} ->
-        history = fetch_history(game.id)
+    case Games.snapshot(game.id, user.id) do
+      {:ok, %{view: view, history: history}} ->
         {:ok, socket |> setup(game, user) |> assign_view(view) |> assign(:history, history)}
 
       {:error, reason} ->
@@ -240,13 +239,6 @@ defmodule HeliosWeb.GameLive do
          |> assign(:boards_available, false)
          |> assign(:history, [])
          |> assign_finished_view(game, user)}
-    end
-  end
-
-  defp fetch_history(game_id) do
-    case Games.history(game_id) do
-      {:ok, history} -> history
-      {:error, _reason} -> []
     end
   end
 
@@ -412,10 +404,8 @@ defmodule HeliosWeb.GameLive do
   defp refresh(socket) do
     %{game: game, current_scope: %{user: user}} = socket.assigns
 
-    case Games.view(game.id, user.id) do
-      {:ok, view} ->
-        history = fetch_history(game.id)
-
+    case Games.snapshot(game.id, user.id) do
+      {:ok, %{view: view, history: history}} ->
         socket
         |> animate_new_events(history, view)
         |> assign(:history, history)

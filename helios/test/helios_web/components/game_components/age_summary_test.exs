@@ -55,5 +55,14 @@ defmodule HeliosWeb.GameComponents.AgeSummaryTest do
     assert [hook] = attrs(html, "#age-summary", "phx-hook")
     assert hook =~ "AgeSummary"
     assert count(html, "#close-age-summary") == 1
+
+    # Name cells must be allowed to shrink below their content so a long
+    # unbroken player name cannot widen the row past the viewport.
+    [left, _vs, right] = attrs(html, "#battle-0 span", "class")
+
+    for name_cell <- [left, right] do
+      assert name_cell =~ "min-w-0"
+      assert name_cell =~ "truncate"
+    end
   end
 end
