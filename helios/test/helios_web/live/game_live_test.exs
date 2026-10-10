@@ -445,6 +445,24 @@ defmodule HeliosWeb.GameLiveTest do
     assert has_element?(view, "#dock.overflow-x-clip")
   end
 
+  test "the end of an age opens the military summary, which can be dismissed", %{
+    game: game,
+    players: players
+  } do
+    [{_a, ta} | _] = players
+    ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
+    {:ok, view, _html} = open(ta, game.id)
+    {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+
+    {:reached, _} =
+      Helios.GameDriver.play_until(ids, %{}, view_fun, submit_fun, &(&1.phase.age == 2))
+
+    assert has_element?(view, "#age-summary #battle-2")
+    refute has_element?(view, "#age-summary #battle-3")
+    render_click(view, "dismiss_age_summary", %{})
+    refute has_element?(view, "#age-summary")
+  end
+
   # The trade_discount line of a card, rendered for a given neighbour map.
   defp trade_line(info, neighbours) do
     index = Enum.find_index(info.effects, &match?({:trade_discount, _}, &1))

@@ -8,6 +8,7 @@ defmodule HeliosWeb.GameLive do
 
   require Logger
 
+  import HeliosWeb.GameComponents.AgeSummary
   import HeliosWeb.GameComponents.CardSheet
   import HeliosWeb.GameComponents.ExtraTurn
   import HeliosWeb.GameComponents.Fx
@@ -35,6 +36,11 @@ defmodule HeliosWeb.GameLive do
         <.fx_layer />
         <.history_drawer
           history={@history}
+          ctx={%{me: @view.me, names: @names, view: @view}}
+        />
+        <.age_summary
+          :if={@age_summary}
+          event={@age_summary}
           ctx={%{me: @view.me, names: @names, view: @view}}
         />
         <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-2 pt-3 sm:gap-4 sm:px-4 sm:pt-4 lg:px-8">
@@ -260,6 +266,7 @@ defmodule HeliosWeb.GameLive do
       info_card: nil,
       discard_minimised: false,
       boards_available: true,
+      age_summary: nil,
       last_choice: nil
     )
     |> assign_connected()
@@ -357,6 +364,9 @@ defmodule HeliosWeb.GameLive do
   def handle_event("minimise_discard", _params, socket),
     do: {:noreply, assign(socket, :discard_minimised, true)}
 
+  def handle_event("dismiss_age_summary", _params, socket),
+    do: {:noreply, assign(socket, :age_summary, nil)}
+
   def handle_event("restore_discard", _params, socket),
     do: {:noreply, assign(socket, :discard_minimised, false)}
 
@@ -429,8 +439,8 @@ defmodule HeliosWeb.GameLive do
           TurnFx.payload(event, %{me: view.me, my_card: socket.assigns.last_choice, pass: pass})
         )
 
-      {:battles, _}, socket ->
-        socket
+      {:battles, _} = event, socket ->
+        assign(socket, :age_summary, event)
     end)
   end
 

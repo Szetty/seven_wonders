@@ -56,6 +56,7 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
       </span>
       <span
         :if={@player.military_tokens != []}
+        data-tokens
         class="flex items-center gap-0.5"
         title="Military tokens"
       >
