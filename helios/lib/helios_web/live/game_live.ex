@@ -339,16 +339,24 @@ defmodule HeliosWeb.GameLive do
         })
       )
 
-    socket =
+    # Stepping into a frame that reveals the end-of-age conflicts pauses
+    # autoplay (brief step 6: playback stops at the summary row; Play resumes).
+    {revealed?, socket} =
       case Enum.at(history, frame.event_index + 1) do
-        {:battles, _} = battles -> assign(socket, :age_summary, battles)
-        _ -> socket
+        {:battles, _} = battles -> {true, assign(socket, :age_summary, battles)}
+        _ -> {false, socket}
       end
 
     last = length(replay.frames) - 1
 
     socket
-    |> update(:replay, &%{&1 | index: &1.index + 1, playing: &1.playing and &1.index + 1 < last})
+    |> update(:replay, fn replay ->
+      %{
+        replay
+        | index: replay.index + 1,
+          playing: replay.playing and replay.index + 1 < last and not revealed?
+      }
+    end)
     |> assign_frame()
   end
 
@@ -569,7 +577,9 @@ defmodule HeliosWeb.GameLive do
             {:error, _reason} -> socket
           end
         else
-          socket
+          # In replay, assign_view rewrote the boards from the final view;
+          # re-apply the current frame so refresh is idempotent.
+          if socket.assigns[:replay], do: assign_frame(socket), else: socket
         end
 
       {:error, reason} ->

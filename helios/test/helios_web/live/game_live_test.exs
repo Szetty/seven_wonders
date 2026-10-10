@@ -523,6 +523,56 @@ defmodule HeliosWeb.GameLiveTest do
       {:ok, view, _html} = open(ta, game.id)
       assert has_element?(view, "#history-0 [phx-click='replay_goto'][phx-value-frame='0']")
     end
+
+    test "autoplay pauses at the end-of-age summary and resumes", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = open(ta, game.id)
+      view |> element("#replay-first") |> render_click()
+
+      view |> element("#replay-play") |> render_click()
+      assert has_element?(view, "#replay-bar[data-playing='true']")
+
+      view |> element("#replay-next") |> render_click()
+      assert has_element?(view, "#replay-position", "Age I · Turn 2")
+      assert has_element?(view, "#replay-bar[data-playing='true']")
+
+      render_click(view, "replay_goto", %{"frame" => "5"})
+      view |> element("#replay-play") |> render_click()
+      assert has_element?(view, "#replay-bar[data-playing='true']")
+
+      view |> element("#replay-next") |> render_click()
+      assert has_element?(view, "#age-summary")
+      assert has_element?(view, "#replay-position", "Age II · Turn 1")
+      assert has_element?(view, "#replay-bar[data-playing='false']")
+
+      view |> element("#replay-play") |> render_click()
+      assert has_element?(view, "#replay-bar[data-playing='true']")
+    end
+  end
+
+  test "a queued game_updated during replay keeps the boards on the current frame", %{
+    game: game,
+    players: players
+  } do
+    ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
+    {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+
+    {:game_over, _} =
+      Helios.GameDriver.play_until(ids, %{}, view_fun, submit_fun, fn _ -> false end)
+
+    [{_a, ta} | _] = players
+    {:ok, view, _html} = open(ta, game.id)
+    view |> element("#replay-first") |> render_click()
+    assert has_element?(view, "#replay-position", "Age I · Turn 1")
+    assert has_element?(view, "#my-board [data-stat='coins']", "3")
+
+    send(view.pid, {:game_updated, 99})
+    _ = :sys.get_state(view.pid)
+
+    assert has_element?(view, "#replay-position", "Age I · Turn 1")
+    assert has_element?(view, "#my-board [data-stat='coins']", "3")
   end
 
   # The trade_discount line of a card, rendered for a given neighbour map.
