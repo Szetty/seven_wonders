@@ -19,7 +19,7 @@ config :helios, presence_grace_ms: 5_000
 
 # Configure the endpoint
 config :helios, HeliosWeb.Endpoint,
-  url: [host: "localhost"],
+  url: [host: "0.0.0.0"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: HeliosWeb.ErrorHTML, json: HeliosWeb.ErrorJSON],
