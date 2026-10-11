@@ -11,7 +11,8 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     render_component(&TopBar.top_bar/1,
       view: view,
       names: Keyword.get(opts, :names, SampleViews.names()),
-      connected: Keyword.get(opts, :connected, MapSet.new(["1", "2"]))
+      connected: Keyword.get(opts, :connected, MapSet.new(["1", "2"])),
+      replay: Keyword.get(opts, :replay, false)
     )
   end
 
@@ -107,5 +108,31 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     assert [away] = attrs(html, "#waiting-menu", "phx-click-away")
     assert away =~ "#waiting-list"
     assert attrs(html, "#waiting-menu", "phx-key") == ["Escape"]
+  end
+
+  test "a replay frame never shows who we wait for, even on an extra turn" do
+    view = SampleViews.view()
+
+    extra = %{
+      view
+      | phase: %{
+          view.phase
+          | kind: :extra_turn,
+            extra_turn_player: "2",
+            extra_turn_kind: :build_from_discard
+        }
+    }
+
+    live = render_bar(extra)
+    assert attrs(live, "#top-bar", "data-replay") == ["false"]
+    assert text(live, "#waiting-count") == "Waiting for 1"
+    assert text(live, "#waiting-list ul") == "Bob"
+
+    replay = render_bar(extra, replay: true)
+    assert attrs(replay, "#top-bar", "data-replay") == ["true"]
+    assert count(replay, "#waiting-count") == 0
+    assert count(replay, "#waiting-list") == 0
+    assert count(replay, "#waiting-for") == 0
+    assert text(replay, "#pass-direction") == "Pass to Bob"
   end
 end

@@ -14,11 +14,16 @@ defmodule HeliosWeb.GameComponents.TopBar do
   attr :names, :map, required: true
   attr :connected, :any, required: true, doc: "MapSet of connected engine player ids"
 
+  attr :replay, :boolean,
+    default: false,
+    doc: "true while stepping through a finished game: nobody is waiting, so no waiting UI"
+
   def top_bar(assigns) do
     assigns =
       assign(assigns,
         phase: assigns.view.phase,
-        waiting: GameFormat.waiting_for(assigns.view, assigns.names),
+        waiting:
+          if(assigns.replay, do: [], else: GameFormat.waiting_for(assigns.view, assigns.names)),
         statuses: GameFormat.statuses(assigns.view),
         pass_to: GameFormat.player_name(assigns.names, GameFormat.pass_target(assigns.view))
       )
@@ -28,6 +33,7 @@ defmodule HeliosWeb.GameComponents.TopBar do
       id="top-bar"
       data-phase={@phase.kind}
       data-turn-key={"#{@phase.age}-#{@phase.turn}"}
+      data-replay={to_string(@replay)}
       class="sticky top-0 z-20 flex flex-col gap-1.5 rounded-xl bg-linear-to-r from-header-from to-header-to px-3 py-2 text-white shadow-lg short:static sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3"
     >
       <div class="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-4">

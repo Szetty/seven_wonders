@@ -54,6 +54,7 @@ defmodule HeliosWeb.GameLive do
             }
             names={@names}
             connected={@connected}
+            replay={@replay != nil}
           />
           <%= if @view.phase.kind == :game_over do %>
             <div class="flex flex-col gap-3 pb-4 sm:gap-4">

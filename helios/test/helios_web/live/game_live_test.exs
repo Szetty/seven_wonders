@@ -27,6 +27,8 @@ defmodule HeliosWeb.GameLiveTest do
   test "a seated player sees the table", %{game: game, players: [{_a, ta} | _]} do
     {:ok, view, _html} = open(ta, game.id)
     assert has_element?(view, "#top-bar[data-turn-key='1-1']")
+    assert has_element?(view, "#top-bar[data-replay='false']")
+    assert has_element?(view, "#waiting-count", "Waiting for 3")
     assert has_element?(view, "#my-board")
     assert has_element?(view, "#west-panel")
     assert has_element?(view, "#east-panel")
@@ -482,9 +484,12 @@ defmodule HeliosWeb.GameLiveTest do
       {:ok, view, _html} = open(ta, game.id)
       assert has_element?(view, "#replay-position", "Final")
       assert has_element?(view, "#scoreboard")
+      assert has_element?(view, "#top-bar[data-replay='true']")
 
       view |> element("#replay-first") |> render_click()
       assert has_element?(view, "#replay-position", "Age I · Turn 1")
+      refute has_element?(view, "#waiting-count")
+      refute has_element?(view, "#waiting-for")
       assert has_element?(view, "#replay-hand [data-card]")
       assert has_element?(view, "#replay-choice", "You chose: Discard")
       assert has_element?(view, "#my-board [data-stat='coins']", "3")
