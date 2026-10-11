@@ -49,7 +49,12 @@ defmodule HeliosWeb.GameLive do
           <.top_bar
             view={
               if @replay,
-                do: %{@view | phase: current_frame(@replay).phase, submitted: []},
+                do: %{
+                  @view
+                  | phase: current_frame(@replay).phase,
+                    submitted: [],
+                    discard_count: current_frame(@replay).discard_count
+                },
                 else: @view
             }
             names={@names}

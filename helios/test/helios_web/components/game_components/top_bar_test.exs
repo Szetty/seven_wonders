@@ -33,7 +33,7 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
 
   test "game over replaces the turn information" do
     view = SampleViews.view()
-    html = render_bar(%{view | phase: %{view.phase | kind: :game_over}})
+    html = render_bar(%{view | phase: %{view.phase | kind: :game_over}, discard_count: 0})
     assert text(html, "#turn-label") == "Game over"
     assert count(html, "#pass-direction") == 0
     assert count(html, "#pass-row") == 0
@@ -134,5 +134,31 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     assert count(replay, "#waiting-list") == 0
     assert count(replay, "#waiting-for") == 0
     assert text(replay, "#pass-direction") == "Pass to Bob"
+  end
+
+  test "the discard pile marker shows the count in the pass row and hides at zero" do
+    html = render_bar(SampleViews.view())
+    assert count(html, "#discard-pile") == 1
+    assert count(html, "#pass-row > #discard-pile") == 1
+    assert attrs(html, "#discard-pile", "data-count") == ["2"]
+    assert text(html, "#discard-pile") == "Discard pile: 2"
+    assert text(html, "#pass-row #pass-direction") == "Pass to Bob"
+
+    empty = render_bar(%{SampleViews.view() | discard_count: 0})
+    assert count(empty, "#discard-pile") == 0
+    assert count(empty, "#pass-row > #pass-direction") == 1
+  end
+
+  test "on game over the pass row holds only the discard pile" do
+    view = SampleViews.view()
+    html = render_bar(%{view | phase: %{view.phase | kind: :game_over}, discard_count: 21})
+    assert count(html, "#pass-row > #discard-pile") == 1
+    assert count(html, "#pass-direction") == 0
+    assert text(html, "#discard-pile") == "Discard pile: 21"
+  end
+
+  test "discard_pile/1 renders nothing for an empty pile" do
+    assert render_component(&TopBar.discard_pile/1, count: 0) |> String.trim() == ""
+    assert count(render_component(&TopBar.discard_pile/1, count: 5), "#discard-pile") == 1
   end
 end

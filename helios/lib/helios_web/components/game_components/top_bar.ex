@@ -3,8 +3,8 @@ defmodule HeliosWeb.GameComponents.TopBar do
   Age, turn, pass direction, who we are waiting for, and who is connected.
 
   Below `sm` the bar has three rows: age/history/turn/waiting button, then
-  `#pass-row` (the pass direction), then the connection strip. From `sm` up
-  everything sits in one wrapping row.
+  `#pass-row` (the pass direction and the discard-pile marker), then the
+  connection strip. From `sm` up everything sits in one wrapping row.
   """
   use HeliosWeb, :html
 
@@ -63,14 +63,19 @@ defmodule HeliosWeb.GameComponents.TopBar do
           <.waiting_menu :if={@waiting != []} waiting={@waiting} />
         </div>
         <div
-          :if={@phase.kind != :game_over}
+          :if={@phase.kind != :game_over or @view.discard_count > 0}
           id="pass-row"
           class="flex min-w-0 items-center justify-between gap-3 text-sm sm:justify-start sm:text-base"
         >
-          <span id="pass-direction" class="flex min-w-0 items-center gap-1">
+          <span
+            :if={@phase.kind != :game_over}
+            id="pass-direction"
+            class="flex min-w-0 items-center gap-1"
+          >
             <.icon name={GameFormat.direction_icon(@phase.direction)} class="size-5 shrink-0" />
             <span class="min-w-0 break-words">Pass to {@pass_to}</span>
           </span>
+          <.discard_pile count={@view.discard_count} />
         </div>
       </div>
       <p :if={@waiting != []} id="waiting-for" class="hidden text-sm text-white/90 sm:block">
@@ -103,6 +108,33 @@ defmodule HeliosWeb.GameComponents.TopBar do
         </li>
       </ul>
     </header>
+    """
+  end
+
+  attr :count, :integer, required: true, doc: "cards in the discard pile (public)"
+
+  @doc """
+  Stacked card backs plus the discard-pile size. Rendered once, in `#pass-row`;
+  it is also where observers see a card built from the discard pile take off
+  (`.TurnFx` reads its rect).
+  """
+  def discard_pile(assigns) do
+    ~H"""
+    <span
+      :if={@count > 0}
+      id="discard-pile"
+      data-count={@count}
+      title={"#{@count} cards in the discard pile"}
+      class="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-white/90"
+    >
+      <span class="relative inline-block h-5 w-4 shrink-0" aria-hidden="true">
+        <span class="absolute inset-0 translate-x-1 -translate-y-0.5 rotate-6 rounded-[3px] bg-amber-700 ring-1 ring-black/40">
+        </span>
+        <span class="absolute inset-0 rounded-[3px] bg-amber-800 ring-1 ring-amber-200/70"></span>
+      </span>
+      <span class="sr-only">Discard pile:</span>
+      <span>{@count}</span>
+    </span>
     """
   end
 

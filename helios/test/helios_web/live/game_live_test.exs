@@ -438,6 +438,21 @@ defmodule HeliosWeb.GameLiveTest do
     assert has_element?(view, "#hand[phx-hook]")
   end
 
+  test "the status bar counts the discard pile once cards are discarded", %{
+    game: game,
+    players: players
+  } do
+    [{_a, ta} | _] = players
+    ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
+    {:ok, view, _html} = open(ta, game.id)
+    refute has_element?(view, "#discard-pile")
+
+    {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+    Helios.GameDriver.step(ids, %{}, view_fun, submit_fun)
+
+    assert has_element?(view, "#pass-row #discard-pile[data-count='3']")
+  end
+
   test "the dock clips horizontal overflow so the hand slide cannot scroll the page", %{
     game: game,
     players: players
@@ -527,6 +542,20 @@ defmodule HeliosWeb.GameLiveTest do
     test "history entries jump to their frame", %{game: game, players: [{_a, ta} | _]} do
       {:ok, view, _html} = open(ta, game.id)
       assert has_element?(view, "#history-0 [phx-click='replay_goto'][phx-value-frame='0']")
+    end
+
+    test "the status bar shows the frame's discard count", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = open(ta, game.id)
+      assert has_element?(view, "#discard-pile")
+
+      view |> element("#replay-first") |> render_click()
+      refute has_element?(view, "#discard-pile")
+
+      view |> element("#replay-next") |> render_click()
+      assert has_element?(view, "#discard-pile[data-count='3']")
     end
 
     test "autoplay pauses at the end-of-age summary and resumes", %{
