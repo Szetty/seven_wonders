@@ -8,7 +8,11 @@ import Config
 config :helios, Helios.Repo,
   database: Path.expand("../helios_test.db", __DIR__),
   pool_size: 5,
-  pool: Ecto.Adapters.SQL.Sandbox
+  pool: Ecto.Adapters.SQL.Sandbox,
+  # SQLite WAL allows one writer at a time; sandbox checkouts and app
+  # processes can hold the write lock while another connection tears down.
+  # The exqlite default of 2000ms was too short for CI (SQLITE_BUSY).
+  busy_timeout: 10_000
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
