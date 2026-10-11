@@ -113,6 +113,11 @@ for (const vp of VIEWPORTS) {
         expect(players.some((p) => pass.endsWith(p.name)), pass).toBe(true);
         const direction = await boxOf(page.locator("#pass-direction"));
         expect(direction.x + direction.width).toBeLessThanOrEqual(vp.width);
+        // innerText cannot see ellipsis clipping; content must fit the element box.
+        const passFits = await page
+          .locator("#pass-direction")
+          .evaluate((el) => el.scrollWidth <= el.clientWidth);
+        expect(passFits, "pass-direction content overflows (truncated or clipped)").toBe(true);
 
         // Tapping "Waiting for N" lists the names; Escape closes the list.
         await expect(page.locator("#waiting-count")).toBeVisible();
