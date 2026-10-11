@@ -82,7 +82,7 @@ Players' boards, hands and coins are empty/absent during setup; Helios must not 
 ### Starting a game (`games.ex`)
 `configured_wonders/2` becomes: lobby mode `choose_side` / `choose_board` → `:choose_side | :choose_board`; mode `random` → the config `:wonders` override as `{:explicit, …}` if set, else `:random`. `ActionCodec.encode_wonders/decode_wonders` add `%{"mode" => "choose_side" | "choose_board"}` (`nil` stays `:random`, `%{"explicit" => …}` unchanged). `Replay.rebuild` needs no change beyond the codec.
 
-`ActionCodec.encode/decode` add `claim_wonder` (`%{"kind" => "claim_wonder", "wonder" => name, "side" => "a" | "b"}`) and `confirm_wonder`. `Games.Choice` (or the GameServer submit path) accepts them during `Setup`.
+`ActionCodec.encode/decode` add `claim_wonder` (`%{"type" => "claim_wonder", "wonder" => name, "side" => "a" | "b"}`) and `confirm_wonder`. `Games.Choice` (or the GameServer submit path) accepts them during `Setup`.
 
 ### Setup screen (`GameLive`, `view.phase.kind == :setup`)
 New component module `HeliosWeb.GameComponents.WonderSetup`, rendered instead of the table and dock.
@@ -101,7 +101,7 @@ New component module `HeliosWeb.GameComponents.WonderSetup`, rendered instead of
 ## Testing
 
 Core (`core/src/tests/`):
-- `game_setup.rs`: pinned seed-42 deal unchanged for `Random`; `ChooseSide` draws the same boards as `Random` for the same seed; deck identical across `Random`/`ChooseSide`/`ChooseBoard` deals once setup finishes with the same boards.
+- `game_setup.rs`: pinned seed-42 deal unchanged for `Random`; `ChooseSide` draws the same boards as `Random` for the same seed; `ChooseBoard` deals exactly like `Explicit` with the same boards and seed; the dealt hands never depend on which boards/sides were claimed. (Decks differ between `Random`, `ChooseSide` and `ChooseBoard` for the same seed, because each consumes a different number of wonder draws before the deck shuffle.)
 - New `game_wonder_setup.rs`: claim/switch/flip/confirm; `WonderTaken` on a held board (including a confirmed one); `NotYourWonder` in choose_side; `NoClaim`; `AlreadyConfirmed`; card actions during setup → `ActionNotAllowedNow`; last confirmation starts Age I with starting coins and dealt hands; view `setup` field contents.
 - `nif_dto.rs`: new DTO round-trips.
 - Determinism: a full simulated `ChooseBoard` game replays identically.
