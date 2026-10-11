@@ -127,6 +127,25 @@ fn assert_invariants(game: &Game) {
         held.sort();
         held.dedup();
         assert_eq!(held.len(), count, "a board is held twice");
+        // During setup no board, hand, discard or coin data is public yet.
+        for player in game.players() {
+            let seen = game.view(player).unwrap();
+            assert!(seen.setup.is_some(), "{player} sees the setup view");
+            assert!(seen.players.is_empty(), "setup view lists player boards");
+            assert!(seen.hand.is_empty(), "setup view shows a hand");
+            assert!(
+                seen.discard_pile.is_none(),
+                "setup view shows a discard pile"
+            );
+            assert_eq!(seen.discard_count, 0, "setup view counts discards");
+            assert!(
+                seen.my_pending.is_none(),
+                "setup view shows a pending action"
+            );
+            assert!(seen.scores.is_none(), "setup view shows scores");
+        }
+        // The engine's debug output must not read the placeholder state.
+        assert!(game.debug_json().contains("\"state\":null"));
         return;
     }
     let in_hands: usize = game
