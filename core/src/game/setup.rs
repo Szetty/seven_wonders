@@ -7,13 +7,13 @@
 //! 2. `generate_deck`: Age I shuffle, Age II shuffle, guild shuffle, Age III shuffle.
 use super::types::{Phase, SetupError, Side, WonderSelection};
 use super::Game;
-use crate::domain::{Age, Effect, GameState, Player, PlayersWithWonders, Wonder};
+use crate::domain::{Age, Deck, Effect, GameState, Player, PlayersWithWonders, Wonder};
 use crate::engine::data::{WONDERS, WONDERS_BY_NAME};
 use crate::engine::deck::generate_deck;
 use crate::engine::rng::GameRng;
 use std::collections::{BTreeSet, VecDeque};
 
-type WonderRef = &'static Wonder<'static, Effect>;
+pub(super) type WonderRef = &'static Wonder<'static, Effect>;
 
 pub(super) fn new_game(
     players: Vec<String>,
@@ -33,25 +33,10 @@ pub(super) fn new_game(
     let mut rng = GameRng::new(seed);
     let assignment = assign_wonders(count, wonders, &mut rng)?;
     let deck = generate_deck(count, &mut rng);
-    let players_with_wonders: PlayersWithWonders = players
-        .iter()
-        .zip(&assignment)
-        .map(|(player, &(wonder, side))| {
-            let wonder_side = match side {
-                Side::A => &wonder.1,
-                Side::B => &wonder.2,
-            };
-            (Player(player.clone()), wonder_side)
-        })
-        .collect();
-    let mut state = GameState::new(deck, players_with_wonders);
-    state.init();
     let mut game = Game {
-        state,
-        wonders: assignment
-            .iter()
-            .map(|(wonder, side)| (wonder.0.to_string(), *side))
-            .collect(),
+        state: GameState::default(),
+        seats: players,
+        wonders: Vec::new(),
         hands: vec![Vec::new(); count],
         built: vec![Vec::new(); count],
         age: 1,
@@ -60,9 +45,8 @@ pub(super) fn new_game(
         pending: vec![None; count],
         extra_turns: VecDeque::new(),
         history: Vec::new(),
-        seats: players,
     };
-    game.deal_age(1);
+    game.finish_setup(deck, &assignment);
     Ok(game)
 }
 
@@ -72,18 +56,13 @@ fn assign_wonders(
     rng: &mut GameRng,
 ) -> Result<Vec<(WonderRef, Side)>, SetupError> {
     match selection {
-        WonderSelection::Random => {
-            let mut pool: Vec<WonderRef> = WONDERS.iter().collect();
-            rng.shuffle(&mut pool);
-            pool.truncate(count);
-            Ok(pool
-                .into_iter()
-                .map(|wonder| {
-                    let side = if rng.below(2) == 0 { Side::A } else { Side::B };
-                    (wonder, side)
-                })
-                .collect())
-        }
+        WonderSelection::Random => Ok(draw_boards(count, rng)
+            .into_iter()
+            .map(|wonder| {
+                let side = if rng.below(2) == 0 { Side::A } else { Side::B };
+                (wonder, side)
+            })
+            .collect()),
         WonderSelection::Explicit(choices) => {
             if choices.len() != count {
                 return Err(SetupError::WondersLengthMismatch {
@@ -108,7 +87,39 @@ fn assign_wonders(
     }
 }
 
+/// Shuffles the 7 wonders (in `WONDERS` order) and keeps the first `count`.
+fn draw_boards(count: usize, rng: &mut GameRng) -> Vec<WonderRef> {
+    let mut pool: Vec<WonderRef> = WONDERS.iter().collect();
+    rng.shuffle(&mut pool);
+    pool.truncate(count);
+    pool
+}
+
 impl Game {
+    /// Builds the table from the final wonder assignment (seat order): player
+    /// states with starting coins and resources, then the Age I deal.
+    pub(super) fn finish_setup(&mut self, deck: Deck, assignment: &[(WonderRef, Side)]) {
+        let players_with_wonders: PlayersWithWonders = self
+            .seats
+            .iter()
+            .zip(assignment)
+            .map(|(player, &(wonder, side))| {
+                let wonder_side = match side {
+                    Side::A => &wonder.1,
+                    Side::B => &wonder.2,
+                };
+                (Player(player.clone()), wonder_side)
+            })
+            .collect();
+        self.state = GameState::new(deck, players_with_wonders);
+        self.state.init();
+        self.wonders = assignment
+            .iter()
+            .map(|(wonder, side)| (wonder.0.to_string(), *side))
+            .collect();
+        self.deal_age(1);
+    }
+
     /// Deals 7 cards per seat (in seat order) from the age's shuffled deck.
     pub(super) fn deal_age(&mut self, age: u8) {
         self.age = age;
