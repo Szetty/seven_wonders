@@ -1,5 +1,5 @@
 defmodule HeliosWeb.GameComponents.ExtraTurn do
-  @moduledoc "Extra-turn notices for the dock (Babylon B last card, waiting for others) and the Halikarnassós discard picker."
+  @moduledoc "Extra-turn notices for the dock (Babylon B last card, waiting for others), the Halikarnassós discard picker and its read-only replay counterpart."
   use HeliosWeb, :html
 
   alias HeliosWeb.{GameAssets, GameFormat}
@@ -45,6 +45,7 @@ defmodule HeliosWeb.GameComponents.ExtraTurn do
       <div id="discard-scrim" class="fixed inset-0 z-40 bg-black/35" aria-hidden="true"></div>
       <section
         id="discard-picker"
+        phx-hook=".DiscardRects"
         role="dialog"
         aria-modal="true"
         aria-labelledby="discard-picker-title"
@@ -73,6 +74,7 @@ defmodule HeliosWeb.GameComponents.ExtraTurn do
             phx-value-kind="build_from_discard"
             phx-value-option="0"
             data-card={card}
+            data-fx-id={"discard-card-#{GameAssets.slug(card)}"}
             class="rounded-lg transition hover:-translate-y-1 hover:ring-4 hover:ring-sky-400 active:scale-95 active:ring-4 active:ring-sky-400"
           >
             <img
@@ -84,6 +86,29 @@ defmodule HeliosWeb.GameComponents.ExtraTurn do
         </div>
       </section>
     <% end %>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".DiscardRects">
+      // The picker / replay grid is gone by the time the turn resolves, so the
+      // card rects are snapshotted here and read by .TurnFx (fx.ex). Pointer
+      // and focus snapshots catch the final position after any sheet motion.
+      export default {
+        mounted() {
+          this.snapshot = this.snapshot.bind(this)
+          this.snapshot()
+          this.el.addEventListener("pointerdown", this.snapshot, true)
+          this.el.addEventListener("focusin", this.snapshot, true)
+        },
+        beforeUpdate() { this.snapshot() },
+        snapshot() {
+          const rects = {}
+          this.el.querySelectorAll("[data-fx-id] img").forEach((img) => {
+            const r = img.getBoundingClientRect()
+            rects[img.closest("[data-fx-id]").dataset.fxId] =
+              {left: r.left, top: r.top, width: r.width, height: r.height, src: img.currentSrc || img.src}
+          })
+          window.sevenWondersDiscardRects = rects
+        },
+      }
+    </script>
     """
   end
 
@@ -106,6 +131,49 @@ defmodule HeliosWeb.GameComponents.ExtraTurn do
         Show
       </button>
     </div>
+    """
+  end
+
+  attr :cards, :list, required: true, doc: "buildable discard names the viewer saw that turn"
+  attr :chosen, :string, default: nil
+
+  @doc "Read-only replay of the viewer's own build-from-discard choice."
+  def replay_discard(assigns) do
+    ~H"""
+    <section
+      id="replay-discard"
+      phx-hook=".DiscardRects"
+      aria-labelledby="replay-discard-title"
+    >
+      <h2
+        id="replay-discard-title"
+        class="px-1 text-xs font-semibold uppercase tracking-wide text-zinc-700"
+      >
+        Discard pile — you could build one for free
+      </h2>
+      <div class="-mx-2 flex justify-center-safe gap-2 overflow-x-auto px-2 pt-2 pb-1">
+        <div
+          :for={card <- @cards}
+          id={"replay-discard-#{GameAssets.slug(card)}"}
+          data-card={card}
+          data-fx-id={"discard-card-#{GameAssets.slug(card)}"}
+          data-chosen={to_string(card == @chosen)}
+          class={["relative shrink-0 rounded-lg", card == @chosen && "ring-4 ring-amber-500"]}
+        >
+          <img
+            src={GameAssets.card_path(card)}
+            alt={card}
+            class="h-[98px] w-16 rounded-lg object-cover sm:h-[134px] sm:w-22 short:h-[86px] short:w-14"
+          />
+          <span
+            :if={card == @chosen}
+            class="absolute left-1 top-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-bold text-white"
+          >
+            Chosen
+          </span>
+        </div>
+      </div>
+    </section>
     """
   end
 

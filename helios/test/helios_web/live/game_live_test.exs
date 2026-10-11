@@ -586,6 +586,51 @@ defmodule HeliosWeb.GameLiveTest do
     end
   end
 
+  describe "replay of a Halikarnassós discard build" do
+    setup do
+      players = for _ <- 1..3, do: user_with_token_fixture()
+      game = discard_build_game_fixture(Enum.map(players, &elem(&1, 0)))
+      stop_game_servers()
+      [{chooser, _} | _] = players
+      {:ok, %{frames: frames}} = Games.replay(game, chooser.id)
+      index = Enum.find_index(frames, &is_list(&1.discard_pile))
+      %{discard_game: game, discard_players: players, frames: frames, discard_index: index}
+    end
+
+    test "the chooser sees the cards they could pick, with their choice marked", %{
+      discard_game: game,
+      discard_players: [{_chooser, tc}, {_other, to} | _],
+      frames: frames,
+      discard_index: index
+    } do
+      frame = Enum.at(frames, index)
+      {:build_from_discard, card} = frame.my_choice
+      slug = HeliosWeb.GameAssets.slug(card)
+
+      {:ok, view, _html} = open(tc, game.id)
+      refute has_element?(view, "#replay-discard")
+      render_click(view, "replay_goto", %{"frame" => to_string(index)})
+      assert has_element?(view, "#replay-position", "extra turn")
+
+      for name <- frame.discard_pile do
+        assert has_element?(
+                 view,
+                 "#replay-discard #replay-discard-#{HeliosWeb.GameAssets.slug(name)}"
+               )
+      end
+
+      assert has_element?(view, "#replay-discard-#{slug}[data-chosen='true']", "Chosen")
+      refute has_element?(view, "#replay-hand")
+      assert has_element?(view, "#replay-choice", "Build #{card} from the discard pile")
+
+      {:ok, other, _html} = open(to, game.id)
+      render_click(other, "replay_goto", %{"frame" => to_string(index)})
+      assert has_element?(other, "#replay-position", "extra turn")
+      refute has_element?(other, "#replay-discard")
+      refute has_element?(other, "#replay-hand")
+    end
+  end
+
   test "a queued game_updated during replay keeps the boards on the current frame", %{
     game: game,
     players: players

@@ -104,10 +104,16 @@ defmodule HeliosWeb.GameLive do
                 statuses={@statuses}
               />
               <div
-                :if={@replay && current_frame(@replay).hand != []}
+                :if={@replay && (current_frame(@replay).hand != [] or frame_discard(@replay) != [])}
                 class="sticky bottom-0 z-30 overflow-x-clip rounded-t-xl bg-antique/95 p-2 shadow"
               >
+                <.replay_discard
+                  :if={frame_discard(@replay) != []}
+                  cards={frame_discard(@replay)}
+                  chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
+                />
                 <.replay_hand
+                  :if={current_frame(@replay).hand != []}
                   hand={current_frame(@replay).hand}
                   chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
                 />
@@ -290,6 +296,9 @@ defmodule HeliosWeb.GameLive do
   end
 
   defp current_frame(%{frames: frames, index: index}), do: Enum.at(frames, index)
+
+  # Only the viewer's own build-from-discard frame has a pile (Games.replay/2).
+  defp frame_discard(replay), do: current_frame(replay).discard_pile || []
 
   # The table shows the frame's public boards; @view keeps the final view (scores, me, neighbours).
   defp assign_frame(socket) do
