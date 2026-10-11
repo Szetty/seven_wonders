@@ -629,6 +629,26 @@ defmodule HeliosWeb.GameLiveTest do
       refute has_element?(other, "#replay-discard")
       refute has_element?(other, "#replay-hand")
     end
+
+    test "stepping past the discard build flies the card from the right origin", %{
+      discard_game: game,
+      discard_players: [{_chooser, tc}, {_other, to} | _],
+      frames: frames,
+      discard_index: index
+    } do
+      {:build_from_discard, card} = Enum.at(frames, index).my_choice
+      from = "discard-card-#{HeliosWeb.GameAssets.slug(card)}"
+
+      {:ok, view, _html} = open(tc, game.id)
+      render_click(view, "replay_goto", %{"frame" => to_string(index)})
+      view |> element("#replay-next") |> render_click()
+      assert_push_event(view, "turn_resolved", %{plays: [%{from: ^from}]})
+
+      {:ok, other, _html} = open(to, game.id)
+      render_click(other, "replay_goto", %{"frame" => to_string(index)})
+      other |> element("#replay-next") |> render_click()
+      assert_push_event(other, "turn_resolved", %{plays: [%{from: "discard-pile"}]})
+    end
   end
 
   test "a queued game_updated during replay keeps the boards on the current frame", %{

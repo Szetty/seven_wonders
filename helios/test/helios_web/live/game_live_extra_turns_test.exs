@@ -34,6 +34,8 @@ defmodule HeliosWeb.GameLiveExtraTurnsTest do
     {:ok, view_a, _html} = open(ta, game)
     {:ok, view_b, _html} = open(tb, game)
     assert has_element?(view_a, "#discard-picker")
+    assert has_element?(view_a, "#discard-picker[phx-hook] [data-fx-id]")
+    assert has_element?(view_b, "#discard-pile")
     refute has_element?(view_a, "#dock #discard-picker")
     assert has_element?(view_b, "#dock #waiting-extra-turn", a.name)
     refute has_element?(view_b, "#hand")
@@ -52,6 +54,18 @@ defmodule HeliosWeb.GameLiveExtraTurnsTest do
     assert has_element?(view_a, "#discard-picker")
 
     view_a |> element("#discard-pick-#{index}") |> render_click()
+
+    slug = HeliosWeb.GameAssets.slug(card)
+    from = "discard-card-#{slug}"
+    target = "built-#{a.id}-#{slug}"
+    assert_push_event(view_a, "turn_resolved", %{plays: [%{from: ^from, target: ^target}]})
+
+    assert_push_event(
+      view_b,
+      "turn_resolved",
+      %{plays: [%{from: "discard-pile", target: ^target}]},
+      1_000
+    )
 
     refute has_element?(view_a, "#discard-picker")
     {:ok, after_pick} = Games.view(game.id, a.id)

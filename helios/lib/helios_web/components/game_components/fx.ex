@@ -1,7 +1,8 @@
 defmodule HeliosWeb.GameComponents.Fx do
   @moduledoc """
   Full-screen, click-through layer for turn animations. The `.TurnFx` hook
-  flies the player's card from the hand to its tile or stage slot, fades in
+  flies the player's card from the hand (or a card built from the discard pile
+  from the picker / discard-pile marker) to its tile or stage slot, fades in
   other players' new tiles, floats coin changes and slides the next hand in.
   Everything is skipped under `prefers-reduced-motion: reduce`.
   """
@@ -34,18 +35,41 @@ defmodule HeliosWeb.GameComponents.Fx do
         play({plays, coins, me, my_card, pass}) {
           if (this.reduced()) return
           const rects = window.sevenWondersHandRects || {}
-          const from = my_card && rects[my_card]
+          const mine = my_card && rects[my_card]
           for (const play of plays) {
             const target = play.target && document.getElementById(play.target)
-            if (play.player === me && from) {
+            if (play.from) {
+              const from = this.origin(play.from, target)
+              if (from && this.visible(target)) {
+                this.fly(from, target, true)
+                this.arrive(target, 550)
+              } else if (target) {
+                this.arrive(target)
+              }
+            } else if (play.player === me && mine) {
               const to = target || document.querySelector(`section[data-player="${me}"] [data-stat="coins"]`)
-              this.fly(from, to, !target)
+              this.fly(mine, to, !target)
             } else if (target) {
               this.arrive(target)
             }
           }
           for (const {player, delta} of coins) this.float(player, delta)
           if (pass) this.slideHand(pass)
+        },
+        // Where a card built from the discard pile takes off: the rect the
+        // picker / replay grid snapshotted (.DiscardRects), else the status-bar
+        // marker with the target tile's image. null → the caller only arrives.
+        origin(id, target) {
+          const saved = window.sevenWondersDiscardRects || {}
+          if (saved[id]) {
+            const rect = saved[id]
+            delete saved[id]
+            return rect
+          }
+          const pile = this.visible(document.getElementById("discard-pile"))
+          const img = target && target.querySelector("img")
+          if (!pile || !img) return null
+          return {left: pile.left, top: pile.top, width: pile.width, height: pile.height, src: img.currentSrc || img.src}
         },
         fly(from, target, fade) {
           const to = this.visible(target)
@@ -64,10 +88,10 @@ defmodule HeliosWeb.GameComponents.Fx do
             .finished.finally(() => ghost.remove())
           if (!fade) target.animate([{opacity: 0}, {opacity: 0, offset: 0.9}, {opacity: 1}], {duration: 750})
         },
-        arrive(target) {
+        arrive(target, delay = 250) {
           if (!this.visible(target)) return
           target.animate([{transform: "scale(.6)", opacity: 0}, {transform: "scale(1)", opacity: 1}],
-                         {duration: 500, delay: 250, easing: "ease-out", fill: "backwards"})
+                         {duration: 500, delay, easing: "ease-out", fill: "backwards"})
         },
         float(player, delta) {
           const anchor = this.visible(document.querySelector(`section[data-player="${player}"] [data-stat="coins"]`))

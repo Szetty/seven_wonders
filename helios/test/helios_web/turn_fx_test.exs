@@ -30,4 +30,37 @@ defmodule HeliosWeb.TurnFxTest do
              pass: "west"
            }
   end
+
+  test "a card built from the discard pile flies from the picker for the builder, from the pile for others" do
+    turn =
+      {:turn,
+       %{
+         age: 1,
+         turn: 3,
+         kind: :build_from_discard,
+         plays: [
+           %{
+             player: "1",
+             action: {:built_from_discard, "Lumber Yard"},
+             coins_to_west: 0,
+             coins_to_east: 0
+           }
+         ],
+         coins: []
+       }}
+
+    assert %{plays: [builder]} =
+             TurnFx.payload(turn, %{me: "1", my_card: "Lumber Yard", pass: nil})
+
+    assert builder == %{
+             player: "1",
+             kind: "built",
+             target: "built-1-lumberyard",
+             from: "discard-card-lumberyard"
+           }
+
+    assert %{plays: [observer]} = TurnFx.payload(turn, %{me: "2", my_card: nil, pass: nil})
+    assert observer.from == "discard-pile"
+    assert observer.target == "built-1-lumberyard"
+  end
 end
