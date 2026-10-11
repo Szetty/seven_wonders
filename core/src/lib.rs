@@ -24,6 +24,7 @@ mod tests {
     pub mod game_setup;
     pub mod game_simulation;
     pub mod game_view;
+    pub mod game_wonder_setup;
     pub mod helpers;
     pub mod nif_dto;
     pub mod points;

@@ -58,6 +58,27 @@ pub fn discard(card: &str) -> Action {
     }
 }
 
+pub fn claim(wonder: &str, side: Side) -> Action {
+    Action::ClaimWonder {
+        wonder: wonder.to_string(),
+        side,
+    }
+}
+
+/// Every seat claims its entry of `wonders` (seat order), then all confirm.
+pub fn complete_wonder_setup(game: &mut Game, wonders: &[(&str, Side)]) {
+    let players = game.players().to_vec();
+    assert_eq!(players.len(), wonders.len());
+    for (player, (wonder, side)) in players.iter().zip(wonders) {
+        game.submit(player, claim(wonder, *side))
+            .expect("the claim is legal");
+    }
+    for player in &players {
+        game.submit(player, Action::ConfirmWonder)
+            .expect("the confirmation is legal");
+    }
+}
+
 pub const PLAYERS: [&str; 3] = ["p1", "p2", "p3"];
 
 pub fn discard_first(game: &mut Game, player: &str) {

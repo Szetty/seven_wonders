@@ -9,6 +9,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum PhaseKind {
+    Setup,
     ChoosingCards,
     ExtraTurn,
     GameOver,
@@ -28,6 +29,31 @@ pub struct PhaseView {
     pub direction: PassDirection,
     pub extra_turn_player: Option<String>,
     pub extra_turn_kind: Option<ExtraTurnKind>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum SetupMode {
+    ChooseBoard,
+    ChooseSide,
+}
+
+/// One seat during `Phase::Setup` (all public).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SetupSeat {
+    pub player: String,
+    /// Claimed board; for `ChooseSide` the drawn board from the start.
+    pub wonder: Option<String>,
+    pub side: Option<Side>,
+    pub confirmed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SetupView {
+    pub mode: SetupMode,
+    /// Seat order.
+    pub seats: Vec<SetupSeat>,
+    /// `ChooseBoard`: boards nobody holds, in `WONDERS` order. `ChooseSide`: empty.
+    pub available: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -89,6 +115,8 @@ pub struct PlayerView {
     pub submitted: Vec<(String, bool)>,
     pub my_pending: Option<Action>,
     pub scores: Option<Vec<FinalScore>>,
+    /// `Some` exactly during `Phase::Setup`.
+    pub setup: Option<SetupView>,
 }
 
 impl Game {
@@ -99,6 +127,7 @@ impl Game {
 
     fn build_view(&self, seat: usize) -> PlayerView {
         let me = &self.seats[seat];
+        let setup = self.setup_view();
         let acting_with_hand = match &self.phase {
             Phase::ChoosingCards { .. } => true,
             Phase::ExtraTurn {
@@ -124,6 +153,11 @@ impl Game {
             _ => None,
         };
         let submitted = match &self.phase {
+            Phase::Setup => setup
+                .iter()
+                .flat_map(|setup| &setup.seats)
+                .map(|claim| (claim.player.clone(), claim.confirmed))
+                .collect(),
             Phase::ChoosingCards { .. } => self
                 .seats
                 .iter()
@@ -137,20 +171,30 @@ impl Game {
             Phase::GameOver { scores } => Some(scores.clone()),
             _ => None,
         };
+        // During setup `state` is a placeholder: no player or discard reads.
+        let (players, discard_count) = if setup.is_some() {
+            (Vec::new(), 0)
+        } else {
+            (
+                (0..self.seats.len())
+                    .map(|s| self.public_player(s))
+                    .collect(),
+                self.state.cards_discarded.len(),
+            )
+        };
         PlayerView {
             me: me.clone(),
             phase: self.phase_view(),
-            players: (0..self.seats.len())
-                .map(|s| self.public_player(s))
-                .collect(),
+            players,
             west: self.seats[self.west_of(seat)].clone(),
             east: self.seats[self.east_of(seat)].clone(),
             hand,
             discard_pile,
-            discard_count: self.state.cards_discarded.len(),
+            discard_count,
             submitted,
             my_pending: self.pending[seat].as_ref().map(|p| p.action.clone()),
             scores,
+            setup,
         }
     }
 
@@ -200,6 +244,7 @@ impl Game {
             PassDirection::West
         };
         let (kind, extra_turn_player, extra_turn_kind) = match &self.phase {
+            Phase::Setup => (PhaseKind::Setup, None, None),
             Phase::ChoosingCards { .. } => (PhaseKind::ChoosingCards, None, None),
             Phase::ExtraTurn { player, kind } => {
                 (PhaseKind::ExtraTurn, Some(player.clone()), Some(*kind))

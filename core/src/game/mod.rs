@@ -11,6 +11,7 @@ mod setup;
 mod test_support;
 mod types;
 mod view;
+mod wonder_setup;
 
 pub use crate::domain::{
     Category, EffectSpec, PlayerDirection, PointCategory, ResourceType, ScientificSymbol,
@@ -24,7 +25,8 @@ pub use types::{
     Side, WonderSelection,
 };
 pub use view::{
-    BuildOption, BuiltCard, HandCard, PassDirection, PhaseKind, PhaseView, PlayerView, PublicPlayer,
+    BuildOption, BuiltCard, HandCard, PassDirection, PhaseKind, PhaseView, PlayerView,
+    PublicPlayer, SetupMode, SetupSeat, SetupView,
 };
 
 use crate::domain::{Card, GameState, PlayerState};
@@ -35,10 +37,12 @@ use types::Pending;
 pub const ENGINE_VERSION: u32 = 1;
 
 pub struct Game {
+    /// Empty placeholder (`GameState::default()`) during `Phase::Setup`;
+    /// built by `finish_setup`.
     state: GameState,
     /// Player ids in seat order.
     seats: Vec<String>,
-    /// Wonder name and side per seat.
+    /// Wonder name and side per seat (empty during `Phase::Setup`).
     wonders: Vec<(String, Side)>,
     /// Cards in hand per seat.
     hands: Vec<Vec<Card>>,
@@ -53,6 +57,8 @@ pub struct Game {
     extra_turns: VecDeque<(usize, ExtraTurnKind)>,
     /// Public events, appended as turns and ages resolve.
     history: Vec<history::HistoryEvent>,
+    /// `Some` exactly during `Phase::Setup`: claims and the waiting deck.
+    setup: Option<wonder_setup::WonderSetup>,
 }
 
 impl Game {
@@ -81,6 +87,7 @@ impl Game {
             "hands": hands,
             "state": self.state,
             "history": self.history,
+            "setup": self.setup_view(),
         })
         .to_string()
     }
@@ -119,6 +126,9 @@ impl Game {
     /// (replacing any earlier one).
     pub fn submit(&mut self, player: &str, action: Action) -> Result<(), ActionError> {
         let seat = self.precheck(player)?;
+        if matches!(self.phase, Phase::Setup) {
+            return self.submit_setup(seat, &action);
+        }
         let resolved = self.check_action(seat, &action)?;
         self.pending[seat] = Some(Pending { action, resolved });
         if self.all_required_submitted() {

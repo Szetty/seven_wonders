@@ -148,7 +148,8 @@ impl From<PaymentDto> for Payment {
 }
 
 /// `{:build, %{card, payment}}` | `{:build_wonder_stage, %{card, payment}}` |
-/// `{:discard, card}` | `{:build_free, card}` | `{:build_from_discard, card}`
+/// `{:discard, card}` | `{:build_free, card}` | `{:build_from_discard, card}` |
+/// `{:claim_wonder, %{wonder, side}}` | `:confirm_wonder`
 #[derive(Debug, Clone, PartialEq, Eq, NifTaggedEnum)]
 pub enum ActionDto {
     Build { card: String, payment: PaymentDto },
@@ -156,6 +157,8 @@ pub enum ActionDto {
     Discard(String),
     BuildFree(String),
     BuildFromDiscard(String),
+    ClaimWonder { wonder: String, side: SideDto },
+    ConfirmWonder,
 }
 
 impl From<ActionDto> for Action {
@@ -172,6 +175,11 @@ impl From<ActionDto> for Action {
             ActionDto::Discard(card) => Self::Discard { card },
             ActionDto::BuildFree(card) => Self::BuildFree { card },
             ActionDto::BuildFromDiscard(card) => Self::BuildFromDiscard { card },
+            ActionDto::ClaimWonder { wonder, side } => Self::ClaimWonder {
+                wonder,
+                side: side.into(),
+            },
+            ActionDto::ConfirmWonder => Self::ConfirmWonder,
         }
     }
 }
@@ -190,6 +198,11 @@ impl From<Action> for ActionDto {
             Action::Discard { card } => Self::Discard(card),
             Action::BuildFree { card } => Self::BuildFree(card),
             Action::BuildFromDiscard { card } => Self::BuildFromDiscard(card),
+            Action::ClaimWonder { wonder, side } => Self::ClaimWonder {
+                wonder,
+                side: side.into(),
+            },
+            Action::ConfirmWonder => Self::ConfirmWonder,
         }
     }
 }
@@ -207,6 +220,11 @@ pub enum ActionErrorDto {
     NoWonderStageLeft,
     FreeBuildUnavailable,
     ActionNotAllowedNow,
+    UnknownWonder,
+    WonderTaken,
+    NotYourWonder,
+    NoClaim,
+    AlreadyConfirmed,
 }
 
 impl From<ActionError> for ActionErrorDto {
@@ -223,6 +241,11 @@ impl From<ActionError> for ActionErrorDto {
             ActionError::NoWonderStageLeft => Self::NoWonderStageLeft,
             ActionError::FreeBuildUnavailable => Self::FreeBuildUnavailable,
             ActionError::ActionNotAllowedNow => Self::ActionNotAllowedNow,
+            ActionError::UnknownWonder => Self::UnknownWonder,
+            ActionError::WonderTaken => Self::WonderTaken,
+            ActionError::NotYourWonder => Self::NotYourWonder,
+            ActionError::NoClaim => Self::NoClaim,
+            ActionError::AlreadyConfirmed => Self::AlreadyConfirmed,
         }
     }
 }
@@ -267,6 +290,7 @@ impl From<ExtraTurnKind> for ExtraTurnKindDto {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, NifUnitEnum)]
 pub enum PhaseKindDto {
+    Setup,
     ChoosingCards,
     ExtraTurn,
     GameOver,
@@ -275,6 +299,7 @@ pub enum PhaseKindDto {
 impl From<PhaseKind> for PhaseKindDto {
     fn from(kind: PhaseKind) -> Self {
         match kind {
+            PhaseKind::Setup => Self::Setup,
             PhaseKind::ChoosingCards => Self::ChoosingCards,
             PhaseKind::ExtraTurn => Self::ExtraTurn,
             PhaseKind::GameOver => Self::GameOver,

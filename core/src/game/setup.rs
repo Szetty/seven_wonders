@@ -1,11 +1,17 @@
-//! `Game::new`: validation, wonder assignment, deck generation and the first deal.
+//! `Game::new`: validation, wonder assignment, deck generation and the first
+//! deal (at once, or after `Phase::Setup` for the choosing modes).
 //!
 //! RNG consumption order (replay contract; changing it requires bumping
 //! `ENGINE_VERSION`):
-//! 1. `WonderSelection::Random` only: shuffle the 7 wonders (in `WONDERS`
+//! 1. `WonderSelection::Random`: shuffle the 7 wonders (in `WONDERS`
 //!    order), keep the first `n`, then draw one side per seat in seat order.
-//! 2. `generate_deck`: Age I shuffle, Age II shuffle, guild shuffle, Age III shuffle.
+//!    `WonderSelection::ChooseSide`: the same shuffle and truncation, no side
+//!    draws. `ChooseBoard` / `Explicit`: no wonder draws.
+//! 2. `generate_deck`: Age I shuffle, Age II shuffle, guild shuffle, Age III
+//!    shuffle, in every mode (so setup choices never influence the deal).
 use super::types::{Phase, SetupError, Side, WonderSelection};
+use super::view::SetupMode;
+use super::wonder_setup::{SeatClaim, WonderSetup};
 use super::Game;
 use crate::domain::{Age, Deck, Effect, GameState, Player, PlayersWithWonders, Wonder};
 use crate::engine::data::{WONDERS, WONDERS_BY_NAME};
@@ -14,6 +20,14 @@ use crate::engine::rng::GameRng;
 use std::collections::{BTreeSet, VecDeque};
 
 pub(super) type WonderRef = &'static Wonder<'static, Effect>;
+
+/// How `Game::new` hands out wonders.
+enum Assignment {
+    /// Known now (`Random`, `Explicit`): the table is built at once.
+    Fixed(Vec<(WonderRef, Side)>),
+    /// Chosen during `Phase::Setup`; `ChooseSide` seats start with their drawn board.
+    Open(SetupMode, Vec<SeatClaim>),
+}
 
 pub(super) fn new_game(
     players: Vec<String>,
@@ -41,12 +55,18 @@ pub(super) fn new_game(
         built: vec![Vec::new(); count],
         age: 1,
         turn: 1,
-        phase: Phase::ChoosingCards { age: 1, turn: 1 },
+        phase: Phase::Setup,
         pending: vec![None; count],
         extra_turns: VecDeque::new(),
         history: Vec::new(),
+        setup: None,
     };
-    game.finish_setup(deck, &assignment);
+    match assignment {
+        Assignment::Fixed(assignment) => game.finish_setup(deck, &assignment),
+        Assignment::Open(mode, seats) => {
+            game.setup = Some(WonderSetup { mode, seats, deck });
+        }
+    }
     Ok(game)
 }
 
@@ -54,15 +74,31 @@ fn assign_wonders(
     count: usize,
     selection: WonderSelection,
     rng: &mut GameRng,
-) -> Result<Vec<(WonderRef, Side)>, SetupError> {
+) -> Result<Assignment, SetupError> {
     match selection {
-        WonderSelection::Random => Ok(draw_boards(count, rng)
-            .into_iter()
-            .map(|wonder| {
-                let side = if rng.below(2) == 0 { Side::A } else { Side::B };
-                (wonder, side)
-            })
-            .collect()),
+        WonderSelection::Random => Ok(Assignment::Fixed(
+            draw_boards(count, rng)
+                .into_iter()
+                .map(|wonder| {
+                    let side = if rng.below(2) == 0 { Side::A } else { Side::B };
+                    (wonder, side)
+                })
+                .collect(),
+        )),
+        WonderSelection::ChooseSide => Ok(Assignment::Open(
+            SetupMode::ChooseSide,
+            draw_boards(count, rng)
+                .into_iter()
+                .map(|wonder| SeatClaim {
+                    wonder: Some(wonder.0),
+                    ..SeatClaim::default()
+                })
+                .collect(),
+        )),
+        WonderSelection::ChooseBoard => Ok(Assignment::Open(
+            SetupMode::ChooseBoard,
+            vec![SeatClaim::default(); count],
+        )),
         WonderSelection::Explicit(choices) => {
             if choices.len() != count {
                 return Err(SetupError::WondersLengthMismatch {
@@ -82,7 +118,7 @@ fn assign_wonders(
                 }
                 assignment.push((wonder, side));
             }
-            Ok(assignment)
+            Ok(Assignment::Fixed(assignment))
         }
     }
 }

@@ -48,6 +48,16 @@ pub fn available_actions(view: &PlayerView) -> Vec<Action> {
 
 fn acting_players(game: &Game) -> Vec<String> {
     match game.phase() {
+        Phase::Setup => game
+            .view(&game.players()[0])
+            .unwrap()
+            .setup
+            .expect("setup view during Phase::Setup")
+            .seats
+            .into_iter()
+            .filter(|seat| !seat.confirmed)
+            .map(|seat| seat.player)
+            .collect(),
         Phase::ChoosingCards { .. } => game.players().to_vec(),
         Phase::ExtraTurn { player, .. } => vec![player.clone()],
         Phase::GameOver { .. } => Vec::new(),

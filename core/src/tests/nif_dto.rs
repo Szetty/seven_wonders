@@ -1,6 +1,6 @@
 use super::game_helpers::plain_game;
 use crate::game::{
-    Action, ActionError, BuildOption, Category, Payment, PaymentOption, ResourceType::*,
+    Action, ActionError, BuildOption, Category, Payment, PaymentOption, PhaseKind, ResourceType::*,
     SetupError, Side, WonderSelection,
 };
 use crate::nif::dto::{
@@ -61,6 +61,17 @@ fn action_dtos_round_trip() {
                 card: "Altar".to_string(),
             },
         ),
+        (
+            ActionDto::ClaimWonder {
+                wonder: "Gizah".to_string(),
+                side: SideDto::B,
+            },
+            Action::ClaimWonder {
+                wonder: "Gizah".to_string(),
+                side: Side::B,
+            },
+        ),
+        (ActionDto::ConfirmWonder, Action::ConfirmWonder),
     ];
     for (dto, action) in pairs {
         assert_eq!(Action::from(dto.clone()), action);
@@ -198,4 +209,22 @@ fn settings_convert_with_catalogue() {
         }]
     );
     assert_eq!(dto.wonders[0].boards.len(), 2);
+}
+
+#[test]
+fn setup_errors_and_phase_convert() {
+    let pairs = [
+        (ActionError::UnknownWonder, ActionErrorDto::UnknownWonder),
+        (ActionError::WonderTaken, ActionErrorDto::WonderTaken),
+        (ActionError::NotYourWonder, ActionErrorDto::NotYourWonder),
+        (ActionError::NoClaim, ActionErrorDto::NoClaim),
+        (
+            ActionError::AlreadyConfirmed,
+            ActionErrorDto::AlreadyConfirmed,
+        ),
+    ];
+    for (error, dto) in pairs {
+        assert_eq!(ActionErrorDto::from(error), dto);
+    }
+    assert_eq!(PhaseKindDto::from(PhaseKind::Setup), PhaseKindDto::Setup);
 }

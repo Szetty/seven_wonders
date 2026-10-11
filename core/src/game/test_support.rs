@@ -1,5 +1,5 @@
 //! `#[cfg(test)]` hooks to rig and inspect a [`Game`] from `crate::tests`.
-use super::types::{Action, ActionError, FinalScore, Side};
+use super::types::{Action, ActionError, FinalScore, Phase, Side};
 use super::Game;
 use crate::domain::{Card, PlayerDecision, Point, PointCategory};
 use crate::engine::data::STRUCTURES_BY_NAME;
@@ -76,6 +76,9 @@ impl Game {
     /// The same checks as `submit`, without storing anything.
     pub fn validate(&self, player: &str, action: &Action) -> Result<(), ActionError> {
         let seat = self.precheck(player)?;
+        if matches!(self.phase, Phase::Setup) {
+            return self.check_setup_action(seat, action).map(|_| ());
+        }
         self.check_action(seat, action).map(|_| ())
     }
 
