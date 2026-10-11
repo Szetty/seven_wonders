@@ -584,6 +584,77 @@ defmodule HeliosWeb.GameLiveTest do
       view |> element("#replay-play") |> render_click()
       assert has_element?(view, "#replay-bar[data-playing='true']")
     end
+
+    test "?frame=N opens that frame; garbage and out-of-range values fall back or clamp", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=3")
+      assert has_element?(view, "#replay-position", "Age I · Turn 4")
+      refute has_element?(view, "#scoreboard")
+
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=999")
+      assert has_element?(view, "#replay-position", "Final")
+
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=-4")
+      assert has_element?(view, "#replay-position", "Age I · Turn 1")
+
+      for garbage <- ["abc", "2x", "", "1.5"] do
+        {:ok, view, _html} =
+          live(log_in_conn(build_conn(), ta), "/game/#{game.id}?frame=#{garbage}")
+
+        assert has_element?(view, "#replay-position", "Final")
+      end
+    end
+
+    test "every frame change patches the URL; the final frame drops the param", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = open(ta, game.id)
+
+      view |> element("#replay-first") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}?frame=0")
+
+      view |> element("#replay-next") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}?frame=1")
+      assert_push_event(view, "turn_resolved", %{plays: [_, _, _]})
+
+      view |> element("#replay-prev") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}?frame=0")
+
+      render_click(view, "replay_goto", %{"frame" => "6"})
+      assert_patch(view, ~p"/game/#{game.id}?frame=6")
+      assert has_element?(view, "#replay-position", "Age II · Turn 1")
+
+      view |> element("#replay-last") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}")
+      assert has_element?(view, "#replay-position", "Final")
+    end
+
+    test "autoplay ticks patch the URL and keep playing", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=1")
+      view |> element("#replay-play") |> render_click()
+      assert has_element?(view, "#replay-bar[data-playing='true']")
+
+      render_click(view, "replay_next", %{})
+      assert_patch(view, ~p"/game/#{game.id}?frame=2")
+      assert has_element?(view, "#replay-position", "Age I · Turn 3")
+      assert has_element?(view, "#replay-bar[data-playing='true']")
+    end
+
+    test "the end-of-age summary survives the patch of the step that reveals it", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=5")
+      view |> element("#replay-next") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}?frame=6")
+      assert has_element?(view, "#age-summary")
+    end
   end
 
   describe "replay of a Halikarnassós discard build" do

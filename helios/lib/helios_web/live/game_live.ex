@@ -240,6 +240,16 @@ defmodule HeliosWeb.GameLive do
     end
   end
 
+  # The replay frame lives in the URL (?frame=N) so a reload returns to it.
+  # Active games and games without boards have no replay: params are ignored.
+  @impl true
+  def handle_params(params, _uri, %{assigns: %{replay: %{} = replay}} = socket) do
+    index = frame_param(params["frame"], length(replay.frames) - 1)
+    {:noreply, if(index == replay.index, do: socket, else: goto(socket, index))}
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
   defp mount_game(socket, game, user) do
     case authorize(game, user) do
       :ok -> mount_authorized(socket, game, user)
@@ -322,9 +332,35 @@ defmodule HeliosWeb.GameLive do
         do: {index, frame}
   end
 
+  # Missing or non-integer → the final frame; integers are clamped to 0..last.
+  defp frame_param(value, last) when is_binary(value) do
+    case Integer.parse(value) do
+      {index, ""} -> index |> max(0) |> min(last)
+      _ -> last
+    end
+  end
+
+  defp frame_param(_value, last), do: last
+
+  # The one place a replay frame change is announced: handle_params/3 then
+  # shows the frame. The final frame keeps the plain game URL.
+  defp patch_frame(socket, index) do
+    %{game: game, replay: replay} = socket.assigns
+
+    to =
+      if index == length(replay.frames) - 1,
+        do: ~p"/game/#{game.id}",
+        else: ~p"/game/#{game.id}?frame=#{index}"
+
+    push_patch(socket, to: to, replace: true)
+  end
+
+  defp pause(socket), do: update(socket, :replay, &%{&1 | playing: false})
+
+  # History-drawer links: only real frame numbers move; anything else is ignored.
   defp goto_param(socket, frame, last) do
     case Integer.parse(to_string(frame)) do
-      {index, ""} when index >= 0 and index <= last -> goto(socket, index)
+      {index, ""} when index >= 0 and index <= last -> socket |> pause() |> patch_frame(index)
       _ -> socket
     end
   end
@@ -373,6 +409,7 @@ defmodule HeliosWeb.GameLive do
       }
     end)
     |> assign_frame()
+    |> then(&patch_frame(&1, &1.assigns.replay.index))
   end
 
   defp setup(socket, game, user) do
@@ -464,13 +501,13 @@ defmodule HeliosWeb.GameLive do
     socket =
       case {action, params} do
         {"first", _} ->
-          goto(socket, 0)
+          socket |> pause() |> patch_frame(0)
 
         {"prev", _} ->
-          goto(socket, max(replay.index - 1, 0))
+          socket |> pause() |> patch_frame(max(replay.index - 1, 0))
 
         {"last", _} ->
-          goto(socket, last)
+          socket |> pause() |> patch_frame(last)
 
         {"next", _} when replay.index < last ->
           step_forward(socket)
