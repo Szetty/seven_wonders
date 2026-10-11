@@ -61,6 +61,7 @@ fn the_choose_board_view_follows_the_contract() {
         );
     }
     assert!(game.debug_json().contains("\"Setup\""));
+    assert!(game.debug_json().contains("\"state\":null"));
     assert!(game.history().is_empty());
 
     let view = game.view("p2").unwrap();
@@ -195,6 +196,27 @@ fn a_held_board_cannot_be_claimed_by_another_seat() {
         Err(ActionError::WonderTaken)
     );
     assert_eq!(seats(&game)[2], seat("p3", None, None, false));
+}
+
+#[test]
+fn a_seat_switching_onto_a_held_board_keeps_its_old_claim() {
+    let mut game = choose_board();
+    game.submit("p1", claim("Gizah", Side::A)).unwrap();
+    game.submit("p1", Action::ConfirmWonder).unwrap();
+    game.submit("p2", claim("Babylon", Side::B)).unwrap();
+    assert_eq!(
+        game.submit("p2", claim("Gizah", Side::B)),
+        Err(ActionError::WonderTaken)
+    );
+    assert_eq!(
+        seats(&game)[1],
+        seat("p2", Some("Babylon"), Some(Side::B), false)
+    );
+    assert_eq!(
+        seats(&game)[0],
+        seat("p1", Some("Gizah"), Some(Side::A), true)
+    );
+    assert_eq!(game.pending_action("p2"), None);
 }
 
 #[test]

@@ -85,7 +85,8 @@ impl Game {
             "turn": self.turn,
             "phase": self.phase,
             "hands": hands,
-            "state": self.state,
+            // The placeholder state is never read during setup.
+            "state": self.setup.is_none().then_some(&self.state),
             "history": self.history,
             "setup": self.setup_view(),
         })
