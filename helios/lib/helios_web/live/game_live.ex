@@ -259,11 +259,22 @@ defmodule HeliosWeb.GameLive do
   end
 
   defp mount_authorized(socket, game, user) do
+    arrive(socket, game)
+
     if game.status == "finished" do
       mount_finished(socket, game, user)
     else
       mount_active(socket, game, user)
     end
+  end
+
+  # A seated player opening a game straight from a table they were invited to
+  # "arrives" there too; the `{:invite_resolved, _}` broadcast clears the banner.
+  defp arrive(socket, game) do
+    if connected?(socket),
+      do: Lobbies.accept_pending(socket.assigns.current_scope, game.lobby_id)
+
+    :ok
   end
 
   defp mount_active(socket, game, user) do

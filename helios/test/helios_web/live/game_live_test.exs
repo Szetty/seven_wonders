@@ -767,4 +767,22 @@ defmodule HeliosWeb.GameLiveTest do
       "rank" => rank
     }
   end
+
+  # Review Focus 4.
+  test "opening a game accepts a pending invite to its table in every tab" do
+    [{a, _ta}, {b, tb}, {c, _tc}] = for _ <- 1..3, do: user_with_token_fixture()
+    lobby = Helios.Lobbies.get_or_create_own_lobby(a)
+    :ok = invite_all(a, lobby, [b, c])
+    game = game_fixture([a, b, c], lobby: lobby)
+
+    {:ok, other_tab, _} = live(log_in_conn(build_conn(), tb), ~p"/games")
+    assert has_element?(other_tab, "#accept-invite-#{lobby.id}")
+
+    {:ok, view, _html} = open(tb, game.id)
+
+    refute has_element?(view, "#accept-invite-#{lobby.id}")
+    refute has_element?(other_tab, "#accept-invite-#{lobby.id}")
+    assert Helios.Lobbies.pending_invites(b) == []
+    assert has_element?(view, "#recent-table-#{lobby.id}")
+  end
 end
