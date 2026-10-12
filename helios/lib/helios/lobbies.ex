@@ -18,11 +18,14 @@ defmodule Helios.Lobbies do
 
   alias Helios.Accounts.Scope
   alias Helios.Accounts.User
+  alias Helios.Games.Game
+  alias Helios.Games.GamePlayer
   alias Helios.Lobbies.Invite
   alias Helios.Lobbies.Lobby
   alias Helios.Repo
 
   @max_players 7
+  @recent_limit 5
 
   @type member :: %{user: User.t(), leader?: boolean()}
 
@@ -211,6 +214,54 @@ defmodule Helios.Lobbies do
         select: %{lobby_id: l.id, owner_name: o.name}
     )
   end
+
+  @doc """
+  Up to 5 tables the user can still enter (accepted invites; the own table has
+  "My table"), most recently active first. Activity is the later of the user's
+  last visit and the latest game there in which the user was seated; tables
+  with neither come last.
+  """
+  @spec recent_tables(User.t()) :: [
+          %{lobby_id: Ecto.UUID.t(), owner_name: String.t(), last_active_at: DateTime.t() | nil}
+        ]
+  def recent_tables(%User{id: user_id}) do
+    played =
+      from g in Game,
+        join: p in GamePlayer,
+        on: p.game_id == g.id and p.user_id == ^user_id,
+        group_by: g.lobby_id,
+        select: %{lobby_id: g.lobby_id, played_at: type(max(g.inserted_at), :utc_datetime)}
+
+    from(i in Invite,
+      join: l in assoc(i, :lobby),
+      join: o in assoc(l, :owner),
+      left_join: g in subquery(played),
+      on: g.lobby_id == l.id,
+      where: i.user_id == ^user_id and i.status == "accepted" and l.owner_id != ^user_id,
+      select: %{
+        invite_id: i.id,
+        lobby_id: l.id,
+        owner_name: o.name,
+        visited_at: i.last_visited_at,
+        played_at: g.played_at
+      }
+    )
+    |> Repo.all()
+    |> Enum.map(fn row ->
+      Map.put(row, :last_active_at, latest(row.visited_at, row.played_at))
+    end)
+    |> Enum.sort_by(&recent_key/1)
+    |> Enum.take(@recent_limit)
+    |> Enum.map(&Map.take(&1, [:lobby_id, :owner_name, :last_active_at]))
+  end
+
+  defp latest(nil, other), do: other
+  defp latest(one, nil), do: one
+  defp latest(one, other), do: if(DateTime.compare(one, other) == :lt, do: other, else: one)
+
+  # Ascending sort: active rows first (newest first), then never-active rows; ties by newest invite.
+  defp recent_key(%{last_active_at: nil, invite_id: id}), do: {1, 0, -id}
+  defp recent_key(%{last_active_at: at, invite_id: id}), do: {0, -DateTime.to_unix(at), -id}
 
   @doc "Name of the lobby's owner, or nil for an unknown/malformed id."
   @spec owner_name(term()) :: String.t() | nil
