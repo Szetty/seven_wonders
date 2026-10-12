@@ -5,6 +5,8 @@ defmodule HeliosWeb.LobbyLiveTest do
   import Helios.LobbiesFixtures
 
   alias Helios.Lobbies
+  alias Helios.Lobbies.Invite
+  alias Helios.Repo
   alias Phoenix.Socket.Broadcast
 
   defp count(view, selector) do
@@ -158,6 +160,23 @@ defmodule HeliosWeb.LobbyLiveTest do
       render_hook(view_b, "uninvite", %{"id" => to_string(b.user.id)})
       assert has_element?(view_b, "#flash-error", "Only the table leader can do that")
       assert Lobbies.authorize(a.lobby, b.user) == :ok
+    end
+
+    test "a guest's visit is recorded; the owner's is not", %{conn: conn} do
+      a = player_with_lobby(build_conn())
+      b = player_with_lobby(conn)
+      invite_fixture(a.lobby, a.user, b.user)
+      :ok = Lobbies.accept(Helios.Accounts.Scope.for_user(b.user), a.lobby.id)
+
+      {:ok, _owner_view, _} = live(a.conn, ~p"/lobby/#{a.lobby.id}")
+      assert Repo.get_by!(Invite, lobby_id: a.lobby.id, user_id: b.user.id).last_visited_at == nil
+
+      {:ok, view_b, _} = live(b.conn, ~p"/lobby/#{a.lobby.id}")
+
+      assert %DateTime{} =
+               Repo.get_by!(Invite, lobby_id: a.lobby.id, user_id: b.user.id).last_visited_at
+
+      assert has_element?(view_b, "#recent-table-#{a.lobby.id}", "#{a.user.name}'s table")
     end
   end
 

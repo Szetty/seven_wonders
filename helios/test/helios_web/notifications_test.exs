@@ -281,5 +281,56 @@ defmodule HeliosWeb.NotificationsTest do
       render_hook(view_b, "dismiss_notification", %{})
       assert has_element?(view_b, "#lobby")
     end
+
+    # Review Focus 4.
+    test "opening the inviting table accepts the invite and clears the banner in every tab", %{
+      conn: conn
+    } do
+      ctx = two_players(conn)
+      invite_fixture(ctx.lobby_a, ctx.a, ctx.b)
+      {:ok, other_tab, _} = live(ctx.conn_b, ~p"/lobby/#{ctx.lobby_b.id}")
+      assert has_element?(other_tab, "#accept-invite-#{ctx.lobby_a.id}")
+
+      {:ok, at_table, _} = live(ctx.conn_b, ~p"/lobby/#{ctx.lobby_a.id}")
+
+      refute has_element?(at_table, "#accept-invite-#{ctx.lobby_a.id}")
+      refute has_element?(other_tab, "#accept-invite-#{ctx.lobby_a.id}")
+      assert Lobbies.pending_invites(ctx.b) == []
+      assert has_element?(at_table, "#recent-table-#{ctx.lobby_a.id}")
+      assert has_element?(other_tab, "#recent-table-#{ctx.lobby_a.id}")
+    end
+
+    # Review Focus 1.
+    test "re-opening a table whose invite is accepted broadcasts nothing", %{conn: conn} do
+      ctx = two_players(conn)
+      invite_fixture(ctx.lobby_a, ctx.a, ctx.b)
+      :ok = Lobbies.accept(Scope.for_user(ctx.b), ctx.lobby_a.id)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(ctx.b.id))
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(ctx.a.id))
+
+      {:ok, _at_table, _} = live(ctx.conn_b, ~p"/lobby/#{ctx.lobby_a.id}")
+      {:ok, _own, _} = live(ctx.conn_a, ~p"/lobby/#{ctx.lobby_a.id}")
+
+      refute_receive {:invite_resolved, _}
+    end
+
+    # Review Focus 2.
+    test "the disconnected render accepts nothing and records no visit", %{conn: conn} do
+      ctx = two_players(conn)
+      invite_fixture(ctx.lobby_a, ctx.a, ctx.b)
+
+      assert ctx.conn_b |> get(~p"/lobby/#{ctx.lobby_a.id}") |> html_response(200) =~
+               "accept-invite-#{ctx.lobby_a.id}"
+
+      assert Lobbies.pending_invites(ctx.b) == [
+               %{lobby_id: ctx.lobby_a.id, owner_name: ctx.a.name}
+             ]
+
+      assert Helios.Repo.get_by!(Helios.Lobbies.Invite,
+               lobby_id: ctx.lobby_a.id,
+               user_id: ctx.b.id
+             ).last_visited_at ==
+               nil
+    end
   end
 end

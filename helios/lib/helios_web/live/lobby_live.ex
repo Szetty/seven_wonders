@@ -22,7 +22,7 @@ defmodule HeliosWeb.LobbyLive do
 
     with {:ok, lobby} <- Lobbies.fetch_lobby(game_id),
          :ok <- Lobbies.authorize(lobby, user) do
-      {:ok, socket |> setup(lobby, user) |> assign_game_state()}
+      {:ok, socket |> setup(lobby, user) |> arrive(lobby, user) |> assign_game_state()}
     else
       {:error, reason} ->
         own = Lobbies.get_or_create_own_lobby(user)
@@ -51,6 +51,20 @@ defmodule HeliosWeb.LobbyLive do
     |> assign(:connected_ids, MapSet.new([user.id]))
     |> load_members()
     |> load_connected()
+  end
+
+  # Opening a table you were invited to counts as accepting the invite; the
+  # `{:invite_resolved, _}` broadcast clears the banner here and in other tabs
+  # (HeliosWeb.Notifications subscribed in on_mount, before this mount).
+  defp arrive(socket, lobby, user) do
+    if connected?(socket) and lobby.owner_id != user.id do
+      scope = socket.assigns.current_scope
+      Lobbies.accept_pending(scope, lobby.id)
+      :ok = Lobbies.touch_visit(scope, lobby.id)
+      Notifications.refresh_recent_tables(socket)
+    else
+      socket
+    end
   end
 
   @impl true
