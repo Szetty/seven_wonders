@@ -150,6 +150,38 @@ defmodule Helios.Lobbies do
     end
   end
 
+  @doc """
+  Accepts the invite only while it is pending (opening the table counts as
+  accepting it). Already accepted, missing or malformed: `:none`, no broadcast.
+  """
+  @spec accept_pending(Scope.t(), term()) :: :ok | :none
+  def accept_pending(%Scope{user: %User{id: user_id}} = scope, lobby_id) do
+    with {:ok, lobby_id} <- cast_lobby_id(lobby_id),
+         true <-
+           Repo.exists?(
+             from i in Invite,
+               where: i.lobby_id == ^lobby_id and i.user_id == ^user_id and i.status == "pending"
+           ),
+         :ok <- accept(scope, lobby_id) do
+      :ok
+    else
+      _ -> :none
+    end
+  end
+
+  @doc "Records that the invitee opened the table (feeds `recent_tables/1`). Always `:ok`."
+  @spec touch_visit(Scope.t(), term()) :: :ok
+  def touch_visit(%Scope{user: %User{id: user_id}}, lobby_id) do
+    with {:ok, lobby_id} <- cast_lobby_id(lobby_id) do
+      Repo.update_all(
+        from(i in Invite, where: i.lobby_id == ^lobby_id and i.user_id == ^user_id),
+        set: [last_visited_at: now()]
+      )
+    end
+
+    :ok
+  end
+
   @doc "The invitee declines a pending invite and loses authorization."
   @spec decline(Scope.t(), term()) :: :ok | {:error, :not_invited}
   def decline(%Scope{user: %User{} = user}, lobby_id) do

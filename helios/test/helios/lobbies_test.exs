@@ -328,4 +328,66 @@ defmodule Helios.LobbiesTest do
       assert Lobbies.owner_name("nope") == nil
     end
   end
+
+  describe "touch_visit/2" do
+    test "stamps last_visited_at on the user's invite for that lobby only" do
+      guest = player_fixture()
+      first = owner_and_lobby()
+      second = owner_and_lobby()
+      invite_fixture(first.lobby, first.owner, guest)
+      invite_fixture(second.lobby, second.owner, guest)
+
+      assert Repo.get_by!(Invite, lobby_id: first.lobby.id, user_id: guest.id).last_visited_at ==
+               nil
+
+      assert Lobbies.touch_visit(Scope.for_user(guest), first.lobby.id) == :ok
+
+      assert %DateTime{} =
+               Repo.get_by!(Invite, lobby_id: first.lobby.id, user_id: guest.id).last_visited_at
+
+      assert Repo.get_by!(Invite, lobby_id: second.lobby.id, user_id: guest.id).last_visited_at ==
+               nil
+    end
+
+    test "is a no-op without an invite or with a malformed id" do
+      %{lobby: lobby, scope: owner_scope} = owner_and_lobby()
+      stranger = Scope.for_user(player_fixture())
+
+      assert Lobbies.touch_visit(stranger, lobby.id) == :ok
+      assert Lobbies.touch_visit(owner_scope, lobby.id) == :ok
+      assert Lobbies.touch_visit(stranger, "not-a-uuid") == :ok
+      assert Lobbies.touch_visit(stranger, nil) == :ok
+    end
+  end
+
+  describe "accept_pending/2" do
+    test "accepts a pending invite and broadcasts :invite_resolved" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(guest.id))
+
+      assert Lobbies.accept_pending(Scope.for_user(guest), lobby.id) == :ok
+
+      lobby_id = lobby.id
+      assert_receive {:invite_resolved, ^lobby_id}
+      assert Repo.get_by!(Invite, lobby_id: lobby.id, user_id: guest.id).status == "accepted"
+    end
+
+    # Review Focus 1: an accepted invite is never re-accepted on arrival.
+    test "does nothing for an accepted, missing or malformed invite" do
+      %{owner: owner, lobby: lobby, scope: owner_scope} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      :ok = Lobbies.accept(Scope.for_user(guest), lobby.id)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(guest.id))
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(owner.id))
+
+      assert Lobbies.accept_pending(Scope.for_user(guest), lobby.id) == :none
+      assert Lobbies.accept_pending(owner_scope, lobby.id) == :none
+      assert Lobbies.accept_pending(Scope.for_user(guest), "not-a-uuid") == :none
+      assert Lobbies.accept_pending(Scope.for_user(guest), nil) == :none
+      refute_receive {:invite_resolved, _}
+    end
+  end
 end
