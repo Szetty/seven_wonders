@@ -83,4 +83,46 @@ defmodule Helios.Games.ReplayTest do
 
     assert Enum.all?(frames, fn frame -> Enum.any?(frame.players, &(&1.name == ia)) end)
   end
+
+  describe "a game where Halikarnassós builds from the discard pile" do
+    setup do
+      users = for _ <- 1..3, do: player_fixture()
+      %{discard_game: discard_build_game_fixture(users), discard_users: users}
+    end
+
+    test "only the chooser's own discard frame carries the discard pile", %{
+      discard_game: game,
+      discard_users: [chooser | others]
+    } do
+      assert {:ok, %{frames: frames, view: final}} = Games.replay(game, chooser.id)
+
+      discard_frames = Enum.filter(frames, &is_list(&1.discard_pile))
+      assert discard_frames != []
+
+      for frame <- discard_frames do
+        assert %{kind: :extra_turn, extra_turn_kind: :build_from_discard} = frame.phase
+        assert frame.phase.extra_turn_player == to_string(chooser.id)
+        assert frame.discard_pile != []
+        assert frame.discard_pile == Enum.sort(Enum.uniq(frame.discard_pile))
+        assert {:build_from_discard, card} = frame.my_choice
+        assert card in frame.discard_pile
+        assert frame.hand == []
+      end
+
+      for frame <- frames, frame.phase.kind != :extra_turn do
+        assert frame.discard_pile == nil
+      end
+
+      assert Enum.all?(frames, &(is_integer(&1.discard_count) and &1.discard_count >= 0))
+      assert hd(frames).discard_count == 0
+      assert List.last(frames).discard_count == final.discard_count
+
+      for other <- others do
+        assert {:ok, %{frames: other_frames}} = Games.replay(game, other.id)
+        assert length(other_frames) == length(frames)
+        assert Enum.all?(other_frames, &is_nil(&1.discard_pile))
+        assert Enum.map(other_frames, & &1.discard_count) == Enum.map(frames, & &1.discard_count)
+      end
+    end
+  end
 end

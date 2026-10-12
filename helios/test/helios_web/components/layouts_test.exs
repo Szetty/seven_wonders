@@ -18,6 +18,53 @@ defmodule HeliosWeb.LayoutsTest do
     |> LazyHTML.from_fragment()
   end
 
+  defp render_with_tables(tables) do
+    assigns = %{scope: Scope.for_user(%User{id: 1, name: "alice"}), tables: tables}
+
+    rendered_to_string(~H"""
+    <Layouts.app flash={%{}} current_scope={@scope} recent_tables={@tables}>
+      <p id="content">Hello</p>
+    </Layouts.app>
+    """)
+    |> LazyHTML.from_fragment()
+  end
+
+  test "the Recent tables menu links each table and starts closed" do
+    id = Ecto.UUID.generate()
+    doc = render_with_tables([%{lobby_id: id, owner_name: "bob", last_active_at: nil}])
+
+    button = LazyHTML.query(doc, "#site-header #recent-tables-button")
+    assert LazyHTML.attribute(button, "aria-controls") == ["recent-tables-menu"]
+    assert LazyHTML.attribute(button, "aria-haspopup") == ["menu"]
+    assert LazyHTML.attribute(button, "aria-expanded") == ["false"]
+    assert [js] = LazyHTML.attribute(button, "phx-click")
+    assert js =~ "#recent-tables-menu"
+
+    # Phones: icon only, the label stays for screen readers.
+    assert doc |> LazyHTML.query("#recent-tables-button .hero-user-group") |> Enum.count() == 1
+
+    assert doc |> LazyHTML.query("#recent-tables-button .sr-only") |> LazyHTML.text() =~
+             "Recent tables"
+
+    wrapper = LazyHTML.query(doc, "#recent-tables")
+    assert [_] = LazyHTML.attribute(wrapper, "phx-click-away")
+    assert LazyHTML.attribute(wrapper, "phx-key") == ["Escape"]
+
+    [menu_class] = doc |> LazyHTML.query("#recent-tables-menu") |> LazyHTML.attribute("class")
+    assert "hidden" in String.split(menu_class)
+
+    link = LazyHTML.query(doc, "#recent-tables-menu #recent-table-#{id}")
+    assert LazyHTML.attribute(link, "href") == ["/lobby/#{id}"]
+    assert link |> LazyHTML.text() |> String.trim() == "bob's table"
+  end
+
+  # Review Focus 5.
+  test "no Recent tables button when there are none" do
+    doc = render_with_tables([])
+    assert doc |> LazyHTML.query("#recent-tables, #recent-tables-button") |> Enum.empty?()
+    assert doc |> LazyHTML.query("#site-header #my-table-link") |> Enum.count() == 1
+  end
+
   test "the background class wraps the header and the content" do
     doc = render_app(Scope.for_user(%User{id: 1, name: "alice"}), "bg-test-paper")
     assert doc |> LazyHTML.query(".bg-test-paper #site-header") |> Enum.count() == 1

@@ -1,6 +1,8 @@
 defmodule HeliosWeb.Notifications do
   @moduledoc """
-  Per-user notification strip for every authenticated LiveView.
+  Per-user notification strip for every authenticated LiveView. Also owns the
+  header's `recent_tables` assign (`Lobbies.recent_tables/1`), which changes on
+  the same `user:<id>` messages (`{:invite_resolved, _}`, `{:uninvited, _}`).
 
   Two kinds:
 
@@ -41,6 +43,7 @@ defmodule HeliosWeb.Notifications do
     {:cont,
      socket
      |> assign(:notifications, notifications)
+     |> assign(:recent_tables, Lobbies.recent_tables(user))
      |> attach_hook(:notifications, :handle_info, &handle_info/2)
      |> attach_hook(:notifications, :handle_event, &handle_event/3)}
   end
@@ -50,6 +53,11 @@ defmodule HeliosWeb.Notifications do
     notification = simple(message)
     Process.send_after(self(), {:expire_notification, notification.id}, @simple_ttl_ms)
     update(socket, :notifications, &add(&1, notification))
+  end
+
+  @doc "Reloads the header's Recent tables menu for the current user."
+  def refresh_recent_tables(socket) do
+    assign(socket, :recent_tables, Lobbies.recent_tables(socket.assigns.current_scope.user))
   end
 
   @spec approve(%{lobby_id: String.t(), owner_name: String.t()}) :: notification()
@@ -101,7 +109,11 @@ defmodule HeliosWeb.Notifications do
   end
 
   defp handle_info({:uninvited, lobby_id}, socket) do
-    socket = update(socket, :notifications, &remove(&1, approve_id(lobby_id)))
+    socket =
+      socket
+      |> update(:notifications, &remove(&1, approve_id(lobby_id)))
+      |> refresh_recent_tables()
+
     message = removed_message(Lobbies.owner_name(lobby_id))
 
     case socket.assigns do
@@ -115,7 +127,10 @@ defmodule HeliosWeb.Notifications do
   end
 
   defp handle_info({:invite_resolved, lobby_id}, socket) do
-    {:halt, update(socket, :notifications, &remove(&1, approve_id(lobby_id)))}
+    {:halt,
+     socket
+     |> update(:notifications, &remove(&1, approve_id(lobby_id)))
+     |> refresh_recent_tables()}
   end
 
   defp handle_info({:expire_notification, id}, socket) do

@@ -27,6 +27,8 @@ defmodule HeliosWeb.GameLiveTest do
   test "a seated player sees the table", %{game: game, players: [{_a, ta} | _]} do
     {:ok, view, _html} = open(ta, game.id)
     assert has_element?(view, "#top-bar[data-turn-key='1-1']")
+    assert has_element?(view, "#top-bar[data-replay='false']")
+    assert has_element?(view, "#waiting-count", "Waiting for 3")
     assert has_element?(view, "#my-board")
     assert has_element?(view, "#west-panel")
     assert has_element?(view, "#east-panel")
@@ -436,6 +438,21 @@ defmodule HeliosWeb.GameLiveTest do
     assert has_element?(view, "#hand[phx-hook]")
   end
 
+  test "the status bar counts the discard pile once cards are discarded", %{
+    game: game,
+    players: players
+  } do
+    [{_a, ta} | _] = players
+    ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
+    {:ok, view, _html} = open(ta, game.id)
+    refute has_element?(view, "#discard-pile")
+
+    {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+    Helios.GameDriver.step(ids, %{}, view_fun, submit_fun)
+
+    assert has_element?(view, "#pass-row #discard-pile[data-count='3']")
+  end
+
   test "the dock clips horizontal overflow so the hand slide cannot scroll the page", %{
     game: game,
     players: players
@@ -482,9 +499,12 @@ defmodule HeliosWeb.GameLiveTest do
       {:ok, view, _html} = open(ta, game.id)
       assert has_element?(view, "#replay-position", "Final")
       assert has_element?(view, "#scoreboard")
+      assert has_element?(view, "#top-bar[data-replay='true']")
 
       view |> element("#replay-first") |> render_click()
       assert has_element?(view, "#replay-position", "Age I · Turn 1")
+      refute has_element?(view, "#waiting-count")
+      refute has_element?(view, "#waiting-for")
       assert has_element?(view, "#replay-hand [data-card]")
       assert has_element?(view, "#replay-choice", "You chose: Discard")
       assert has_element?(view, "#my-board [data-stat='coins']", "3")
@@ -524,6 +544,20 @@ defmodule HeliosWeb.GameLiveTest do
       assert has_element?(view, "#history-0 [phx-click='replay_goto'][phx-value-frame='0']")
     end
 
+    test "the status bar shows the frame's discard count", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = open(ta, game.id)
+      assert has_element?(view, "#discard-pile")
+
+      view |> element("#replay-first") |> render_click()
+      refute has_element?(view, "#discard-pile")
+
+      view |> element("#replay-next") |> render_click()
+      assert has_element?(view, "#discard-pile[data-count='3']")
+    end
+
     test "autoplay pauses at the end-of-age summary and resumes", %{
       game: game,
       players: [{_a, ta} | _]
@@ -549,6 +583,142 @@ defmodule HeliosWeb.GameLiveTest do
 
       view |> element("#replay-play") |> render_click()
       assert has_element?(view, "#replay-bar[data-playing='true']")
+    end
+
+    test "?frame=N opens that frame; garbage and out-of-range values fall back or clamp", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=3")
+      assert has_element?(view, "#replay-position", "Age I · Turn 4")
+      refute has_element?(view, "#scoreboard")
+
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=999")
+      assert has_element?(view, "#replay-position", "Final")
+
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=-4")
+      assert has_element?(view, "#replay-position", "Age I · Turn 1")
+
+      for garbage <- ["abc", "2x", "", "1.5"] do
+        {:ok, view, _html} =
+          live(log_in_conn(build_conn(), ta), "/game/#{game.id}?frame=#{garbage}")
+
+        assert has_element?(view, "#replay-position", "Final")
+      end
+    end
+
+    test "every frame change patches the URL; the final frame drops the param", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = open(ta, game.id)
+
+      view |> element("#replay-first") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}?frame=0")
+
+      view |> element("#replay-next") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}?frame=1")
+      assert_push_event(view, "turn_resolved", %{plays: [_, _, _]})
+
+      view |> element("#replay-prev") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}?frame=0")
+
+      render_click(view, "replay_goto", %{"frame" => "6"})
+      assert_patch(view, ~p"/game/#{game.id}?frame=6")
+      assert has_element?(view, "#replay-position", "Age II · Turn 1")
+
+      view |> element("#replay-last") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}")
+      assert has_element?(view, "#replay-position", "Final")
+    end
+
+    test "autoplay ticks patch the URL and keep playing", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=1")
+      view |> element("#replay-play") |> render_click()
+      assert has_element?(view, "#replay-bar[data-playing='true']")
+
+      render_click(view, "replay_next", %{})
+      assert_patch(view, ~p"/game/#{game.id}?frame=2")
+      assert has_element?(view, "#replay-position", "Age I · Turn 3")
+      assert has_element?(view, "#replay-bar[data-playing='true']")
+    end
+
+    test "the end-of-age summary survives the patch of the step that reveals it", %{
+      game: game,
+      players: [{_a, ta} | _]
+    } do
+      {:ok, view, _html} = live(log_in_conn(build_conn(), ta), ~p"/game/#{game.id}?frame=5")
+      view |> element("#replay-next") |> render_click()
+      assert_patch(view, ~p"/game/#{game.id}?frame=6")
+      assert has_element?(view, "#age-summary")
+    end
+  end
+
+  describe "replay of a Halikarnassós discard build" do
+    setup do
+      players = for _ <- 1..3, do: user_with_token_fixture()
+      game = discard_build_game_fixture(Enum.map(players, &elem(&1, 0)))
+      stop_game_servers()
+      [{chooser, _} | _] = players
+      {:ok, %{frames: frames}} = Games.replay(game, chooser.id)
+      index = Enum.find_index(frames, &is_list(&1.discard_pile))
+      %{discard_game: game, discard_players: players, frames: frames, discard_index: index}
+    end
+
+    test "the chooser sees the cards they could pick, with their choice marked", %{
+      discard_game: game,
+      discard_players: [{_chooser, tc}, {_other, to} | _],
+      frames: frames,
+      discard_index: index
+    } do
+      frame = Enum.at(frames, index)
+      {:build_from_discard, card} = frame.my_choice
+      slug = HeliosWeb.GameAssets.slug(card)
+
+      {:ok, view, _html} = open(tc, game.id)
+      refute has_element?(view, "#replay-discard")
+      render_click(view, "replay_goto", %{"frame" => to_string(index)})
+      assert has_element?(view, "#replay-position", "extra turn")
+
+      for name <- frame.discard_pile do
+        assert has_element?(
+                 view,
+                 "#replay-discard #replay-discard-#{HeliosWeb.GameAssets.slug(name)}"
+               )
+      end
+
+      assert has_element?(view, "#replay-discard-#{slug}[data-chosen='true']", "Chosen")
+      refute has_element?(view, "#replay-hand")
+      assert has_element?(view, "#replay-choice", "Build #{card} from the discard pile")
+
+      {:ok, other, _html} = open(to, game.id)
+      render_click(other, "replay_goto", %{"frame" => to_string(index)})
+      assert has_element?(other, "#replay-position", "extra turn")
+      refute has_element?(other, "#replay-discard")
+      refute has_element?(other, "#replay-hand")
+    end
+
+    test "stepping past the discard build flies the card from the right origin", %{
+      discard_game: game,
+      discard_players: [{_chooser, tc}, {_other, to} | _],
+      frames: frames,
+      discard_index: index
+    } do
+      {:build_from_discard, card} = Enum.at(frames, index).my_choice
+      from = "discard-card-#{HeliosWeb.GameAssets.slug(card)}"
+
+      {:ok, view, _html} = open(tc, game.id)
+      render_click(view, "replay_goto", %{"frame" => to_string(index)})
+      view |> element("#replay-next") |> render_click()
+      assert_push_event(view, "turn_resolved", %{plays: [%{from: ^from}]})
+
+      {:ok, other, _html} = open(to, game.id)
+      render_click(other, "replay_goto", %{"frame" => to_string(index)})
+      other |> element("#replay-next") |> render_click()
+      assert_push_event(other, "turn_resolved", %{plays: [%{from: "discard-pile"}]})
     end
   end
 
@@ -596,5 +766,23 @@ defmodule HeliosWeb.GameLiveTest do
       "coins" => 5,
       "rank" => rank
     }
+  end
+
+  # Review Focus 4.
+  test "opening a game accepts a pending invite to its table in every tab" do
+    [{a, _ta}, {b, tb}, {c, _tc}] = for _ <- 1..3, do: user_with_token_fixture()
+    lobby = Helios.Lobbies.get_or_create_own_lobby(a)
+    :ok = invite_all(a, lobby, [b, c])
+    game = game_fixture([a, b, c], lobby: lobby)
+
+    {:ok, other_tab, _} = live(log_in_conn(build_conn(), tb), ~p"/games")
+    assert has_element?(other_tab, "#accept-invite-#{lobby.id}")
+
+    {:ok, view, _html} = open(tb, game.id)
+
+    refute has_element?(view, "#accept-invite-#{lobby.id}")
+    refute has_element?(other_tab, "#accept-invite-#{lobby.id}")
+    assert Helios.Lobbies.pending_invites(b) == []
+    assert has_element?(view, "#recent-table-#{lobby.id}")
   end
 end

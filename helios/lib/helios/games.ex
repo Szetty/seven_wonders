@@ -226,8 +226,9 @@ defmodule Helios.Games do
   @doc """
   Rebuilds a finished game from its log in a throwaway engine: the viewer's
   final view, the public history, and one frame per turn (public boards plus
-  the viewer's own hand and final choice that turn). `{:error, :not_finished}`
-  if the log stops short of game over.
+  the viewer's own hand and final choice that turn, the discard-pile size and,
+  in the viewer's own build-from-discard turn only, the buildable discards).
+  `{:error, :not_finished}` if the log stops short of game over.
   """
   @spec replay(Game.t(), integer()) ::
           {:ok, %{view: map(), history: [term()], frames: [map()]}} | {:error, term()}
@@ -280,6 +281,11 @@ defmodule Helios.Games do
       players: view.players,
       hand: Enum.map(view.hand, & &1.name),
       phase: view.phase,
+      # Non-nil only in the viewer's own build-from-discard turn: the engine
+      # fills it for that player alone, so the replay shows the discards
+      # exactly to whoever saw them live.
+      discard_pile: view.discard_pile,
+      discard_count: view.discard_count,
       my_choice: nil,
       event_index: nil
     }

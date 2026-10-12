@@ -82,4 +82,33 @@ defmodule HeliosWeb.GameComponents.ExtraTurnTest do
     assert count(render_notice(view), "#waiting-extra-turn, #play-last-card") == 0
     assert count(render_picker(view), "#discard-picker") == 0
   end
+
+  test "the discard picker snapshots its card rects for the fly animation" do
+    view = extra("1", :build_from_discard, %{discard_pile: ["Altar", "Lumber Yard"], hand: []})
+    html = render_picker(view)
+    assert [hook] = attrs(html, "#discard-picker", "phx-hook")
+    assert hook =~ "DiscardRects"
+
+    assert attrs(html, "#discard-picker [data-fx-id]", "data-fx-id") ==
+             ["discard-card-altar", "discard-card-lumberyard"]
+
+    assert attrs(html, "#discard-pick-1", "data-fx-id") == ["discard-card-lumberyard"]
+  end
+
+  test "replay_discard shows the options read-only with the chosen card marked" do
+    html =
+      render_component(&ExtraTurn.replay_discard/1,
+        cards: ["Altar", "Lumber Yard"],
+        chosen: "Lumber Yard"
+      )
+
+    assert attrs(html, "#replay-discard [data-card]", "data-card") == ["Altar", "Lumber Yard"]
+    assert attrs(html, "#replay-discard-lumberyard", "data-chosen") == ["true"]
+    assert attrs(html, "#replay-discard-altar", "data-chosen") == ["false"]
+    assert text(html, "#replay-discard-lumberyard") == "Chosen"
+    assert attrs(html, "#replay-discard-altar", "data-fx-id") == ["discard-card-altar"]
+    assert [hook] = attrs(html, "#replay-discard", "phx-hook")
+    assert hook =~ "DiscardRects"
+    assert count(html, "#replay-discard button, #replay-discard [phx-click]") == 0
+  end
 end

@@ -31,6 +31,7 @@ defmodule HeliosWeb.GameLive do
       flash={@flash}
       current_scope={@current_scope}
       notifications={@notifications}
+      recent_tables={@recent_tables}
       background="bg-[url('/images/paper.jpg')] bg-cover lg:bg-fixed"
     >
       <div id="game" class="flex min-h-dvh flex-col">
@@ -49,11 +50,17 @@ defmodule HeliosWeb.GameLive do
           <.top_bar
             view={
               if @replay,
-                do: %{@view | phase: current_frame(@replay).phase, submitted: []},
+                do: %{
+                  @view
+                  | phase: current_frame(@replay).phase,
+                    submitted: [],
+                    discard_count: current_frame(@replay).discard_count
+                },
                 else: @view
             }
             names={@names}
             connected={@connected}
+            replay={@replay != nil}
           />
           <%= if @view.phase.kind == :game_over do %>
             <div class="flex flex-col gap-3 pb-4 sm:gap-4">
@@ -98,10 +105,16 @@ defmodule HeliosWeb.GameLive do
                 statuses={@statuses}
               />
               <div
-                :if={@replay && current_frame(@replay).hand != []}
+                :if={@replay && (current_frame(@replay).hand != [] or frame_discard(@replay) != [])}
                 class="sticky bottom-0 z-30 overflow-x-clip rounded-t-xl bg-antique/95 p-2 shadow"
               >
+                <.replay_discard
+                  :if={frame_discard(@replay) != []}
+                  cards={frame_discard(@replay)}
+                  chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
+                />
                 <.replay_hand
+                  :if={current_frame(@replay).hand != []}
                   hand={current_frame(@replay).hand}
                   chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
                 />
@@ -228,6 +241,16 @@ defmodule HeliosWeb.GameLive do
     end
   end
 
+  # The replay frame lives in the URL (?frame=N) so a reload returns to it.
+  # Active games and games without boards have no replay: params are ignored.
+  @impl true
+  def handle_params(params, _uri, %{assigns: %{replay: %{} = replay}} = socket) do
+    index = frame_param(params["frame"], length(replay.frames) - 1)
+    {:noreply, if(index == replay.index, do: socket, else: goto(socket, index))}
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+
   defp mount_game(socket, game, user) do
     case authorize(game, user) do
       :ok -> mount_authorized(socket, game, user)
@@ -236,11 +259,22 @@ defmodule HeliosWeb.GameLive do
   end
 
   defp mount_authorized(socket, game, user) do
+    arrive(socket, game)
+
     if game.status == "finished" do
       mount_finished(socket, game, user)
     else
       mount_active(socket, game, user)
     end
+  end
+
+  # A seated player opening a game straight from a table they were invited to
+  # "arrives" there too; the `{:invite_resolved, _}` broadcast clears the banner.
+  defp arrive(socket, game) do
+    if connected?(socket),
+      do: Lobbies.accept_pending(socket.assigns.current_scope, game.lobby_id)
+
+    :ok
   end
 
   defp mount_active(socket, game, user) do
@@ -285,6 +319,9 @@ defmodule HeliosWeb.GameLive do
 
   defp current_frame(%{frames: frames, index: index}), do: Enum.at(frames, index)
 
+  # Only the viewer's own build-from-discard frame has a pile (Games.replay/2).
+  defp frame_discard(replay), do: current_frame(replay).discard_pile || []
+
   # The table shows the frame's public boards; @view keeps the final view (scores, me, neighbours).
   defp assign_frame(socket) do
     frame = current_frame(socket.assigns.replay)
@@ -307,9 +344,35 @@ defmodule HeliosWeb.GameLive do
         do: {index, frame}
   end
 
+  # Missing or non-integer → the final frame; integers are clamped to 0..last.
+  defp frame_param(value, last) when is_binary(value) do
+    case Integer.parse(value) do
+      {index, ""} -> index |> max(0) |> min(last)
+      _ -> last
+    end
+  end
+
+  defp frame_param(_value, last), do: last
+
+  # The one place a replay frame change is announced: handle_params/3 then
+  # shows the frame. The final frame keeps the plain game URL.
+  defp patch_frame(socket, index) do
+    %{game: game, replay: replay} = socket.assigns
+
+    to =
+      if index == length(replay.frames) - 1,
+        do: ~p"/game/#{game.id}",
+        else: ~p"/game/#{game.id}?frame=#{index}"
+
+    push_patch(socket, to: to, replace: true)
+  end
+
+  defp pause(socket), do: update(socket, :replay, &%{&1 | playing: false})
+
+  # History-drawer links: only real frame numbers move; anything else is ignored.
   defp goto_param(socket, frame, last) do
     case Integer.parse(to_string(frame)) do
-      {index, ""} when index >= 0 and index <= last -> goto(socket, index)
+      {index, ""} when index >= 0 and index <= last -> socket |> pause() |> patch_frame(index)
       _ -> socket
     end
   end
@@ -358,6 +421,7 @@ defmodule HeliosWeb.GameLive do
       }
     end)
     |> assign_frame()
+    |> then(&patch_frame(&1, &1.assigns.replay.index))
   end
 
   defp setup(socket, game, user) do
@@ -449,13 +513,13 @@ defmodule HeliosWeb.GameLive do
     socket =
       case {action, params} do
         {"first", _} ->
-          goto(socket, 0)
+          socket |> pause() |> patch_frame(0)
 
         {"prev", _} ->
-          goto(socket, max(replay.index - 1, 0))
+          socket |> pause() |> patch_frame(max(replay.index - 1, 0))
 
         {"last", _} ->
-          goto(socket, last)
+          socket |> pause() |> patch_frame(last)
 
         {"next", _} when replay.index < last ->
           step_forward(socket)

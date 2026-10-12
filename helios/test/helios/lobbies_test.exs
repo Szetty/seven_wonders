@@ -5,6 +5,7 @@ defmodule Helios.LobbiesTest do
 
   alias Helios.Accounts.Scope
   alias Helios.Accounts.User
+  alias Helios.Games.Game
   alias Helios.Lobbies
   alias Helios.Lobbies.Invite
   alias Helios.Lobbies.Lobby
@@ -326,6 +327,162 @@ defmodule Helios.LobbiesTest do
       assert Lobbies.owner_name(lobby.id) == owner.name
       assert Lobbies.owner_name(Ecto.UUID.generate()) == nil
       assert Lobbies.owner_name("nope") == nil
+    end
+  end
+
+  describe "touch_visit/2" do
+    test "stamps last_visited_at on the user's invite for that lobby only" do
+      guest = player_fixture()
+      first = owner_and_lobby()
+      second = owner_and_lobby()
+      invite_fixture(first.lobby, first.owner, guest)
+      invite_fixture(second.lobby, second.owner, guest)
+
+      assert Repo.get_by!(Invite, lobby_id: first.lobby.id, user_id: guest.id).last_visited_at ==
+               nil
+
+      assert Lobbies.touch_visit(Scope.for_user(guest), first.lobby.id) == :ok
+
+      assert %DateTime{} =
+               Repo.get_by!(Invite, lobby_id: first.lobby.id, user_id: guest.id).last_visited_at
+
+      assert Repo.get_by!(Invite, lobby_id: second.lobby.id, user_id: guest.id).last_visited_at ==
+               nil
+    end
+
+    test "is a no-op without an invite or with a malformed id" do
+      %{lobby: lobby, scope: owner_scope} = owner_and_lobby()
+      stranger = Scope.for_user(player_fixture())
+
+      assert Lobbies.touch_visit(stranger, lobby.id) == :ok
+      assert Lobbies.touch_visit(owner_scope, lobby.id) == :ok
+      assert Lobbies.touch_visit(stranger, "not-a-uuid") == :ok
+      assert Lobbies.touch_visit(stranger, nil) == :ok
+    end
+  end
+
+  describe "accept_pending/2" do
+    test "accepts a pending invite and broadcasts :invite_resolved" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(guest.id))
+
+      assert Lobbies.accept_pending(Scope.for_user(guest), lobby.id) == :ok
+
+      lobby_id = lobby.id
+      assert_receive {:invite_resolved, ^lobby_id}
+      assert Repo.get_by!(Invite, lobby_id: lobby.id, user_id: guest.id).status == "accepted"
+    end
+
+    # Review Focus 1: an accepted invite is never re-accepted on arrival.
+    test "does nothing for an accepted, missing or malformed invite" do
+      %{owner: owner, lobby: lobby, scope: owner_scope} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      :ok = Lobbies.accept(Scope.for_user(guest), lobby.id)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(guest.id))
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.user_topic(owner.id))
+
+      assert Lobbies.accept_pending(Scope.for_user(guest), lobby.id) == :none
+      assert Lobbies.accept_pending(owner_scope, lobby.id) == :none
+      assert Lobbies.accept_pending(Scope.for_user(guest), "not-a-uuid") == :none
+      assert Lobbies.accept_pending(Scope.for_user(guest), nil) == :none
+      refute_receive {:invite_resolved, _}
+    end
+  end
+
+  describe "recent_tables/1" do
+    defp table_for(guest, accept? \\ true) do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      invite_fixture(lobby, owner, guest)
+      if accept?, do: :ok = Lobbies.accept(Scope.for_user(guest), lobby.id)
+      %{owner: owner, lobby: lobby}
+    end
+
+    defp visited(%{lobby: lobby}, guest, at) do
+      Repo.update_all(
+        from(i in Invite, where: i.lobby_id == ^lobby.id and i.user_id == ^guest.id),
+        set: [last_visited_at: at]
+      )
+    end
+
+    # Finished, so several games may share one lobby.
+    defp played(%{lobby: lobby}, users, at) do
+      game = Helios.GamesFixtures.game_fixture(users, lobby: lobby)
+
+      Repo.update_all(from(g in Game, where: g.id == ^game.id),
+        set: [inserted_at: at, status: "finished"]
+      )
+    end
+
+    test "orders by the later of last visit and last game played, never-active last" do
+      guest = player_fixture()
+      visit_only = table_for(guest)
+      play_only = table_for(guest)
+      both = table_for(guest)
+      idle = table_for(guest)
+
+      visited(visit_only, guest, ~U[2026-10-01 10:00:00Z])
+      played(play_only, [play_only.owner, guest], ~U[2026-10-03 10:00:00Z])
+      visited(both, guest, ~U[2026-09-01 10:00:00Z])
+      played(both, [both.owner, guest], ~U[2026-09-15 10:00:00Z])
+      played(both, [both.owner, guest], ~U[2026-10-02 10:00:00Z])
+
+      assert Lobbies.recent_tables(guest) == [
+               %{
+                 lobby_id: play_only.lobby.id,
+                 owner_name: play_only.owner.name,
+                 last_active_at: ~U[2026-10-03 10:00:00Z]
+               },
+               %{
+                 lobby_id: both.lobby.id,
+                 owner_name: both.owner.name,
+                 last_active_at: ~U[2026-10-02 10:00:00Z]
+               },
+               %{
+                 lobby_id: visit_only.lobby.id,
+                 owner_name: visit_only.owner.name,
+                 last_active_at: ~U[2026-10-01 10:00:00Z]
+               },
+               %{lobby_id: idle.lobby.id, owner_name: idle.owner.name, last_active_at: nil}
+             ]
+    end
+
+    # Review Focus 3.
+    test "pending, uninvited and own tables are excluded" do
+      guest = player_fixture()
+      _pending = table_for(guest, false)
+      removed = table_for(guest)
+      :ok = Lobbies.uninvite(Scope.for_user(removed.owner), removed.lobby, guest.id)
+      own = %{lobby: lobby_fixture(guest)}
+      played(own, [guest, player_fixture()], ~U[2026-10-05 10:00:00Z])
+
+      assert Lobbies.recent_tables(guest) == []
+    end
+
+    # Review Focus 3.
+    test "a game the user was not seated in does not count" do
+      guest = player_fixture()
+      table = table_for(guest)
+      visited(table, guest, ~U[2026-10-01 10:00:00Z])
+      played(table, [table.owner, player_fixture()], ~U[2026-10-09 10:00:00Z])
+
+      assert [%{last_active_at: ~U[2026-10-01 10:00:00Z]}] = Lobbies.recent_tables(guest)
+    end
+
+    test "keeps the 5 most recent" do
+      guest = player_fixture()
+
+      tables =
+        for day <- 1..6 do
+          table = table_for(guest)
+          visited(table, guest, DateTime.new!(Date.new!(2026, 10, day), ~T[10:00:00], "Etc/UTC"))
+          table
+        end
+
+      expected = tables |> Enum.reverse() |> Enum.take(5) |> Enum.map(& &1.lobby.id)
+      assert Enum.map(Lobbies.recent_tables(guest), & &1.lobby_id) == expected
     end
   end
 end

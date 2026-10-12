@@ -65,6 +65,28 @@ defmodule Helios.GamesFixtures do
     game
   end
 
+  @discard_wonders [{"Halikarnassós", :b}, {"Gizah", :a}, {"Rhódos", :a}]
+
+  @doc """
+  A finished 3-player game in which the first user (Halikarnassós B) built
+  from the discard pile at least once. The seed is searched in a throwaway
+  engine, then the game is persisted and played to the end through
+  `Helios.Games`, so its action log replays like any real game.
+  """
+  def discard_build_game_fixture([_, _, _] = users) do
+    [first | rest] = ids = Enum.map(users, &to_string(&1.id))
+    strategies = Map.new([{first, :wonder} | Enum.map(rest, &{&1, :build})])
+    stop? = &match?(%{phase: %{kind: :extra_turn, extra_turn_kind: :build_from_discard}}, &1)
+    seed = Helios.GameDriver.find_seed(ids, @discard_wonders, strategies, stop?)
+    game = game_fixture(users, seed: seed, wonders: @discard_wonders)
+    {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+
+    {:game_over, _view} =
+      Helios.GameDriver.play_until(ids, strategies, view_fun, submit_fun, fn _ -> false end)
+
+    Repo.get!(Game, game.id)
+  end
+
   @doc "Terminates every GameServer. Register with `on_exit/1` so it runs before the sandbox stops."
   def stop_game_servers do
     Helios.Games.Supervisor

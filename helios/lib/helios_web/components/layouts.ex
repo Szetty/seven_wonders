@@ -32,6 +32,10 @@ defmodule HeliosWeb.Layouts do
     default: [],
     doc: "notifications from HeliosWeb.Notifications (authenticated pages)"
 
+  attr :recent_tables, :list,
+    default: [],
+    doc: "tables from Lobbies.recent_tables/1 for the header menu (authenticated pages)"
+
   attr :background, :string,
     default: nil,
     doc: "classes painting the page background behind the header and the content"
@@ -42,7 +46,7 @@ defmodule HeliosWeb.Layouts do
     ~H"""
     <div class={["min-h-dvh", @background]}>
       <div :if={@current_scope && @current_scope.user} class="px-2 pt-2 sm:px-6 sm:pt-4 lg:px-8">
-        <.site_header current_scope={@current_scope} />
+        <.site_header current_scope={@current_scope} recent_tables={@recent_tables} />
         <.notifications items={@notifications} />
       </div>
 
@@ -113,15 +117,17 @@ defmodule HeliosWeb.Layouts do
   end
 
   @doc """
-  The rounded teal→blue header bar: username on the left, Logout on the right.
+  The rounded teal→blue header bar: username on the left; Recent tables (when
+  there are any), Past games, My table and Logout on the right.
   """
   attr :current_scope, :map, required: true
+  attr :recent_tables, :list, default: []
 
   def site_header(assigns) do
     ~H"""
     <header
       id="site-header"
-      class="flex items-center justify-between gap-2 rounded-2xl bg-linear-to-b from-header-from to-header-to px-3 py-2 text-white shadow-md sm:px-6 sm:py-3"
+      class="flex items-center justify-between gap-1 rounded-2xl bg-linear-to-b from-header-from to-header-to px-3 py-2 text-white shadow-md sm:gap-2 sm:px-6 sm:py-3"
     >
       <span
         id="current-user-name"
@@ -129,12 +135,13 @@ defmodule HeliosWeb.Layouts do
       >
         {@current_scope.user.name}
       </span>
+      <.recent_tables :if={@recent_tables != []} tables={@recent_tables} />
       <.link
         navigate={~p"/games"}
         id="past-games-link"
         class="inline-flex shrink-0 items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold text-white/90 transition hover:bg-white/15 hover:text-white active:bg-white/25 pointer-coarse:min-h-11"
       >
-        Past games
+        <span class="sm:hidden">Games</span><span class="hidden sm:inline">Past games</span>
       </.link>
       <.link
         href={~p"/"}
@@ -153,6 +160,60 @@ defmodule HeliosWeb.Layouts do
       </.link>
     </header>
     """
+  end
+
+  attr :tables, :list, required: true
+
+  # Click-away and Escape sit on the wrapper, not the menu: a click on the
+  # button is then not "away", so the button's toggle can also close the menu.
+  defp recent_tables(assigns) do
+    ~H"""
+    <div
+      id="recent-tables"
+      class="relative shrink-0"
+      phx-click-away={close_recent_tables()}
+      phx-window-keydown={close_recent_tables()}
+      phx-key="Escape"
+    >
+      <button
+        id="recent-tables-button"
+        type="button"
+        aria-haspopup="menu"
+        aria-controls="recent-tables-menu"
+        aria-expanded="false"
+        phx-click={
+          JS.toggle(to: "#recent-tables-menu")
+          |> JS.toggle_attribute({"aria-expanded", "true", "false"})
+        }
+        class="inline-flex items-center justify-center rounded-md px-2 py-1.5 text-sm font-semibold text-white/90 transition hover:bg-white/15 hover:text-white active:bg-white/25 sm:px-3 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+      >
+        <.icon name="hero-user-group" class="size-5 sm:hidden" />
+        <span class="sr-only sm:not-sr-only">Recent tables</span>
+      </button>
+      <ul
+        id="recent-tables-menu"
+        role="menu"
+        aria-label="Recent tables"
+        class="absolute right-0 top-full z-50 mt-2 hidden w-56 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-white py-1 text-zinc-800 shadow-2xl ring-1 ring-black/10"
+      >
+        <li :for={table <- @tables} role="none">
+          <.link
+            navigate={~p"/lobby/#{table.lobby_id}"}
+            id={"recent-table-#{table.lobby_id}"}
+            role="menuitem"
+            class="flex items-center truncate px-4 py-2 text-sm font-medium transition hover:bg-zinc-100 active:bg-zinc-200 pointer-coarse:min-h-11"
+          >
+            {table.owner_name}'s table
+          </.link>
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  defp close_recent_tables do
+    JS.hide(to: "#recent-tables-menu")
+    |> JS.set_attribute({"aria-expanded", "false"}, to: "#recent-tables-button")
   end
 
   @doc """

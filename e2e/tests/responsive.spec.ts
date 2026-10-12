@@ -82,6 +82,14 @@ for (const vp of VIEWPORTS) {
         const wrapper = await boxOf(page.locator("#members-table").locator("xpath=./.."));
         expect(table.x + table.width).toBeLessThanOrEqual(wrapper.x + wrapper.width + 1);
       }
+      // Review Focus 5: a guest's header with the Recent tables button still fits.
+      const guestPage = players[1].page;
+      await expect(guestPage.locator("#recent-tables-button")).toBeVisible();
+      await expectNoHorizontalScroll(guestPage);
+      for (const id of ["#recent-tables-button", "#my-table-link", "#logout-link"]) {
+        await expect(guestPage.locator(id)).toBeInViewport({ ratio: 1 });
+      }
+      if (vp.touch) await expectTapTargets(guestPage.locator("#recent-tables-button"));
       if (vp.touch) {
         await expectTapTargets(page.locator("[id^='uninvite-']"));
         await expectTapTargets(page.locator("#start-game, #invite-button, #invite_user_id"));
@@ -101,9 +109,35 @@ for (const vp of VIEWPORTS) {
 
       // --- top bar
       if (vp.width < 640) {
-        expect((await boxOf(page.locator("#top-bar"))).height).toBeLessThanOrEqual(96);
+        // Phones: three rows (status, pass direction, connections) within 120px.
+        expect((await boxOf(page.locator("#top-bar"))).height).toBeLessThanOrEqual(120);
+        const age = await boxOf(page.locator("#age-label"));
+        const passRow = await boxOf(page.locator("#pass-row"));
+        expect(passRow.y).toBeGreaterThanOrEqual(age.y + age.height);
+
+        // The full "Pass to <name>" is readable: prefix visible, name not truncated.
+        const pass = (await page.locator("#pass-direction").innerText()).replace(/\s+/g, " ").trim();
+        expect(pass).toMatch(/^Pass to /);
+        expect(players.some((p) => pass.endsWith(p.name)), pass).toBe(true);
+        const direction = await boxOf(page.locator("#pass-direction"));
+        expect(direction.x + direction.width).toBeLessThanOrEqual(vp.width);
+        // innerText cannot see ellipsis clipping; content must fit the element box.
+        const passFits = await page
+          .locator("#pass-direction")
+          .evaluate((el) => el.scrollWidth <= el.clientWidth);
+        expect(passFits, "pass-direction content overflows (truncated or clipped)").toBe(true);
+
+        // Tapping "Waiting for N" lists the names; Escape closes the list.
         await expect(page.locator("#waiting-count")).toBeVisible();
         await expect(page.locator("#waiting-for")).toBeHidden();
+        await expect(page.locator("#waiting-list")).toBeHidden();
+        if (vp.touch) await expectTapTargets(page.locator("#waiting-count"));
+        await page.locator("#waiting-count").click();
+        await expect(page.locator("#waiting-list")).toBeVisible();
+        await expect(page.locator("#waiting-list li")).toHaveCount(3);
+        await expectNoHorizontalScroll(page);
+        await page.keyboard.press("Escape");
+        await expect(page.locator("#waiting-list")).toBeHidden();
       } else {
         await expect(page.locator("#waiting-for")).toBeVisible();
         await expect(page.locator("#waiting-count")).toBeHidden();
@@ -117,8 +151,16 @@ for (const vp of VIEWPORTS) {
         await expect(page.locator("#west-panel-toggle")).toHaveAttribute("aria-expanded", "true");
         if (vp.touch) await expectTapTargets(page.locator("#west-panel-toggle, #east-panel-toggle"));
 
+        // Phones: open the list before the update to check it survives the patch.
+        if (vp.width < 640) await page.locator("#waiting-count").click();
         await playFirstBuildableOrDiscard(players[1].page);
         await expect(page.locator("#waiting-count")).toHaveText(/Waiting for 2/);
+        if (vp.width < 640) {
+          await expect(page.locator("#waiting-list")).toBeVisible();
+          await expect(page.locator("#waiting-list li")).toHaveCount(2);
+          await page.locator("#age-label").click();
+          await expect(page.locator("#waiting-list")).toBeHidden();
+        }
         await expect(page.locator("#west-panel-details")).toBeVisible();
       } else {
         await expect(page.locator("#west-panel-toggle")).toBeHidden();
@@ -206,7 +248,7 @@ test.describe("seven players on a small phone", () => {
     await waitForTurn(page, 1, 1);
     await expectViewport(page, { name: "small-android", width: 360, height: 740, touch: true });
     await expectNoHorizontalScroll(page);
-    expect((await boxOf(page.locator("#top-bar"))).height).toBeLessThanOrEqual(96);
+    expect((await boxOf(page.locator("#top-bar"))).height).toBeLessThanOrEqual(120);
     await expect(page.locator("#other-players article")).toHaveCount(4);
     const strip = await boxOf(page.locator("#other-players"));
     expect(strip.x + strip.width).toBeLessThanOrEqual(360);

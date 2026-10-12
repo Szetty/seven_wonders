@@ -16,6 +16,7 @@ defmodule Helios.Lobbies.Invite do
     belongs_to :lobby, Lobby, type: :binary_id
     belongs_to :user, User
     field :status, :string, default: "pending"
+    field :last_visited_at, :utc_datetime
 
     timestamps(type: :utc_datetime)
   end
