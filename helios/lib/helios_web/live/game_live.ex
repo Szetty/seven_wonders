@@ -31,6 +31,7 @@ defmodule HeliosWeb.GameLive do
       flash={@flash}
       current_scope={@current_scope}
       notifications={@notifications}
+      recent_tables={@recent_tables}
       background="bg-[url('/images/paper.jpg')] bg-cover lg:bg-fixed"
     >
       <div id="game" class="flex min-h-dvh flex-col">

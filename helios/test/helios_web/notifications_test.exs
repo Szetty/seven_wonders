@@ -246,6 +246,25 @@ defmodule HeliosWeb.NotificationsTest do
       assert has_element?(view_a, "#invite_user_id option[value='#{ctx.b.id}']")
     end
 
+    test "the Recent tables menu follows accept and uninvite in an open tab", %{conn: conn} do
+      ctx = two_players(conn)
+      invite_fixture(ctx.lobby_a, ctx.a, ctx.b)
+      {:ok, view_b, _} = live(ctx.conn_b, ~p"/lobby/#{ctx.lobby_b.id}")
+      refute has_element?(view_b, "#recent-tables-button")
+
+      :ok = Lobbies.accept(Scope.for_user(ctx.b), ctx.lobby_a.id)
+
+      assert has_element?(
+               view_b,
+               "#recent-tables-menu #recent-table-#{ctx.lobby_a.id}",
+               "#{ctx.a.name}'s table"
+             )
+
+      :ok = Lobbies.uninvite(Scope.for_user(ctx.a), ctx.lobby_a, ctx.b.id)
+
+      refute has_element?(view_b, "#recent-tables-button")
+    end
+
     # Review Focus 1: tampered notification events never crash.
     test "tampered notification events are handled", %{conn: conn} do
       ctx = two_players(conn)

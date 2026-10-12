@@ -11,6 +11,7 @@ defmodule HeliosWeb.PastGamesLive do
       flash={@flash}
       current_scope={@current_scope}
       notifications={@notifications}
+      recent_tables={@recent_tables}
       background="bg-[url('/images/paper.jpg')] bg-cover lg:bg-fixed"
     >
       <section id="past-games" class="mx-auto w-full max-w-4xl px-2 py-4 sm:px-4">

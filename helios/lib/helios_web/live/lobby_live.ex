@@ -56,7 +56,12 @@ defmodule HeliosWeb.LobbyLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} notifications={@notifications}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      notifications={@notifications}
+      recent_tables={@recent_tables}
+    >
       <section id="lobby" class="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:py-10">
         <h1 id="lobby-title" class="text-2xl font-semibold tracking-tight text-zinc-900">
           {@page_title}
