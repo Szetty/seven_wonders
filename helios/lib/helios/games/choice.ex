@@ -6,6 +6,7 @@ defmodule Helios.Games.Choice do
   """
 
   @kinds ~w(build wonder_stage discard build_free build_from_discard)
+  @sides %{"a" => :a, "b" => :b}
   @empty_payment %{west: [], east: []}
 
   @type t :: %{card: String.t(), kind: String.t(), option: non_neg_integer()}
@@ -22,6 +23,19 @@ defmodule Helios.Games.Choice do
   end
 
   def parse(_params), do: {:error, :invalid_choice}
+
+  @doc """
+  A setup claim as sent by the browser (`wonder` name, side `"a"` / `"b"`).
+  Whether the board may be claimed is the engine's decision.
+  """
+  @spec parse_claim(map()) ::
+          {:ok, {:claim_wonder, %{wonder: String.t(), side: :a | :b}}} | {:error, :invalid_choice}
+  def parse_claim(%{"wonder" => wonder, "side" => side})
+      when is_binary(wonder) and is_map_key(@sides, side) do
+    {:ok, {:claim_wonder, %{wonder: wonder, side: Map.fetch!(@sides, side)}}}
+  end
+
+  def parse_claim(_params), do: {:error, :invalid_choice}
 
   @spec resolve(map(), t()) :: {:ok, Helios.Games.ActionCodec.action()} | {:error, atom()}
   def resolve(_view, %{kind: "discard", card: card}), do: {:ok, {:discard, card}}

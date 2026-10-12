@@ -1,7 +1,9 @@
 defmodule Helios.Games.ActionCodec do
   @moduledoc """
-  Converts engine action terms and wonder selections to JSON-safe maps for the
-  `game_actions.action` and `games.wonders` columns, and back.
+  Converts engine action terms (card actions and the setup actions
+  `claim_wonder` / `confirm_wonder`) and wonder selections (`nil` = random,
+  `%{"mode" => …}` for setup modes, `%{"explicit" => …}`) to JSON-safe maps for
+  the `game_actions.action` and `games.wonders` columns, and back.
 
   Decoding only maps whitelisted strings to atoms; it never creates atoms.
   """
@@ -23,6 +25,7 @@ defmodule Helios.Games.ActionCodec do
     "build_from_discard" => :build_from_discard
   }
   @sides %{"a" => :a, "b" => :b}
+  @modes %{"choose_board" => :choose_board, "choose_side" => :choose_side}
 
   @type resource :: :wood | :stone | :ore | :clay | :glass | :loom | :papyrus
   @type payment :: %{west: [{resource(), pos_integer()}], east: [{resource(), pos_integer()}]}
@@ -32,7 +35,9 @@ defmodule Helios.Games.ActionCodec do
           | {:discard, String.t()}
           | {:build_free, String.t()}
           | {:build_from_discard, String.t()}
-  @type wonders :: :random | {:explicit, [{String.t(), :a | :b}]}
+          | {:claim_wonder, %{wonder: String.t(), side: :a | :b}}
+          | :confirm_wonder
+  @type wonders :: :random | :choose_board | :choose_side | {:explicit, [{String.t(), :a | :b}]}
 
   @spec encode(action()) :: map()
   def encode({type, %{card: card, payment: payment}})
@@ -44,6 +49,13 @@ defmodule Helios.Games.ActionCodec do
       when type in [:discard, :build_free, :build_from_discard] and is_binary(card) do
     %{"type" => Atom.to_string(type), "card" => card}
   end
+
+  def encode({:claim_wonder, %{wonder: wonder, side: side}})
+      when is_binary(wonder) and side in [:a, :b] do
+    %{"type" => "claim_wonder", "wonder" => wonder, "side" => Atom.to_string(side)}
+  end
+
+  def encode(:confirm_wonder), do: %{"type" => "confirm_wonder"}
 
   @spec decode(term()) :: {:ok, action()} | {:error, :invalid_action}
   def decode(%{"type" => type, "card" => card, "payment" => payment})
@@ -58,10 +70,20 @@ defmodule Helios.Games.ActionCodec do
     {:ok, {Map.fetch!(@card_types, type), card}}
   end
 
+  def decode(%{"type" => "claim_wonder", "wonder" => wonder, "side" => side})
+      when is_binary(wonder) and is_map_key(@sides, side) do
+    {:ok, {:claim_wonder, %{wonder: wonder, side: Map.fetch!(@sides, side)}}}
+  end
+
+  def decode(%{"type" => "confirm_wonder"}), do: {:ok, :confirm_wonder}
+
   def decode(_other), do: {:error, :invalid_action}
 
   @spec encode_wonders(wonders()) :: nil | map()
   def encode_wonders(:random), do: nil
+
+  def encode_wonders(mode) when mode in [:choose_board, :choose_side],
+    do: %{"mode" => Atom.to_string(mode)}
 
   def encode_wonders({:explicit, list}) do
     %{"explicit" => Enum.map(list, fn {name, side} -> [name, Atom.to_string(side)] end)}
@@ -69,6 +91,9 @@ defmodule Helios.Games.ActionCodec do
 
   @spec decode_wonders(nil | map()) :: {:ok, wonders()} | {:error, :invalid_wonders}
   def decode_wonders(nil), do: {:ok, :random}
+
+  def decode_wonders(%{"mode" => mode}) when is_map_key(@modes, mode),
+    do: {:ok, Map.fetch!(@modes, mode)}
 
   def decode_wonders(%{"explicit" => list}) when is_list(list) do
     list

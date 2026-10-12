@@ -33,6 +33,25 @@ defmodule Helios.Games.ChoiceTest do
     end
   end
 
+  describe "parse_claim/1" do
+    test "a wonder name and a whitelisted side" do
+      assert Choice.parse_claim(%{"wonder" => "Gizah", "side" => "b"}) ==
+               {:ok, {:claim_wonder, %{wonder: "Gizah", side: :b}}}
+    end
+
+    test "rejects unknown sides and missing or non-string wonders" do
+      for params <- [
+            %{"wonder" => "Gizah", "side" => "c"},
+            %{"wonder" => "Gizah"},
+            %{"wonder" => 3, "side" => "a"},
+            %{}
+          ] do
+        assert Choice.parse_claim(params) == {:error, :invalid_choice},
+               "accepted #{inspect(params)}"
+      end
+    end
+  end
+
   describe "resolve/2" do
     test "a chain build resolves to an empty payment", %{view: view} do
       hand = [

@@ -154,6 +154,11 @@ defmodule Helios.GamesTest do
             :unauthorized,
             :server_restarted,
             :invalid_choice,
+            :unknown_wonder,
+            :wonder_taken,
+            :not_your_wonder,
+            :no_claim,
+            :already_confirmed,
             {:setup_failed, :anything}
           ] do
         message = Games.error_message(reason)
@@ -163,6 +168,8 @@ defmodule Helios.GamesTest do
       assert Games.error_message(:cannot_afford) == "You can't afford that"
       assert Games.error_message(:invalid_payment) == "That payment is no longer valid"
       assert Games.error_message(:game_in_progress) == "A game is already running at this table"
+      assert Games.error_message(:not_your_wonder) == "That is not your board"
+      assert Games.error_message(:no_claim) == "Pick a board first"
     end
   end
 
