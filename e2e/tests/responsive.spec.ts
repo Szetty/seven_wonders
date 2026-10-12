@@ -82,6 +82,14 @@ for (const vp of VIEWPORTS) {
         const wrapper = await boxOf(page.locator("#members-table").locator("xpath=./.."));
         expect(table.x + table.width).toBeLessThanOrEqual(wrapper.x + wrapper.width + 1);
       }
+      // Review Focus 5: a guest's header with the Recent tables button still fits.
+      const guestPage = players[1].page;
+      await expect(guestPage.locator("#recent-tables-button")).toBeVisible();
+      await expectNoHorizontalScroll(guestPage);
+      for (const id of ["#recent-tables-button", "#my-table-link", "#logout-link"]) {
+        await expect(guestPage.locator(id)).toBeInViewport({ ratio: 1 });
+      }
+      if (vp.touch) await expectTapTargets(guestPage.locator("#recent-tables-button"));
       if (vp.touch) {
         await expectTapTargets(page.locator("[id^='uninvite-']"));
         await expectTapTargets(page.locator("#start-game, #invite-button, #invite_user_id"));

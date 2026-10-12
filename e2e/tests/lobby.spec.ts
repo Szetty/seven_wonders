@@ -11,6 +11,7 @@ import {
   notification,
   removeMember,
   test,
+  waitForLiveView,
   type Player,
 } from "./support/lobby";
 
@@ -137,4 +138,27 @@ test("12. an invite sent while logged out is shown at next login", async ({ play
   await login(b.page, b.name);
   await expect(b.page).toHaveURL(LOBBY_URL);
   await expect(notification(b.page, `You are expected on table ${a.name}`)).toBeVisible();
+});
+
+test("13. opening the table by URL accepts the invite; Recent tables leads back", async ({
+  player,
+}) => {
+  const a = await player("a");
+  const b = await player("b");
+
+  await invite(a.page, b.name);
+  await expect(notification(b.page, `You are expected on table ${a.name}`)).toBeVisible();
+
+  const tab = await b.context.newPage();
+  await tab.goto(a.lobbyUrl);
+  await waitForLiveView(tab);
+
+  await expect(memberRow(a.page, b.name)).toHaveAttribute("data-connected", "true");
+  await expect(notification(tab, `You are expected on table ${a.name}`)).toHaveCount(0);
+  await expect(notification(b.page, `You are expected on table ${a.name}`)).toHaveCount(0);
+
+  // The first tab (B's own table) got the menu through the same broadcast.
+  await b.page.locator("#recent-tables-button").click();
+  await b.page.locator("#recent-tables-menu a", { hasText: `${a.name}'s table` }).click();
+  await expect(b.page).toHaveURL(a.lobbyUrl);
 });
