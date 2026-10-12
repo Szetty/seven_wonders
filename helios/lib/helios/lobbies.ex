@@ -11,7 +11,7 @@ defmodule Helios.Lobbies do
 
     * `"user:<user_id>"` — `{:invited, %Invite{lobby: %Lobby{owner: %User{}}}}`,
       `{:uninvited, lobby_id}`, `{:invite_resolved, lobby_id}`
-    * `"lobby:<lobby_id>"` — `{:members_changed}`, `{:declined, %User{}}`
+    * `"lobby:<lobby_id>"` — `{:members_changed}`, `{:declined, %User{}}`, `{:settings_changed}`
   """
 
   import Ecto.Query, warn: false
@@ -202,6 +202,27 @@ defmodule Helios.Lobbies do
     end
   end
 
+  @doc """
+  The owner picks how the next game hands out wonder boards (`Lobby.wonder_modes/0`).
+  Allowed while a game runs; it applies to the next one. Broadcasts `{:settings_changed}`.
+  """
+  @spec set_wonder_mode(Scope.t(), Lobby.t(), term()) ::
+          {:ok, Lobby.t()} | {:error, :not_leader | :invalid_wonder_mode}
+  def set_wonder_mode(%Scope{user: %User{} = user}, %Lobby{} = lobby, mode) do
+    # Diff against the stored row: the caller's struct may be stale (another tab).
+    current = Repo.get!(Lobby, lobby.id)
+
+    with :ok <- ensure_leader(current, user),
+         {:ok, current} <-
+           current |> Lobby.wonder_mode_changeset(%{wonder_mode: mode}) |> Repo.update() do
+      broadcast(lobby_topic(current.id), {:settings_changed})
+      {:ok, current}
+    else
+      {:error, %Ecto.Changeset{}} -> {:error, :invalid_wonder_mode}
+      {:error, _reason} = error -> error
+    end
+  end
+
   @doc "Pending invites for `user`, newest first."
   @spec pending_invites(User.t()) :: [%{lobby_id: Ecto.UUID.t(), owner_name: String.t()}]
   def pending_invites(%User{id: user_id}) do
@@ -285,6 +306,7 @@ defmodule Helios.Lobbies do
   def error_message(:lobby_full), do: "The table is full (#{@max_players} players max)"
   def error_message(:invalid_user), do: "That player does not exist"
   def error_message(:not_invited), do: "That invitation is no longer valid"
+  def error_message(:invalid_wonder_mode), do: "That board mode does not exist"
 
   defp cast_lobby_id(id) when is_binary(id), do: Ecto.UUID.cast(id)
   defp cast_lobby_id(_id), do: :error
