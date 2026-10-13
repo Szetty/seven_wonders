@@ -59,7 +59,7 @@ Migrations (portable SQL, no SQLite-only features):
 - **`game_players`**: `user_id` becomes nullable; add `ai_model` (string, nullable). Exactly one of `user_id` / `ai_model` is set (changeset validation).
 - **`game_actions`**: `user_id` becomes nullable; add `seat` (integer, nullable) and `source` (string, not null, default `"human"`, one of `human | ai | random`). Human actions keep `user_id`; AI actions set `seat` and leave `user_id` nil. Existing rows backfill to `source = "human"`.
 
-**Engine player ids**: humans keep `to_string(user_id)`; an AI seat is `"ai:<seat>"`. One helper, `Games.player_id/1` (given a `GamePlayer`), builds them, and replay uses it to map log rows to engine ids.
+**Engine player ids**: humans keep `to_string(user_id)`; an AI seat is `"ai-<seat>"`. One helper, `Games.player_id/1` (given a `GamePlayer`), builds them, and replay uses it to map log rows to engine ids.
 
 **Display name** of an AI seat: its model label, plus ` #2`, ` #3`… when several seats share a model.
 
@@ -69,12 +69,12 @@ Migrations (portable SQL, no SQLite-only features):
 - `remove_ai_seat(scope, lobby, seat_id)` — owner only; broadcasts `{:members_changed}`.
 - `ai_seats(lobby)` lists them in order.
 - `Games.eligible_players/1` returns the connected humans (unchanged rule) followed by the AI seats. AI seats skip the Presence check and count towards the minimum of 3 and the maximum of 7.
-- `Games.start_game/2` inserts `game_players` rows for AI seats (`ai_model` set) after the humans. It re-checks readiness; if a seated model is no longer ready the game still starts, and the lobby shows a flash: "<label> is unavailable — its moves will be random".
+- `Games.start_game/2` inserts `game_players` rows for AI seats (`ai_model` set) after the humans. A seated model that is no longer ready does not block the start: its lobby row carries an "unavailable — moves will be random" badge (visible before Start), and its moves fall back to random.
 - Lobby AI seats persist across games at the same table until removed.
 
-## Provider readiness (`Helios.AI.Providers`)
+## Provider readiness (`Helios.AI.Readiness`)
 
-A GenServer that caches each provider's status (`:ready` or `{:not_ready, reason}`) and the set of ready model ids.
+`Helios.AI.Readiness` is a GenServer that caches each provider's status (`:ready` or `{:not_ready, reason}`) and the set of ready model ids.
 
 - Checks all providers at boot and every `probe_interval_ms`. `refresh/0` re-checks on demand (the lobby picker calls it when opened, at most once a minute).
 - A provider is ready only if:
@@ -129,7 +129,7 @@ A short persona that relies on the model's own knowledge of the game instead of 
 
 The primer is a fixed module attribute, identical on every call (cache-friendly), under 100 tokens.
 
-## Provider adapters (`Helios.AI.Provider` behaviour)
+## Provider adapters (`Helios.AI.Provider` behaviour; modules `Helios.AI.Provider.Jev`, `.OpenRouter`, `.Fake`)
 
 ```elixir
 @callback decide(model :: map(), prompt :: map(), deadline :: integer()) ::
@@ -139,7 +139,7 @@ The primer is a fixed module attribute, identical on every call (cache-friendly)
 
 `deadline` is an absolute monotonic time in ms. Both adapters use `Req` (new dependency; Finch pool per provider) through a shared `Helios.AI.HTTP.request/2`. It retries on 429, 529, 5xx and transport errors with short jittered backoff (e.g. 100 ms, 250 ms, 500 ms), sets each attempt's `receive_timeout` to the remaining budget, and stops when less than ~300 ms remain. 4xx other than 429 are not retried.
 
-### Jev (`Helios.AI.Providers.Jev`)
+### Jev (`Helios.AI.Provider.Jev`)
 
 ```json
 POST https://api.typesafe.ai/v1/systemone
@@ -159,7 +159,7 @@ Authorization: Bearer $JEV_API_KEY
 
 The answer is `answers.move.choice`. An id outside the offered set is an `{:error, :invalid_move}`. `usage` is taken from the response. Pricing at the time of writing: $0.042 per million input tokens, output free.
 
-### OpenRouter (`Helios.AI.Providers.OpenRouter`)
+### OpenRouter (`Helios.AI.Provider.OpenRouter`)
 
 `POST https://openrouter.ai/api/v1/chat/completions` with:
 - `messages`: system = primer; user = state JSON + moves (`id: label` lines).
@@ -189,9 +189,9 @@ The answer is the parsed `move`. Unparseable or out-of-set → `{:error, :invali
 ## Orchestration changes (`Helios.Games`, `GameServer`)
 
 - `submit_choice` / `submit` accept an optional `source` (default `:human`) and an actor that is either a user id or `{:ai, seat}`. `do_submit` persists `seat`/`user_id` and `source` accordingly.
-- **Setup for AI seats:** `Games.claim_wonder_for/4` and `Games.confirm_wonder_for/3` take the owner's scope and an AI seat. They return `:not_leader` unless the caller owns the lobby and the seat is an AI seat of that game, then submit the claim/confirm under `"ai:<seat>"` with source `:human`, since a person chose.
+- **Setup for AI seats:** `Games.submit_for_ai_seat(scope, game_id, seat, action)` accepts only `{:claim_wonder, _}` / `:confirm_wonder`. It returns `:not_leader` unless the caller owns the lobby and the seat is an AI seat of that game, then submits under `"ai-<seat>"` with source `:human`, since a person chose.
 - `Replay.rebuild` maps each `game_actions` row to an engine id via `user_id` or `seat`.
-- `Games.history/1` and replay frames join each engine turn event with the `source` of the matching `game_actions` row (by player and turn), so the UI can tag random moves. The engine's history is unchanged.
+- Random moves are identified by `{player, age, turn, turn_kind}` keys, the same fields a history `{:turn, event}` carries. `GameServer` records the key (from the phase just before the submit) for every `random` submission, rebuilds the set from the log on init, and returns it as `random` from `Games.snapshot/2`; `Games.replay/2` returns the same set. The engine's history is unchanged.
 
 ## UI
 
@@ -226,7 +226,7 @@ The answer is the parsed `move`. Unparseable or out-of-set → `{:error, :invali
   - slow response stopped at the deadline
   - 401 not retried
   - OpenRouter request has a strict schema with an `enum` of ids and the configured `max_tokens`
-- **`AI.Providers`**:
+- **`AI.Readiness`**:
   - missing key → not ready
   - probe 401 → not ready
   - unknown model and no structured outputs → not ready
