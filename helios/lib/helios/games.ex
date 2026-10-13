@@ -91,7 +91,7 @@ defmodule Helios.Games do
          :ok <- check_player_count(length(players)),
          :ok <- check_no_active_game(lobby),
          player_ids = Enum.map(players, &to_string(&1.id)),
-         wonders = configured_wonders(length(players)),
+         wonders = configured_wonders(lobby, length(players)),
          seed = new_seed(),
          :ok <- validate_setup(player_ids, wonders, seed),
          {:ok, game} <- insert_game(lobby, players, seed, wonders),
@@ -143,7 +143,12 @@ defmodule Helios.Games do
     if active_game_for_lobby(lobby.id), do: {:error, :game_in_progress}, else: :ok
   end
 
-  defp configured_wonders(count) do
+  # The lobby's mode decides; the config `wonders:` override (e2e only) applies
+  # only to random games, so e2e can still exercise the setup modes.
+  defp configured_wonders(%{wonder_mode: "choose_side"}, _count), do: :choose_side
+  defp configured_wonders(%{wonder_mode: "choose_board"}, _count), do: :choose_board
+
+  defp configured_wonders(_lobby, count) do
     case Keyword.get(config(), :wonders) do
       nil -> :random
       wonders -> {:explicit, Enum.take(wonders, count)}

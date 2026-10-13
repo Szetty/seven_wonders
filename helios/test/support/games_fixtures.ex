@@ -42,10 +42,11 @@ defmodule Helios.GamesFixtures do
     end)
   end
 
-  @doc "Inserts an active game directly (no GameServer is started)."
+  @doc "Inserts an active game directly (no GameServer is started). opts: :lobby, :wonders, :seed, :selection (:choose_board | :choose_side | {:explicit, …})."
   def game_fixture(users, opts \\ []) do
     lobby = Keyword.get_lazy(opts, :lobby, fn -> Lobbies.get_or_create_own_lobby(hd(users)) end)
     wonders = opts |> Keyword.get(:wonders, @default_wonders) |> Enum.take(length(users))
+    selection = Keyword.get(opts, :selection, {:explicit, wonders})
 
     game =
       Repo.insert!(%Game{
@@ -53,7 +54,7 @@ defmodule Helios.GamesFixtures do
         seed: Keyword.get(opts, :seed, 1),
         engine_version: Helios.Core.game_settings().engine_version,
         status: "active",
-        wonders: ActionCodec.encode_wonders({:explicit, wonders})
+        wonders: ActionCodec.encode_wonders(selection)
       })
 
     users

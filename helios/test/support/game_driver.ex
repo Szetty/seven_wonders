@@ -60,6 +60,26 @@ defmodule Helios.GameDriver do
     end)
   end
 
+  @doc """
+  Finishes a `choose_board` / `choose_side` setup: every seat claims side A
+  (the first free board, or its drawn board) in seat order, then all confirm.
+  """
+  def finish_setup(players, view_fun, submit_fun) do
+    for player <- players do
+      %{setup: setup} = view_fun.(player)
+
+      wonder =
+        case setup.mode do
+          :choose_board -> hd(setup.available)
+          :choose_side -> Enum.find(setup.seats, &(&1.player == player)).wonder
+        end
+
+      :ok = submit_fun.(player, {:claim_wonder, %{wonder: wonder, side: :a}})
+    end
+
+    Enum.each(players, &(:ok = submit_fun.(&1, :confirm_wonder)))
+  end
+
   def play_until(players, strategies, view_fun, submit_fun, stop?, max_steps \\ 100) do
     Enum.reduce_while(1..max_steps, :exhausted, fn _, _ ->
       view = view_fun.(hd(players))
