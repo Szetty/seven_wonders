@@ -36,6 +36,7 @@ defmodule HeliosWeb.GameLiveWonderSetupTest do
       refute has_element?(view, "#table")
       refute has_element?(view, "#dock")
       assert has_element?(view, "#confirm-wonder[disabled]")
+      assert has_element?(view, "#history-empty")
     end
 
     tiles =
@@ -89,9 +90,9 @@ defmodule HeliosWeb.GameLiveWonderSetupTest do
     for view <- views do
       assert has_element?(view, "#top-bar[data-phase='choosing_cards'][data-turn-key='1-1']")
       refute has_element?(view, "#wonder-setup")
-      # Substituted (E-R3): the brief's #hand-card-6 is a dynamic id; assert the hand section.
-      assert has_element?(view, "#hand")
-      # Substituted (E-R3): the drawer's real empty-state id, not the brief's #history-0.
+      # Seven cards dealt: hand-card-0..6 exist, hand-card-7 does not (as in game_live_test.exs).
+      assert has_element?(view, "#hand-card-6")
+      refute has_element?(view, "#hand-card-7")
       assert has_element?(view, "#history-empty")
     end
 
