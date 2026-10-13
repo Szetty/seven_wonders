@@ -60,6 +60,12 @@ config :phoenix, :json_library, Jason
 # Game orchestration. `fixed_seed` / `wonders` are only set by the e2e env.
 config :helios, Helios.Games, idle_timeout: :timer.minutes(30)
 
+# AI players. `models` is the allowlist table owners pick from; phase B adds
+# the real Jev / OpenRouter entries. Keys are read in runtime.exs.
+config :helios, Helios.AI,
+  probe_interval_ms: :timer.minutes(10),
+  models: []
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

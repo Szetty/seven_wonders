@@ -36,3 +36,27 @@ config :phoenix,
   sort_verified_routes_query_params: true
 
 config :helios, access_token: "test"
+
+# Fake AI models (Helios.AI.Provider.Fake); `model` selects the behaviour.
+config :helios, Helios.AI,
+  probe_interval_ms: :timer.hours(1),
+  models: [
+    %{id: "fake-first", label: "Fake First", provider: :fake, model: "first", deadline_ms: 2_000},
+    %{id: "fake-last", label: "Fake Last", provider: :fake, model: "last", deadline_ms: 2_000},
+    %{
+      id: "fake-timeout",
+      label: "Fake Slow",
+      provider: :fake,
+      model: "timeout",
+      deadline_ms: 100
+    },
+    %{id: "fake-error", label: "Fake Error", provider: :fake, model: "error", deadline_ms: 2_000},
+    %{
+      id: "fake-invalid",
+      label: "Fake Invalid",
+      provider: :fake,
+      model: "invalid",
+      deadline_ms: 2_000
+    },
+    %{id: "fake-down", label: "Fake Down", provider: :fake, model: "down", deadline_ms: 2_000}
+  ]
