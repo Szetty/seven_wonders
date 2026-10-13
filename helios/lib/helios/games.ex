@@ -238,13 +238,15 @@ defmodule Helios.Games do
   final view, the public history, and one frame per turn (public boards plus
   the viewer's own hand and final choice that turn, the discard-pile size and,
   in the viewer's own build-from-discard turn only, the buildable discards).
+  For setup-mode games the first frame is Age I turn 1; setup actions are not
+  frames.
   `{:error, :not_finished}` if the log stops short of game over.
   """
   @spec replay(Game.t(), integer()) ::
           {:ok, %{view: map(), history: [term()], frames: [map()]}} | {:error, term()}
   def replay(%Game{} = game, user_id) do
     me = to_string(user_id)
-    init = fn ref -> %{current: frame_snapshot(ref, me), done: [], turns: 0, my_last: nil} end
+    init = fn ref -> %{current: opening_frame(ref, me), done: [], turns: 0, my_last: nil} end
     step = fn row, ref, acc -> frame_step(row, ref, acc, me) end
 
     with {:ok, ref, acc} <- Replay.rebuild(game, Replay.actions(game.id), init, step),
@@ -256,6 +258,11 @@ defmodule Helios.Games do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # Setup actions (choose_board / choose_side) open no frame and are nobody's
+  # choice: the first frame is the table as Age I turn 1 begins.
+  defp frame_step(_row, ref, %{current: nil} = acc, me),
+    do: %{acc | current: opening_frame(ref, me)}
 
   defp frame_step(row, ref, acc, me) do
     acc =
@@ -281,6 +288,13 @@ defmodule Helios.Games do
       }
     else
       acc
+    end
+  end
+
+  defp opening_frame(ref, me) do
+    case Core.view(ref, me) do
+      {:ok, %{phase: %{kind: :setup}}} -> nil
+      {:ok, _view} -> frame_snapshot(ref, me)
     end
   end
 
