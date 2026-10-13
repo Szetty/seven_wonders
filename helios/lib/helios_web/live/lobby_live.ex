@@ -113,6 +113,7 @@ defmodule HeliosWeb.LobbyLive do
           active_game={@active_game}
           seated?={@seated?}
           start_blocker={@start_blocker}
+          wonder_mode={@lobby.wonder_mode}
         />
 
         <div class="overflow-hidden rounded-xl bg-antique shadow-md ring-1 ring-zinc-900/10">
@@ -239,6 +240,19 @@ defmodule HeliosWeb.LobbyLive do
     end
   end
 
+  def handle_event("set_wonder_mode", %{"mode" => mode}, socket) do
+    %{current_scope: scope, lobby: lobby} = socket.assigns
+
+    case Lobbies.set_wonder_mode(scope, lobby, mode) do
+      {:ok, lobby} -> {:noreply, assign(socket, :lobby, lobby)}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, Lobbies.error_message(reason))}
+    end
+  end
+
+  def handle_event("set_wonder_mode", _params, socket) do
+    {:noreply, put_flash(socket, :error, Lobbies.error_message(:invalid_wonder_mode))}
+  end
+
   @impl true
   def handle_info(%Broadcast{event: "presence_diff", topic: @online_topic, payload: diff}, socket) do
     {online, events} = OnlineTracker.handle_diff(socket.assigns.online, diff)
@@ -263,6 +277,14 @@ defmodule HeliosWeb.LobbyLive do
 
   def handle_info({:members_changed}, socket) do
     {:noreply, socket |> load_members() |> assign_game_state()}
+  end
+
+  # The owner changed a table setting (possibly in another tab): reload the row.
+  def handle_info({:settings_changed}, socket) do
+    case Lobbies.fetch_lobby(socket.assigns.lobby.id) do
+      {:ok, lobby} -> {:noreply, assign(socket, :lobby, lobby)}
+      {:error, _reason} -> {:noreply, socket}
+    end
   end
 
   def handle_info({:game_started, game_id}, socket) do

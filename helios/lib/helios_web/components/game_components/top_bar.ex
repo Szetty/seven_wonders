@@ -25,7 +25,9 @@ defmodule HeliosWeb.GameComponents.TopBar do
         waiting:
           if(assigns.replay, do: [], else: GameFormat.waiting_for(assigns.view, assigns.names)),
         statuses: GameFormat.statuses(assigns.view),
-        pass_to: GameFormat.player_name(assigns.names, GameFormat.pass_target(assigns.view))
+        pass_to: GameFormat.player_name(assigns.names, GameFormat.pass_target(assigns.view)),
+        setup?: assigns.view.phase.kind == :setup,
+        seats: GameFormat.seat_ids(assigns.view)
       )
 
     ~H"""
@@ -40,7 +42,7 @@ defmodule HeliosWeb.GameComponents.TopBar do
         <div class="flex items-center justify-between gap-3 sm:justify-start">
           <div class="flex min-w-0 items-center gap-3 sm:gap-4">
             <span id="age-label" class="text-lg font-bold tracking-wide whitespace-nowrap sm:text-xl">
-              Age {GameFormat.roman(@phase.age)}
+              {if @setup?, do: "Choosing boards", else: "Age #{GameFormat.roman(@phase.age)}"}
             </span>
             <button
               id="history-button"
@@ -54,21 +56,23 @@ defmodule HeliosWeb.GameComponents.TopBar do
                 History
               </span>
             </button>
-            <%= if @phase.kind == :game_over do %>
-              <span id="turn-label" class="whitespace-nowrap font-semibold">Game over</span>
-            <% else %>
-              <span id="turn-label" class="whitespace-nowrap">Turn {@phase.turn}/6</span>
+            <%= cond do %>
+              <% @setup? -> %>
+              <% @phase.kind == :game_over -> %>
+                <span id="turn-label" class="whitespace-nowrap font-semibold">Game over</span>
+              <% true -> %>
+                <span id="turn-label" class="whitespace-nowrap">Turn {@phase.turn}/6</span>
             <% end %>
           </div>
           <.waiting_menu :if={@waiting != []} waiting={@waiting} />
         </div>
         <div
-          :if={@phase.kind != :game_over or @view.discard_count > 0}
+          :if={not @setup? and (@phase.kind != :game_over or @view.discard_count > 0)}
           id="pass-row"
           class="flex min-w-0 items-center justify-between gap-3 text-sm sm:justify-start sm:text-base"
         >
           <span
-            :if={@phase.kind != :game_over}
+            :if={not @setup? and @phase.kind != :game_over}
             id="pass-direction"
             class="flex min-w-0 items-center gap-1"
           >
@@ -86,22 +90,22 @@ defmodule HeliosWeb.GameComponents.TopBar do
         class="-mx-3 flex items-center gap-3 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
       >
         <li
-          :for={player <- @view.players}
-          id={"connection-#{player.name}"}
-          data-connected={to_string(MapSet.member?(@connected, player.name))}
-          data-status={@statuses[player.name]}
+          :for={id <- @seats}
+          id={"connection-#{id}"}
+          data-connected={to_string(MapSet.member?(@connected, id))}
+          data-status={@statuses[id]}
           class="flex shrink-0 items-center gap-1.5 text-sm"
         >
           <span class={[
             "size-2.5 shrink-0 rounded-full transition",
-            if(MapSet.member?(@connected, player.name), do: "bg-emerald-400", else: "bg-disconnected")
+            if(MapSet.member?(@connected, id), do: "bg-emerald-400", else: "bg-disconnected")
           ]}>
           </span>
           <span class="max-w-32 truncate sm:max-w-none">
-            {GameFormat.player_name(@names, player.name)}
+            {GameFormat.player_name(@names, id)}
           </span>
           <.icon
-            :if={@statuses[player.name] == :chosen}
+            :if={@statuses[id] == :chosen}
             name="hero-check"
             class="size-4 shrink-0 text-emerald-200"
           />

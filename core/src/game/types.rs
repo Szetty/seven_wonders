@@ -37,6 +37,10 @@ pub enum Side {
 pub enum WonderSelection {
     Random,
     Explicit(Vec<(String, Side)>),
+    /// Each player claims a board and side during `Phase::Setup`.
+    ChooseBoard,
+    /// Boards are drawn as for `Random`; each player picks the side during `Phase::Setup`.
+    ChooseSide,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -60,6 +64,14 @@ pub enum Action {
     BuildFromDiscard {
         card: String,
     },
+    /// `Phase::Setup` only: hold `wonder` on `side`, replacing this seat's
+    /// earlier claim (which releases its board).
+    ClaimWonder {
+        wonder: String,
+        side: Side,
+    },
+    /// `Phase::Setup` only: lock the current claim.
+    ConfirmWonder,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -85,6 +97,9 @@ pub struct FinalScore {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Phase {
+    /// Players claim boards and sides (`ChooseBoard` / `ChooseSide`); Age I
+    /// is dealt when the last seat confirms.
+    Setup,
     /// Every player chooses a card from their hand.
     ChoosingCards {
         age: u8,
@@ -122,6 +137,16 @@ pub enum ActionError {
     NoWonderStageLeft,
     FreeBuildUnavailable,
     ActionNotAllowedNow,
+    /// `ClaimWonder` names no base-game wonder.
+    UnknownWonder,
+    /// `ChooseBoard`: another seat holds (claimed or confirmed) that board.
+    WonderTaken,
+    /// `ChooseSide`: not the board drawn for this seat.
+    NotYourWonder,
+    /// `ConfirmWonder` before any claim.
+    NoClaim,
+    /// The seat has already confirmed its board.
+    AlreadyConfirmed,
 }
 
 /// What a validated action does at resolution time.

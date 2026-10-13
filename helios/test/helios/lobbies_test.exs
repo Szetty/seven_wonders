@@ -112,6 +112,7 @@ defmodule Helios.LobbiesTest do
       assert Lobbies.error_message(:lobby_full) == "The table is full (7 players max)"
       assert Lobbies.error_message(:invalid_user) == "That player does not exist"
       assert Lobbies.error_message(:not_invited) == "That invitation is no longer valid"
+      assert Lobbies.error_message(:invalid_wonder_mode) == "That board mode does not exist"
     end
   end
 
@@ -304,6 +305,46 @@ defmodule Helios.LobbiesTest do
 
       assert Lobbies.decline(stranger, lobby.id) == {:error, :not_invited}
       assert Lobbies.decline(stranger, "garbage") == {:error, :not_invited}
+    end
+  end
+
+  describe "set_wonder_mode/3" do
+    test "the owner sets the mode, which is persisted and broadcast" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+      assert lobby.wonder_mode == "random"
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.lobby_topic(lobby.id))
+
+      for mode <- ~w(choose_side choose_board random) do
+        assert {:ok, %Lobby{wonder_mode: ^mode}} = Lobbies.set_wonder_mode(scope, lobby, mode)
+        assert_receive {:settings_changed}
+        assert Repo.get!(Lobby, lobby.id).wonder_mode == mode
+      end
+    end
+
+    test "only the owner may change it" do
+      %{owner: owner, lobby: lobby} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.lobby_topic(lobby.id))
+
+      assert {:error, :not_leader} =
+               Lobbies.set_wonder_mode(Scope.for_user(guest), lobby, "choose_board")
+
+      assert Repo.get!(Lobby, lobby.id).wonder_mode == "random"
+      refute_received {:settings_changed}
+    end
+
+    test "unknown modes are rejected without creating atoms" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+      name = "never_a_mode_#{System.unique_integer([:positive])}"
+
+      for mode <- [name, "", nil, 3, "Random"] do
+        assert Lobbies.set_wonder_mode(scope, lobby, mode) == {:error, :invalid_wonder_mode},
+               "accepted #{inspect(mode)}"
+      end
+
+      assert Repo.get!(Lobby, lobby.id).wonder_mode == "random"
+      assert_raise ArgumentError, fn -> String.to_existing_atom(name) end
     end
   end
 

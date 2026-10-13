@@ -11,10 +11,38 @@ defmodule Helios.Games.ActionCodecTest do
      %{card: "Baths", payment: %{west: [{:stone, 2}], east: [{:ore, 1}, {:clay, 1}, {:glass, 1}]}}},
     {:discard, "Altar"},
     {:build_free, "Palace"},
-    {:build_from_discard, "Library"}
+    {:build_from_discard, "Library"},
+    {:claim_wonder, %{wonder: "Rhódos", side: :b}},
+    :confirm_wonder
   ]
 
   defp through_json(map), do: map |> Jason.encode!() |> Jason.decode!()
+
+  test "setup actions encode with the existing type key" do
+    assert ActionCodec.encode({:claim_wonder, %{wonder: "Gizah", side: :a}}) ==
+             %{"type" => "claim_wonder", "wonder" => "Gizah", "side" => "a"}
+
+    assert ActionCodec.encode(:confirm_wonder) == %{"type" => "confirm_wonder"}
+
+    for bad <- [
+          %{"type" => "claim_wonder", "wonder" => "Gizah", "side" => "c"},
+          %{"type" => "claim_wonder", "wonder" => 5, "side" => "a"},
+          %{"type" => "claim_wonder", "side" => "a"}
+        ] do
+      assert ActionCodec.decode(bad) == {:error, :invalid_action}, "accepted #{inspect(bad)}"
+    end
+  end
+
+  test "setup wonder modes round-trip; unknown modes are rejected" do
+    for mode <- [:choose_board, :choose_side] do
+      encoded = ActionCodec.encode_wonders(mode)
+      assert encoded == %{"mode" => Atom.to_string(mode)}
+      assert encoded |> through_json() |> ActionCodec.decode_wonders() == {:ok, mode}
+    end
+
+    assert ActionCodec.decode_wonders(%{"mode" => "random"}) == {:error, :invalid_wonders}
+    assert ActionCodec.decode_wonders(%{"mode" => "chaos"}) == {:error, :invalid_wonders}
+  end
 
   test "encodes to the documented JSON-safe maps" do
     assert ActionCodec.encode(

@@ -14,7 +14,7 @@ impl Game {
             Phase::ExtraTurn { player, .. } => self
                 .seat_of(player)
                 .is_some_and(|seat| self.pending[seat].is_some()),
-            Phase::GameOver { .. } => false,
+            Phase::Setup | Phase::GameOver { .. } => false,
         }
     }
 
@@ -29,7 +29,7 @@ impl Game {
                 kind: ExtraTurnKind::BuildFromDiscard,
                 ..
             } => TurnKind::BuildFromDiscard,
-            Phase::GameOver { .. } => return,
+            Phase::Setup | Phase::GameOver { .. } => return,
         };
         let batch = self.take_pending();
         let build_from_discard = self.apply_batch(kind, batch);

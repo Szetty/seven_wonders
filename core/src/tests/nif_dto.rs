@@ -1,11 +1,12 @@
-use super::game_helpers::plain_game;
+use super::game_helpers::{claim, names, plain_game};
 use crate::game::{
-    Action, ActionError, BuildOption, Category, Payment, PaymentOption, ResourceType::*,
-    SetupError, Side, WonderSelection,
+    Action, ActionError, BuildOption, Category, Game, Payment, PaymentOption, PhaseKind,
+    ResourceType::*, SetupError, Side, WonderSelection,
 };
 use crate::nif::dto::{
     ActionDto, ActionErrorDto, BuildOptionDto, CategoryDto, PaymentDto, PaymentOptionDto,
-    PhaseKindDto, PlayerViewDto, ResourceDto, SetupErrorDto, SideDto, WondersDto,
+    PhaseKindDto, PlayerViewDto, ResourceDto, SetupErrorDto, SetupModeDto, SetupSeatDto, SideDto,
+    WondersDto,
 };
 
 #[test]
@@ -61,6 +62,17 @@ fn action_dtos_round_trip() {
                 card: "Altar".to_string(),
             },
         ),
+        (
+            ActionDto::ClaimWonder {
+                wonder: "Gizah".to_string(),
+                side: SideDto::B,
+            },
+            Action::ClaimWonder {
+                wonder: "Gizah".to_string(),
+                side: Side::B,
+            },
+        ),
+        (ActionDto::ConfirmWonder, Action::ConfirmWonder),
     ];
     for (dto, action) in pairs {
         assert_eq!(Action::from(dto.clone()), action);
@@ -158,6 +170,7 @@ fn a_whole_view_converts() {
     assert_eq!(dto.hand.len(), 7);
     assert_eq!(dto.submitted.len(), 3);
     assert_eq!(dto.my_pending, None);
+    assert_eq!(dto.setup, None);
 }
 
 #[test]
@@ -198,4 +211,104 @@ fn settings_convert_with_catalogue() {
         }]
     );
     assert_eq!(dto.wonders[0].boards.len(), 2);
+}
+
+#[test]
+fn setup_errors_and_phase_convert() {
+    let pairs = [
+        (ActionError::UnknownWonder, ActionErrorDto::UnknownWonder),
+        (ActionError::WonderTaken, ActionErrorDto::WonderTaken),
+        (ActionError::NotYourWonder, ActionErrorDto::NotYourWonder),
+        (ActionError::NoClaim, ActionErrorDto::NoClaim),
+        (
+            ActionError::AlreadyConfirmed,
+            ActionErrorDto::AlreadyConfirmed,
+        ),
+    ];
+    for (error, dto) in pairs {
+        assert_eq!(ActionErrorDto::from(error), dto);
+    }
+    assert_eq!(PhaseKindDto::from(PhaseKind::Setup), PhaseKindDto::Setup);
+}
+
+#[test]
+fn wonder_modes_convert() {
+    assert_eq!(
+        WonderSelection::from(WondersDto::ChooseBoard),
+        WonderSelection::ChooseBoard
+    );
+    assert_eq!(
+        WonderSelection::from(WondersDto::ChooseSide),
+        WonderSelection::ChooseSide
+    );
+}
+
+#[test]
+fn a_setup_view_converts() {
+    let mut game = Game::new(names(3), WonderSelection::ChooseBoard, 42).unwrap();
+    game.submit("p1", claim("Gizah", Side::B)).unwrap();
+    game.submit("p1", Action::ConfirmWonder).unwrap();
+    let dto = PlayerViewDto::from(game.view("p2").unwrap());
+    assert_eq!(dto.phase.kind, PhaseKindDto::Setup);
+    assert_eq!((dto.phase.age, dto.phase.turn), (1, 1));
+    assert!(dto.players.is_empty() && dto.hand.is_empty());
+    assert_eq!(dto.discard_pile, None);
+    assert_eq!(dto.discard_count, 0);
+    assert_eq!(dto.my_pending, None);
+    assert_eq!(dto.scores, None);
+    assert_eq!(
+        dto.submitted,
+        vec![
+            ("p1".to_string(), true),
+            ("p2".to_string(), false),
+            ("p3".to_string(), false)
+        ]
+    );
+    let setup = dto.setup.expect("setup view");
+    assert_eq!(setup.mode, SetupModeDto::ChooseBoard);
+    assert_eq!(
+        setup.seats,
+        vec![
+            SetupSeatDto {
+                player: "p1".to_string(),
+                wonder: Some("Gizah".to_string()),
+                side: Some(SideDto::B),
+                confirmed: true,
+            },
+            SetupSeatDto {
+                player: "p2".to_string(),
+                wonder: None,
+                side: None,
+                confirmed: false,
+            },
+            SetupSeatDto {
+                player: "p3".to_string(),
+                wonder: None,
+                side: None,
+                confirmed: false,
+            },
+        ]
+    );
+    assert_eq!(
+        setup.available,
+        [
+            "Rhódos",
+            "Alexandria",
+            "Éphesos",
+            "Babylon",
+            "Olympía",
+            "Halikarnassós"
+        ]
+        .map(String::from)
+        .to_vec()
+    );
+
+    let game = Game::new(names(3), WonderSelection::ChooseSide, 42).unwrap();
+    let setup = PlayerViewDto::from(game.view("p1").unwrap())
+        .setup
+        .expect("setup view");
+    assert_eq!(setup.mode, SetupModeDto::ChooseSide);
+    assert!(setup.available.is_empty());
+    assert_eq!(setup.seats[0].wonder, Some("Alexandria".to_string()));
+    assert_eq!(setup.seats[0].side, None);
 }

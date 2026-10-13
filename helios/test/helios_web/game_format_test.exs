@@ -4,6 +4,19 @@ defmodule HeliosWeb.GameFormatTest do
   alias Helios.SampleViews
   alias HeliosWeb.GameFormat
 
+  test "during setup seats, statuses and waiting come from the setup seats" do
+    view = SampleViews.setup_view()
+    assert GameFormat.seat_ids(view) == ["1", "2", "3", "4"]
+
+    assert GameFormat.statuses(view) ==
+             %{"1" => :chosen, "2" => :thinking, "3" => :thinking, "4" => :chosen}
+
+    assert GameFormat.waiting_for(view, SampleViews.names()) == ["Bob", "Cid"]
+    refute GameFormat.show_hand?(view)
+    refute GameFormat.dock?(view)
+    assert GameFormat.seat_ids(SampleViews.view()) == ["1", "2", "3", "4"]
+  end
+
   test "labels" do
     assert Enum.map(1..3, &GameFormat.roman/1) == ["I", "II", "III"]
     assert GameFormat.direction_label(:west) == "west"

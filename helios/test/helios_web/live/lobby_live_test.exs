@@ -180,6 +180,55 @@ defmodule HeliosWeb.LobbyLiveTest do
     end
   end
 
+  describe "wonder mode" do
+    test "the owner switches the mode; guests see it read-only and live", %{conn: conn} do
+      a = player_with_lobby(conn)
+      b = player_with_lobby(build_conn())
+      invite_fixture(a.lobby, a.user, b.user)
+
+      {:ok, view_a, _} = live(a.conn, ~p"/lobby/#{a.lobby.id}")
+      {:ok, view_b, _} = live(b.conn, ~p"/lobby/#{a.lobby.id}")
+
+      assert has_element?(view_a, "#wonder-mode-random[aria-pressed='true']")
+      assert has_element?(view_a, "#wonder-mode-choose_side", "Random board, choose side")
+
+      assert has_element?(
+               view_a,
+               "#wonder-mode-choose_board[aria-pressed='false']",
+               "Choose board"
+             )
+
+      assert has_element?(view_b, "#wonder-mode[data-mode='random']")
+      refute has_element?(view_b, "#wonder-mode-random")
+
+      view_a |> element("#wonder-mode-choose_board") |> render_click()
+
+      assert has_element?(view_a, "#wonder-mode-choose_board[aria-pressed='true']")
+      assert has_element?(view_a, "#wonder-mode-random[aria-pressed='false']")
+      assert {:ok, %{wonder_mode: "choose_board"}} = Lobbies.fetch_lobby(a.lobby.id)
+      assert has_element?(view_b, "#wonder-mode[data-mode='choose_board']", "Choose board")
+    end
+
+    test "forged mode changes are rejected server-side", %{conn: conn} do
+      a = player_with_lobby(conn)
+      b = player_with_lobby(build_conn())
+      invite_fixture(a.lobby, a.user, b.user)
+
+      {:ok, view_a, _} = live(a.conn, ~p"/lobby/#{a.lobby.id}")
+      {:ok, view_b, _} = live(b.conn, ~p"/lobby/#{a.lobby.id}")
+
+      render_hook(view_b, "set_wonder_mode", %{"mode" => "choose_board"})
+      assert has_element?(view_b, "#flash-error", "Only the table leader can do that")
+
+      render_hook(view_a, "set_wonder_mode", %{"mode" => "chaos"})
+      assert has_element?(view_a, "#flash-error", "That board mode does not exist")
+
+      render_hook(view_a, "set_wonder_mode", %{})
+      assert has_element?(view_a, "#wonder-mode-random[aria-pressed='true']")
+      assert {:ok, %{wonder_mode: "random"}} = Lobbies.fetch_lobby(a.lobby.id)
+    end
+  end
+
   describe "access" do
     test "a malformed game id redirects to the own lobby", %{conn: conn} do
       %{conn: conn, lobby: own} = player_with_lobby(conn)

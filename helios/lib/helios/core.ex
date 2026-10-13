@@ -20,7 +20,9 @@ defmodule Helios.Core do
           | {:discard, String.t()}
           | {:build_free, String.t()}
           | {:build_from_discard, String.t()}
-  @type wonders :: :random | {:explicit, [{String.t(), :a | :b}]}
+          | {:claim_wonder, %{wonder: String.t(), side: :a | :b}}
+          | :confirm_wonder
+  @type wonders :: :random | :choose_board | :choose_side | {:explicit, [{String.t(), :a | :b}]}
   @type setup_error ::
           :invalid_players_number
           | {:duplicate_player, String.t()}
@@ -39,6 +41,11 @@ defmodule Helios.Core do
           | :no_wonder_stage_left
           | :free_build_unavailable
           | :action_not_allowed_now
+          | :unknown_wonder
+          | :wonder_taken
+          | :not_your_wonder
+          | :no_claim
+          | :already_confirmed
           | :lock_fail
 
   @doc "Engine version, wonders (with sides) and every card (name, category, age)."
@@ -63,6 +70,9 @@ defmodule Helios.Core do
 
   @doc """
   The table as seen by `player` (hidden information excluded).
+
+  During setup (`phase.kind == :setup`) `players` and `hand` are empty and `setup`
+  holds `%{mode, seats, available}`; otherwise `setup` is nil.
 
   Build options: :free | {:chain, card} | {:coins, n} | {:trade, [option]} | {:unavailable, reason}.
   """

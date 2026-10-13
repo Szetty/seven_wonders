@@ -4,8 +4,8 @@ use crate::game::{
     Action, ActionError, Battle, BuildOption, BuiltCard, CardInfo, Category, CoinChange, CostInfo,
     EffectSpec, ExtraTurnKind, FinalScore, GameSettings, HandCard, HistoryEvent, PassDirection,
     Payment, PaymentOption, PhaseKind, PhaseView, Play, PlayerDirection, PlayerView, PointCategory,
-    PublicAction, PublicPlayer, ResourceType, ScientificSymbol, SetupError, Side, StageInfo,
-    TurnKind, WonderBoardInfo, WonderInfo, WonderSelection,
+    PublicAction, PublicPlayer, ResourceType, ScientificSymbol, SetupError, SetupMode, SetupSeat,
+    SetupView, Side, StageInfo, TurnKind, WonderBoardInfo, WonderInfo, WonderSelection,
 };
 use rustler::{NifMap, NifTaggedEnum, NifUnitEnum};
 
@@ -97,10 +97,12 @@ impl From<SideDto> for Side {
     }
 }
 
-/// `:random` | `{:explicit, [{"Gizah", :a}, …]}`
+/// `:random` | `:choose_board` | `:choose_side` | `{:explicit, [{"Gizah", :a}, …]}`
 #[derive(Debug, Clone, PartialEq, Eq, NifTaggedEnum)]
 pub enum WondersDto {
     Random,
+    ChooseBoard,
+    ChooseSide,
     Explicit(Vec<(String, SideDto)>),
 }
 
@@ -108,6 +110,8 @@ impl From<WondersDto> for WonderSelection {
     fn from(wonders: WondersDto) -> Self {
         match wonders {
             WondersDto::Random => Self::Random,
+            WondersDto::ChooseBoard => Self::ChooseBoard,
+            WondersDto::ChooseSide => Self::ChooseSide,
             WondersDto::Explicit(choices) => Self::Explicit(
                 choices
                     .into_iter()
@@ -148,7 +152,8 @@ impl From<PaymentDto> for Payment {
 }
 
 /// `{:build, %{card, payment}}` | `{:build_wonder_stage, %{card, payment}}` |
-/// `{:discard, card}` | `{:build_free, card}` | `{:build_from_discard, card}`
+/// `{:discard, card}` | `{:build_free, card}` | `{:build_from_discard, card}` |
+/// `{:claim_wonder, %{wonder, side}}` | `:confirm_wonder`
 #[derive(Debug, Clone, PartialEq, Eq, NifTaggedEnum)]
 pub enum ActionDto {
     Build { card: String, payment: PaymentDto },
@@ -156,6 +161,8 @@ pub enum ActionDto {
     Discard(String),
     BuildFree(String),
     BuildFromDiscard(String),
+    ClaimWonder { wonder: String, side: SideDto },
+    ConfirmWonder,
 }
 
 impl From<ActionDto> for Action {
@@ -172,6 +179,11 @@ impl From<ActionDto> for Action {
             ActionDto::Discard(card) => Self::Discard { card },
             ActionDto::BuildFree(card) => Self::BuildFree { card },
             ActionDto::BuildFromDiscard(card) => Self::BuildFromDiscard { card },
+            ActionDto::ClaimWonder { wonder, side } => Self::ClaimWonder {
+                wonder,
+                side: side.into(),
+            },
+            ActionDto::ConfirmWonder => Self::ConfirmWonder,
         }
     }
 }
@@ -190,6 +202,11 @@ impl From<Action> for ActionDto {
             Action::Discard { card } => Self::Discard(card),
             Action::BuildFree { card } => Self::BuildFree(card),
             Action::BuildFromDiscard { card } => Self::BuildFromDiscard(card),
+            Action::ClaimWonder { wonder, side } => Self::ClaimWonder {
+                wonder,
+                side: side.into(),
+            },
+            Action::ConfirmWonder => Self::ConfirmWonder,
         }
     }
 }
@@ -207,6 +224,11 @@ pub enum ActionErrorDto {
     NoWonderStageLeft,
     FreeBuildUnavailable,
     ActionNotAllowedNow,
+    UnknownWonder,
+    WonderTaken,
+    NotYourWonder,
+    NoClaim,
+    AlreadyConfirmed,
 }
 
 impl From<ActionError> for ActionErrorDto {
@@ -223,6 +245,11 @@ impl From<ActionError> for ActionErrorDto {
             ActionError::NoWonderStageLeft => Self::NoWonderStageLeft,
             ActionError::FreeBuildUnavailable => Self::FreeBuildUnavailable,
             ActionError::ActionNotAllowedNow => Self::ActionNotAllowedNow,
+            ActionError::UnknownWonder => Self::UnknownWonder,
+            ActionError::WonderTaken => Self::WonderTaken,
+            ActionError::NotYourWonder => Self::NotYourWonder,
+            ActionError::NoClaim => Self::NoClaim,
+            ActionError::AlreadyConfirmed => Self::AlreadyConfirmed,
         }
     }
 }
@@ -267,6 +294,7 @@ impl From<ExtraTurnKind> for ExtraTurnKindDto {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, NifUnitEnum)]
 pub enum PhaseKindDto {
+    Setup,
     ChoosingCards,
     ExtraTurn,
     GameOver,
@@ -275,6 +303,7 @@ pub enum PhaseKindDto {
 impl From<PhaseKind> for PhaseKindDto {
     fn from(kind: PhaseKind) -> Self {
         match kind {
+            PhaseKind::Setup => Self::Setup,
             PhaseKind::ChoosingCards => Self::ChoosingCards,
             PhaseKind::ExtraTurn => Self::ExtraTurn,
             PhaseKind::GameOver => Self::GameOver,
@@ -468,6 +497,59 @@ impl From<FinalScore> for FinalScoreDto {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, NifUnitEnum)]
+pub enum SetupModeDto {
+    ChooseBoard,
+    ChooseSide,
+}
+
+impl From<SetupMode> for SetupModeDto {
+    fn from(mode: SetupMode) -> Self {
+        match mode {
+            SetupMode::ChooseBoard => Self::ChooseBoard,
+            SetupMode::ChooseSide => Self::ChooseSide,
+        }
+    }
+}
+
+/// `%{player, wonder: name | nil, side: :a | :b | nil, confirmed: boolean}`
+#[derive(Debug, Clone, PartialEq, Eq, NifMap)]
+pub struct SetupSeatDto {
+    pub player: String,
+    pub wonder: Option<String>,
+    pub side: Option<SideDto>,
+    pub confirmed: bool,
+}
+
+impl From<SetupSeat> for SetupSeatDto {
+    fn from(seat: SetupSeat) -> Self {
+        Self {
+            player: seat.player,
+            wonder: seat.wonder,
+            side: seat.side.map(Into::into),
+            confirmed: seat.confirmed,
+        }
+    }
+}
+
+/// `%{mode: :choose_board | :choose_side, seats: [seat], available: [name]}`
+#[derive(Debug, Clone, PartialEq, Eq, NifMap)]
+pub struct SetupViewDto {
+    pub mode: SetupModeDto,
+    pub seats: Vec<SetupSeatDto>,
+    pub available: Vec<String>,
+}
+
+impl From<SetupView> for SetupViewDto {
+    fn from(setup: SetupView) -> Self {
+        Self {
+            mode: setup.mode.into(),
+            seats: convert(setup.seats),
+            available: setup.available,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, NifMap)]
 pub struct PlayerViewDto {
     pub me: String,
@@ -481,6 +563,8 @@ pub struct PlayerViewDto {
     pub submitted: Vec<(String, bool)>,
     pub my_pending: Option<ActionDto>,
     pub scores: Option<Vec<FinalScoreDto>>,
+    /// `nil` outside `:setup`.
+    pub setup: Option<SetupViewDto>,
 }
 
 impl From<PlayerView> for PlayerViewDto {
@@ -499,6 +583,7 @@ impl From<PlayerView> for PlayerViewDto {
             scores: view
                 .scores
                 .map(|scores| scores.into_iter().map(Into::into).collect()),
+            setup: view.setup.map(Into::into),
         }
     }
 }

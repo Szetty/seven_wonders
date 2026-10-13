@@ -91,7 +91,7 @@ defmodule Helios.Games do
          :ok <- check_player_count(length(players)),
          :ok <- check_no_active_game(lobby),
          player_ids = Enum.map(players, &to_string(&1.id)),
-         wonders = configured_wonders(length(players)),
+         wonders = configured_wonders(lobby, length(players)),
          seed = new_seed(),
          :ok <- validate_setup(player_ids, wonders, seed),
          {:ok, game} <- insert_game(lobby, players, seed, wonders),
@@ -113,6 +113,11 @@ defmodule Helios.Games do
   def error_message(:no_wonder_stage_left), do: "Your wonder is complete"
   def error_message(:free_build_unavailable), do: "Your free build is not available"
   def error_message(:action_not_allowed_now), do: "You can't do that right now"
+  def error_message(:unknown_wonder), do: "That board does not exist"
+  def error_message(:wonder_taken), do: "That board was just taken"
+  def error_message(:not_your_wonder), do: "That is not your board"
+  def error_message(:no_claim), do: "Pick a board first"
+  def error_message(:already_confirmed), do: "You already confirmed your board"
   def error_message(:not_leader), do: "Only the table leader can start a game"
   def error_message(:not_enough_players), do: "Need at least 3 connected players"
   def error_message(:too_many_players), do: "At most 7 players can play"
@@ -138,7 +143,12 @@ defmodule Helios.Games do
     if active_game_for_lobby(lobby.id), do: {:error, :game_in_progress}, else: :ok
   end
 
-  defp configured_wonders(count) do
+  # The lobby's mode decides; the config `wonders:` override (e2e only) applies
+  # only to random games, so e2e can still exercise the setup modes.
+  defp configured_wonders(%{wonder_mode: "choose_side"}, _count), do: :choose_side
+  defp configured_wonders(%{wonder_mode: "choose_board"}, _count), do: :choose_board
+
+  defp configured_wonders(_lobby, count) do
     case Keyword.get(config(), :wonders) do
       nil -> :random
       wonders -> {:explicit, Enum.take(wonders, count)}
@@ -228,13 +238,15 @@ defmodule Helios.Games do
   final view, the public history, and one frame per turn (public boards plus
   the viewer's own hand and final choice that turn, the discard-pile size and,
   in the viewer's own build-from-discard turn only, the buildable discards).
+  For setup-mode games the first frame is Age I turn 1; setup actions are not
+  frames.
   `{:error, :not_finished}` if the log stops short of game over.
   """
   @spec replay(Game.t(), integer()) ::
           {:ok, %{view: map(), history: [term()], frames: [map()]}} | {:error, term()}
   def replay(%Game{} = game, user_id) do
     me = to_string(user_id)
-    init = fn ref -> %{current: frame_snapshot(ref, me), done: [], turns: 0, my_last: nil} end
+    init = fn ref -> %{current: opening_frame(ref, me), done: [], turns: 0, my_last: nil} end
     step = fn row, ref, acc -> frame_step(row, ref, acc, me) end
 
     with {:ok, ref, acc} <- Replay.rebuild(game, Replay.actions(game.id), init, step),
@@ -246,6 +258,11 @@ defmodule Helios.Games do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  # Setup actions (choose_board / choose_side) open no frame and are nobody's
+  # choice: the first frame is the table as Age I turn 1 begins.
+  defp frame_step(_row, ref, %{current: nil} = acc, me),
+    do: %{acc | current: opening_frame(ref, me)}
 
   defp frame_step(row, ref, acc, me) do
     acc =
@@ -271,6 +288,13 @@ defmodule Helios.Games do
       }
     else
       acc
+    end
+  end
+
+  defp opening_frame(ref, me) do
+    case Core.view(ref, me) do
+      {:ok, %{phase: %{kind: :setup}}} -> nil
+      {:ok, _view} -> frame_snapshot(ref, me)
     end
   end
 

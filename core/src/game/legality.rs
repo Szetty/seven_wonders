@@ -26,6 +26,9 @@ impl Game {
     ) -> Result<Resolved, ActionError> {
         let extra_turn = match &self.phase {
             Phase::GameOver { .. } => return Err(ActionError::GameOver),
+            // `submit` routes setup to `submit_setup`; nothing below may read
+            // the placeholder state.
+            Phase::Setup => return Err(ActionError::ActionNotAllowedNow),
             Phase::ChoosingCards { .. } => None,
             Phase::ExtraTurn { kind, .. } => Some(*kind),
         };
@@ -96,6 +99,9 @@ impl Game {
                     return Err(ActionError::AlreadyBuilt);
                 }
                 Ok(Resolved::free(Kind::FromDiscard, card))
+            }
+            Action::ClaimWonder { .. } | Action::ConfirmWonder => {
+                Err(ActionError::ActionNotAllowedNow)
             }
         }
     }

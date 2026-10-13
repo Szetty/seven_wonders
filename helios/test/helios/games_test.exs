@@ -5,7 +5,7 @@ defmodule Helios.GamesTest do
 
   alias Helios.{Games, Lobbies}
   alias Helios.Accounts.Scope
-  alias Helios.Games.Game
+  alias Helios.Games.{Game, Replay}
 
   setup do
     on_exit(&stop_game_servers/0)
@@ -75,6 +75,8 @@ defmodule Helios.GamesTest do
       guests: [b, c | _],
       lobby: lobby
     } do
+      assert lobby.wonder_mode == "random"
+
       put_games_config(
         wonders: [{"Gizah", :b}, {"Rhódos", :a}, {"Éphesos", :b}, {"Alexandria", :a}]
       )
@@ -103,6 +105,97 @@ defmodule Helios.GamesTest do
 
       assert {:error, {:setup_failed, _reason}} = Games.start_game(Scope.for_user(owner), lobby)
       assert Games.active_game_for_lobby(lobby.id) == nil
+    end
+
+    test "choose_side starts in setup with drawn boards and ignores the wonders override", %{
+      owner: owner,
+      guests: [b, c | _],
+      lobby: lobby
+    } do
+      put_games_config(wonders: default_wonders())
+      connect_to_lobby(lobby, [b, c])
+      {:ok, lobby} = Lobbies.set_wonder_mode(Scope.for_user(owner), lobby, "choose_side")
+
+      assert {:ok, game} = Games.start_game(Scope.for_user(owner), lobby)
+      assert game.wonders == %{"mode" => "choose_side"}
+
+      {:ok, view} = Games.view(game.id, owner.id)
+      assert %{phase: %{kind: :setup}, players: [], setup: %{mode: :choose_side}} = view
+      assert view.setup.available == []
+      assert length(view.setup.seats) == 3
+
+      assert Enum.all?(view.setup.seats, fn seat ->
+               is_binary(seat.wonder) and is_nil(seat.side) and not seat.confirmed
+             end)
+    end
+
+    test "choose_board starts in setup with every board free", %{
+      owner: owner,
+      guests: [b, c | _],
+      lobby: lobby
+    } do
+      put_games_config(wonders: default_wonders())
+      connect_to_lobby(lobby, [b, c])
+      {:ok, lobby} = Lobbies.set_wonder_mode(Scope.for_user(owner), lobby, "choose_board")
+
+      assert {:ok, game} = Games.start_game(Scope.for_user(owner), lobby)
+      assert game.wonders == %{"mode" => "choose_board"}
+
+      {:ok, view} = Games.view(game.id, owner.id)
+      assert %{phase: %{kind: :setup}, setup: %{mode: :choose_board}} = view
+      assert length(view.setup.available) == 7
+      assert Enum.all?(view.setup.seats, &is_nil(&1.wonder))
+    end
+
+    test "setup actions are logged and survive a server restart", %{
+      owner: owner,
+      guests: [b, c | _],
+      lobby: lobby
+    } do
+      connect_to_lobby(lobby, [b, c])
+      {:ok, lobby} = Lobbies.set_wonder_mode(Scope.for_user(owner), lobby, "choose_board")
+      {:ok, game} = Games.start_game(Scope.for_user(owner), lobby)
+
+      assert :ok =
+               Games.submit(game.id, owner.id, {:claim_wonder, %{wonder: "Babylon", side: :b}})
+
+      assert {:error, :wonder_taken} =
+               Games.submit(game.id, b.id, {:claim_wonder, %{wonder: "Babylon", side: :a}})
+
+      assert :ok = Games.submit(game.id, owner.id, :confirm_wonder)
+
+      assert [
+               %{"type" => "claim_wonder", "wonder" => "Babylon", "side" => "b"},
+               %{"type" => "confirm_wonder"}
+             ] = Enum.map(Replay.actions(game.id), & &1.action)
+
+      stop_game_servers()
+      {:ok, view} = Games.view(game.id, b.id)
+      owner_id = to_string(owner.id)
+
+      assert %{wonder: "Babylon", side: :b, confirmed: true} =
+               Enum.find(view.setup.seats, &(&1.player == owner_id))
+
+      refute "Babylon" in view.setup.available
+    end
+
+    test "once every seat confirms, Age I is dealt", %{
+      owner: owner,
+      guests: [b, c | _],
+      lobby: lobby
+    } do
+      connect_to_lobby(lobby, [b, c])
+      {:ok, lobby} = Lobbies.set_wonder_mode(Scope.for_user(owner), lobby, "choose_side")
+      {:ok, game} = Games.start_game(Scope.for_user(owner), lobby)
+      ids = Enum.map([owner, b, c], &to_string(&1.id))
+      {view_fun, submit_fun} = Helios.GameDriver.games_funs(game.id)
+
+      assert :ok = Helios.GameDriver.finish_setup(ids, view_fun, submit_fun)
+
+      view = view_fun.(hd(ids))
+      assert %{phase: %{kind: :choosing_cards, age: 1, turn: 1}, setup: nil} = view
+      assert length(view.hand) == 7
+      assert Enum.all?(view.players, &(&1.side == :a))
     end
   end
 
@@ -154,6 +247,11 @@ defmodule Helios.GamesTest do
             :unauthorized,
             :server_restarted,
             :invalid_choice,
+            :unknown_wonder,
+            :wonder_taken,
+            :not_your_wonder,
+            :no_claim,
+            :already_confirmed,
             {:setup_failed, :anything}
           ] do
         message = Games.error_message(reason)
@@ -163,6 +261,8 @@ defmodule Helios.GamesTest do
       assert Games.error_message(:cannot_afford) == "You can't afford that"
       assert Games.error_message(:invalid_payment) == "That payment is no longer valid"
       assert Games.error_message(:game_in_progress) == "A game is already running at this table"
+      assert Games.error_message(:not_your_wonder) == "That is not your board"
+      assert Games.error_message(:no_claim) == "Pick a board first"
     end
   end
 

@@ -66,6 +66,7 @@ defmodule Helios.CoreShapesTest do
 
     assert %{me: "1", west: "3", east: "2", discard_pile: nil, discard_count: 0} = view
     assert %{my_pending: nil, scores: nil} = view
+    assert view.setup == nil
 
     assert %{
              kind: :choosing_cards,
@@ -160,6 +161,28 @@ defmodule Helios.CoreShapesTest do
                rank: _
              } = score
     end
+  end
+
+  test "view/2 and submit/3 during a choose_board setup" do
+    {:ok, ref} = Core.new_game(@players, :choose_board, 1)
+    assert {:ok, view} = Core.view(ref, "1")
+
+    assert %{players: [], hand: [], west: "3", east: "2", my_pending: nil, scores: nil} = view
+    assert %{discard_pile: nil, discard_count: 0} = view
+    assert %{kind: :setup, age: 1, turn: 1, extra_turn_player: nil} = view.phase
+    assert view.submitted == [{"1", false}, {"2", false}, {"3", false}]
+
+    assert %{mode: :choose_board, available: available, seats: seats} = view.setup
+    assert length(available) == 7
+    assert [%{player: "1", wonder: nil, side: nil, confirmed: false} | _] = seats
+
+    assert :ok = Core.submit(ref, "1", {:claim_wonder, %{wonder: "Gizah", side: :b}})
+
+    assert {:error, :wonder_taken} =
+             Core.submit(ref, "2", {:claim_wonder, %{wonder: "Gizah", side: :a}})
+
+    assert {:error, :action_not_allowed_now} = Core.submit(ref, "2", {:discard, "Altar"})
+    assert {:error, :no_claim} = Core.submit(ref, "2", :confirm_wonder)
   end
 
   test "history/1 lists public turn and battle events" do

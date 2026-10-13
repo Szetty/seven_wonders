@@ -125,4 +125,33 @@ defmodule Helios.Games.ReplayTest do
       end
     end
   end
+
+  test "a choose_board game's frames start at Age I turn 1; setup is nobody's choice" do
+    users = for _ <- 1..3, do: player_fixture()
+    [a | _] = users
+    game = game_fixture(users, selection: :choose_board)
+    ids = Enum.map(users, &to_string(&1.id))
+    {view_fun, submit_fun} = GameDriver.games_funs(game.id)
+
+    :ok = GameDriver.finish_setup(ids, view_fun, submit_fun)
+    {:game_over, _} = GameDriver.play_until(ids, %{}, view_fun, submit_fun, fn _ -> false end)
+    game = Repo.get!(Game, game.id)
+    stop_game_servers()
+
+    assert {:ok, %{frames: frames, history: history}} = Games.replay(game, a.id)
+    turns = Enum.count(history, &match?({:turn, _}, &1))
+    assert length(frames) == turns + 1
+
+    [first | _] = frames
+    assert %{phase: %{kind: :choosing_cards, age: 1, turn: 1}, event_index: 0} = first
+    assert length(first.hand) == 7
+    assert Enum.all?(first.players, &(&1.side == :a))
+    assert first.my_choice == {:discard, hd(first.hand)}
+
+    refute Enum.any?(frames, &(&1.phase.kind == :setup))
+
+    refute Enum.any?(frames, fn frame ->
+             match?({:claim_wonder, _}, frame.my_choice) or frame.my_choice == :confirm_wonder
+           end)
+  end
 end
