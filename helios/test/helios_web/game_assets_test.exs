@@ -19,6 +19,11 @@ defmodule HeliosWeb.GameAssetsTest do
     assert GameAssets.wonder_path("Rhódos", :b) == "/images/wonders/rhodosB.png"
   end
 
+  test "wonder slugs are the ASCII city names used by the images" do
+    assert Enum.map(Helios.SampleViews.wonder_names(), &GameAssets.wonder_slug/1) ==
+             ~w(alexandria babylon ephesos gizah halikarnassus olympia rhodos)
+  end
+
   test "token paths map engine resources to the legacy file names" do
     assert GameAssets.token_path(:loom) == "/images/tokens/linen.png"
     assert GameAssets.token_path(:papyrus) == "/images/tokens/paper.png"

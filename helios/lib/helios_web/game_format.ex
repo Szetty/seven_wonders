@@ -146,6 +146,7 @@ defmodule HeliosWeb.GameFormat do
   def waiting_for(%{phase: %{kind: :extra_turn, extra_turn_player: player}}, names),
     do: [player_name(names, player)]
 
+  # Setup: `submitted` holds {seat, confirmed?}, so this lists unconfirmed seats.
   def waiting_for(view, names), do: for({id, false} <- view.submitted, do: player_name(names, id))
 
   @doc "Who has chosen this turn: `:chosen`, `:thinking`, `:playing` (extra turn) or nil."
@@ -164,7 +165,13 @@ defmodule HeliosWeb.GameFormat do
     end
   end
 
-  def statuses(view), do: Map.new(view.players, &{&1.name, player_status(view, &1.name)})
+  @doc "Engine ids of every seat in seat order (also during setup, when `players` is empty)."
+  def seat_ids(%{phase: %{kind: :setup}, setup: %{seats: seats}}),
+    do: Enum.map(seats, & &1.player)
+
+  def seat_ids(%{players: players}), do: Enum.map(players, & &1.name)
+
+  def statuses(view), do: Map.new(seat_ids(view), &{&1, player_status(view, &1)})
 
   @doc "Players other than me and my neighbours, in seat order starting after my east neighbour."
   def others(%{players: players, me: me}) do
@@ -188,6 +195,7 @@ defmodule HeliosWeb.GameFormat do
   def pass_target(%{phase: %{direction: :west}, west: west}), do: west
   def pass_target(%{phase: %{direction: :east}, east: east}), do: east
 
+  def show_hand?(%{phase: %{kind: :setup}}), do: false
   def show_hand?(%{hand: []}), do: false
 
   def show_hand?(%{phase: %{kind: :extra_turn, extra_turn_player: player}, me: me}),

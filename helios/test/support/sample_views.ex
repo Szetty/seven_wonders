@@ -94,10 +94,58 @@ defmodule Helios.SampleViews do
         discard_count: 2,
         submitted: [{"1", true}, {"2", false}, {"3", true}, {"4", false}],
         my_pending: {:discard, "Baths"},
-        scores: nil
+        scores: nil,
+        setup: nil
       },
       overrides
     )
+  end
+
+  def wonder_names,
+    do: ["Alexandria", "Babylon", "Éphesos", "Gizah", "Halikarnassós", "Olympía", "Rhódos"]
+
+  @doc "A setup-phase view (engine shape: no boards, no hand). Me = \"1\"."
+  def setup_view(mode \\ :choose_board) do
+    seats =
+      case mode do
+        :choose_board ->
+          [
+            %{player: "1", wonder: "Gizah", side: :b, confirmed: true},
+            %{player: "2", wonder: "Rhódos", side: :a, confirmed: false},
+            %{player: "3", wonder: nil, side: nil, confirmed: false},
+            %{player: "4", wonder: "Babylon", side: :a, confirmed: true}
+          ]
+
+        :choose_side ->
+          [
+            %{player: "1", wonder: "Gizah", side: nil, confirmed: false},
+            %{player: "2", wonder: "Rhódos", side: :b, confirmed: true},
+            %{player: "3", wonder: "Éphesos", side: nil, confirmed: false},
+            %{player: "4", wonder: "Babylon", side: :a, confirmed: false}
+          ]
+      end
+
+    held = for %{wonder: wonder} <- seats, wonder != nil, do: wonder
+    available = if mode == :choose_board, do: wonder_names() -- held, else: []
+
+    view(%{
+      phase: %{
+        kind: :setup,
+        age: 1,
+        turn: 1,
+        direction: :west,
+        extra_turn_player: nil,
+        extra_turn_kind: nil
+      },
+      players: [],
+      hand: [],
+      discard_pile: nil,
+      discard_count: 0,
+      my_pending: nil,
+      scores: nil,
+      submitted: Enum.map(seats, &{&1.player, &1.confirmed}),
+      setup: %{mode: mode, seats: seats, available: available}
+    })
   end
 
   def scores do

@@ -18,15 +18,21 @@ defmodule HeliosWeb.GameAssets do
 
   def card_back_path(age) when age in 1..3, do: static("/images/cards/age#{age}.png")
 
-  def wonder_path(wonder, side) when side in [:a, :b] do
+  @doc "ASCII city name of a wonder, as used by its image files and DOM ids."
+  @spec wonder_slug(String.t()) :: String.t()
+  def wonder_slug(wonder) do
     city =
       wonder
       |> :unicode.characters_to_nfd_binary()
       |> String.replace(~r/\p{Mn}/u, "")
       |> String.downcase()
 
-    city = if city == "halikarnassos", do: "halikarnassus", else: city
-    static("/images/wonders/#{city}#{side |> Atom.to_string() |> String.upcase()}.png")
+    if city == "halikarnassos", do: "halikarnassus", else: city
+  end
+
+  def wonder_path(wonder, side) when side in [:a, :b] do
+    side_letter = side |> Atom.to_string() |> String.upcase()
+    static("/images/wonders/#{wonder_slug(wonder)}#{side_letter}.png")
   end
 
   def token_path(:coin), do: static("/images/tokens/coin.png")

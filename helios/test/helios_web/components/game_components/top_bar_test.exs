@@ -157,6 +157,21 @@ defmodule HeliosWeb.GameComponents.TopBarTest do
     assert text(html, "#discard-pile") == "Discard pile: 21"
   end
 
+  test "setup: choosing boards, unconfirmed players waiting, every seat listed" do
+    html = render_bar(SampleViews.setup_view())
+    assert attrs(html, "#top-bar", "data-phase") == ["setup"]
+    assert text(html, "#age-label") == "Choosing boards"
+    assert count(html, "#turn-label") == 0
+    assert count(html, "#pass-row") == 0
+    assert count(html, "#pass-direction") == 0
+    assert count(html, "#discard-pile") == 0
+    assert text(html, "#waiting-for") == "Waiting for: Bob, Cid"
+    assert count(html, "#connections li") == 4
+    assert attrs(html, "#connection-2", "data-connected") == ["true"]
+    assert attrs(html, "#connection-1", "data-status") == ["chosen"]
+    assert attrs(html, "#connection-3", "data-status") == ["thinking"]
+  end
+
   test "discard_pile/1 renders nothing for an empty pile" do
     assert render_component(&TopBar.discard_pile/1, count: 0) |> String.trim() == ""
     assert count(render_component(&TopBar.discard_pile/1, count: 5), "#discard-pile") == 1

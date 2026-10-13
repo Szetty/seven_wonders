@@ -13,6 +13,7 @@ defmodule Helios.Catalogue do
   def cards, do: Map.values(index().cards)
   def wonder_board(wonder, side), do: Map.get(index().boards, {wonder, side})
   def boards, do: Map.to_list(index().boards)
+  def wonder_names, do: index().wonder_names
 
   def stage(wonder, side, n) when is_integer(n) and n >= 1 do
     case wonder_board(wonder, side) do
@@ -42,7 +43,8 @@ defmodule Helios.Catalogue do
           board <- wonder.boards,
           into: %{},
           do: {{wonder.name, board.side}, board}
-        )
+        ),
+      wonder_names: Enum.map(settings.wonders, & &1.name)
     }
   end
 end
