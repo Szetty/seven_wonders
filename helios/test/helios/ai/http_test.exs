@@ -55,4 +55,28 @@ defmodule Helios.AI.HTTPTest do
     assert {:error, :deadline} = HTTP.request(@options, HTTP.now() + 100)
     assert calls.() == 0
   end
+
+  test "the backoff is jittered: the retry lands later than the 100 ms base delay" do
+    times = :counters.new(3, [])
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      :counters.add(times, 1, 1)
+      n = :counters.get(times, 1)
+
+      case n do
+        1 -> :counters.put(times, 2, System.monotonic_time(:microsecond))
+        2 -> :counters.put(times, 3, System.monotonic_time(:microsecond))
+        _ -> :ok
+      end
+
+      status = if n == 1, do: 429, else: 200
+      conn |> Plug.Conn.put_status(status) |> Req.Test.json(%{"n" => n})
+    end)
+
+    assert {:ok, %Req.Response{status: 200, body: %{"n" => 2}}} =
+             HTTP.request(@options, HTTP.now() + 2_000)
+
+    gap = :counters.get(times, 3) - :counters.get(times, 2)
+    assert gap >= 101_000
+  end
 end

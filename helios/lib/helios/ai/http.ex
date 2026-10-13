@@ -1,13 +1,14 @@
 defmodule Helios.AI.HTTP do
   @moduledoc """
   One provider request under an absolute deadline (monotonic milliseconds).
-  429, 529, other 5xx and transport errors are retried with short backoff
-  while at least #{300} ms remain; every attempt's `receive_timeout` is the
-  remaining budget, so the call never outlives the deadline by more than
-  connection teardown. Other responses are returned unchanged.
+  429, 529, other 5xx and transport errors are retried with short jittered
+  backoff while at least #{300} ms remain; every attempt's `receive_timeout`
+  is the remaining budget, so the call never outlives the deadline by more
+  than connection teardown. Other responses are returned unchanged.
   """
 
   @backoff_ms [100, 250, 500]
+  @jitter_ms 50
   @min_attempt_ms 300
 
   @spec now() :: integer()
@@ -47,6 +48,8 @@ defmodule Helios.AI.HTTP do
   defp retry(_options, _deadline, [], reason), do: {:error, reason}
 
   defp retry(options, deadline, [delay | rest], reason) do
+    delay = delay + :rand.uniform(@jitter_ms)
+
     if deadline - now() - delay < @min_attempt_ms do
       {:error, reason}
     else
