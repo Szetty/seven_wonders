@@ -80,7 +80,10 @@ defmodule Helios.AI.Readiness do
   end
 
   # Selective receive: only the boot task's result (or crash) is handled
-  # here; anything else stays queued for the normal GenServer loop.
+  # here; anything else stays queued for the normal GenServer loop. The
+  # timeout bounds how long a hung boot probe blocks the loop: `task` stays
+  # set, so when the probe finally answers the normal handle_info clauses
+  # pick it up and reads keep answering from the cached ready set.
   defp await_boot(%{task: %Task{ref: ref}} = state) do
     receive do
       {^ref, result} ->
@@ -90,6 +93,8 @@ defmodule Helios.AI.Readiness do
       {:DOWN, ^ref, :process, pid, reason} ->
         {:noreply, state} = handle_info({:DOWN, ref, :process, pid, reason}, state)
         await_boot(state)
+    after
+      @probe_now_timeout_ms -> state
     end
   end
 
