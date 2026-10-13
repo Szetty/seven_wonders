@@ -2,8 +2,9 @@ defmodule Helios.AI.Readiness do
   @moduledoc """
   Which allowlisted models may be seated. Every provider is probed at boot,
   every `probe_interval_ms`, and on `refresh/0` (at most once per refresh gap).
-  Probes run in a `Helios.AI.TaskSupervisor` task, so `ready?/1` and
-  `ready_models/0` never wait on the network. After every probe round
+  Probes run in a `Helios.AI.TaskSupervisor` task, so after boot `ready?/1`
+  and `ready_models/0` never wait on the network — the boot probe is awaited
+  with a short bound before the loop starts. After every probe round
   `{:ai_readiness_changed}` is broadcast on `"ai:readiness"`. A provider whose
   probe fails or raises makes none of its models ready; its reason is logged.
   """
@@ -16,6 +17,9 @@ defmodule Helios.AI.Readiness do
   @topic "ai:readiness"
   @default_refresh_gap_ms 60_000
   @probe_now_timeout_ms 30_000
+  # Below GenServer.call's 5s default: a hung boot probe must free the loop
+  # before any ready?/ready_models caller could time out on it.
+  @boot_probe_await_ms :timer.seconds(4)
 
   def topic, do: @topic
 
@@ -81,9 +85,10 @@ defmodule Helios.AI.Readiness do
 
   # Selective receive: only the boot task's result (or crash) is handled
   # here; anything else stays queued for the normal GenServer loop. The
-  # timeout bounds how long a hung boot probe blocks the loop: `task` stays
-  # set, so when the probe finally answers the normal handle_info clauses
-  # pick it up and reads keep answering from the cached ready set.
+  # bound is below the GenServer.call default timeout, so a hung boot probe
+  # cannot crash ready?/ready_models callers: `task` stays set, the loop
+  # resumes answering "not ready" from cache, and the normal handle_info
+  # clauses pick up the late reply.
   defp await_boot(%{task: %Task{ref: ref}} = state) do
     receive do
       {^ref, result} ->
@@ -94,7 +99,7 @@ defmodule Helios.AI.Readiness do
         {:noreply, state} = handle_info({:DOWN, ref, :process, pid, reason}, state)
         await_boot(state)
     after
-      @probe_now_timeout_ms -> state
+      @boot_probe_await_ms -> state
     end
   end
 
