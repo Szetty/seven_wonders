@@ -2,7 +2,9 @@ defmodule HeliosWeb.GameLive do
   @moduledoc """
   The game table. The page never holds engine state of its own: it re-fetches
   the player's view on every `{:game_updated, seq}` and sends choices as
-  `{card, kind, option index}`; the GameServer resolves them against its view.
+  `{card, kind, option index}` and setup claims as `{wonder, side}`; the GameServer
+  resolves them against its view. While `view.phase.kind == :setup` the page shows
+  `WonderSetup` instead of the table.
   """
   use HeliosWeb, :live_view
 
@@ -18,8 +20,9 @@ defmodule HeliosWeb.GameLive do
   import HeliosWeb.GameComponents.ReplayBar
   import HeliosWeb.GameComponents.Scoreboard
   import HeliosWeb.GameComponents.TopBar
+  import HeliosWeb.GameComponents.WonderSetup
 
-  alias Helios.{Games, Lobbies}
+  alias Helios.{Catalogue, Games, Lobbies}
   alias Helios.Games.Choice
   alias HeliosWeb.GameComponents.ExtraTurn
   alias HeliosWeb.{GameFormat, Presence, TurnFx}
@@ -62,41 +65,81 @@ defmodule HeliosWeb.GameLive do
             connected={@connected}
             replay={@replay != nil}
           />
-          <%= if @view.phase.kind == :game_over do %>
-            <div class="flex flex-col gap-3 pb-4 sm:gap-4">
-              <.replay_bar
-                :if={@replay}
-                frame={current_frame(@replay)}
-                index={@replay.index}
-                last={length(@replay.frames) - 1}
-                playing={@replay.playing}
-              />
-              <%= if is_nil(@replay) or @replay.index == length(@replay.frames) - 1 or @show_scores do %>
-                <.scoreboard
-                  scores={@view.scores}
-                  names={@names}
-                  me={@view.me}
-                  lobby_id={@game.lobby_id}
+          <%= if @view.phase.kind == :setup do %>
+            <.wonder_setup
+              setup={@view.setup}
+              me={@view.me}
+              names={@names}
+              wonders={@wonder_names}
+              previews={@setup_previews}
+            />
+          <% else %>
+            <%= if @view.phase.kind == :game_over do %>
+              <div class="flex flex-col gap-3 pb-4 sm:gap-4">
+                <.replay_bar
+                  :if={@replay}
+                  frame={current_frame(@replay)}
+                  index={@replay.index}
+                  last={length(@replay.frames) - 1}
+                  playing={@replay.playing}
                 />
-              <% else %>
-                <button
-                  id="show-final-scores"
-                  type="button"
-                  phx-click="toggle_final_scores"
-                  class="mx-auto rounded-lg bg-white/80 px-3 py-1.5 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 hover:bg-white pointer-coarse:min-h-11"
+                <%= if is_nil(@replay) or @replay.index == length(@replay.frames) - 1 or @show_scores do %>
+                  <.scoreboard
+                    scores={@view.scores}
+                    names={@names}
+                    me={@view.me}
+                    lobby_id={@game.lobby_id}
+                  />
+                <% else %>
+                  <button
+                    id="show-final-scores"
+                    type="button"
+                    phx-click="toggle_final_scores"
+                    class="mx-auto rounded-lg bg-white/80 px-3 py-1.5 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 hover:bg-white pointer-coarse:min-h-11"
+                  >
+                    Final scores
+                  </button>
+                <% end %>
+                <p
+                  :if={!@boards_available}
+                  id="boards-unavailable"
+                  class="mx-auto rounded-lg bg-antique/90 px-3 py-2 text-sm text-zinc-700"
                 >
-                  Final scores
-                </button>
-              <% end %>
-              <p
-                :if={!@boards_available}
-                id="boards-unavailable"
-                class="mx-auto rounded-lg bg-antique/90 px-3 py-2 text-sm text-zinc-700"
-              >
-                Boards are unavailable for this game
-              </p>
+                  Boards are unavailable for this game
+                </p>
+                <.table_area
+                  :if={@boards_available}
+                  me={@me}
+                  west={@west}
+                  east={@east}
+                  others={@others}
+                  names={@names}
+                  statuses={@statuses}
+                />
+                <div
+                  :if={@replay && (current_frame(@replay).hand != [] or frame_discard(@replay) != [])}
+                  class="sticky bottom-0 z-30 overflow-x-clip rounded-t-xl bg-antique/95 p-2 shadow"
+                >
+                  <.replay_discard
+                    :if={frame_discard(@replay) != []}
+                    cards={frame_discard(@replay)}
+                    chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
+                  />
+                  <.replay_hand
+                    :if={current_frame(@replay).hand != []}
+                    hand={current_frame(@replay).hand}
+                    chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
+                  />
+                </div>
+                <.card_sheet
+                  :if={@info_card}
+                  name={@info_card.name}
+                  neighbours={GameFormat.neighbours_of(@view, @info_card.owner, @names)}
+                  built={Enum.map(@me.built, & &1.name)}
+                />
+              </div>
+            <% else %>
               <.table_area
-                :if={@boards_available}
                 me={@me}
                 west={@west}
                 east={@east}
@@ -105,73 +148,43 @@ defmodule HeliosWeb.GameLive do
                 statuses={@statuses}
               />
               <div
-                :if={@replay && (current_frame(@replay).hand != [] or frame_discard(@replay) != [])}
-                class="sticky bottom-0 z-30 overflow-x-clip rounded-t-xl bg-antique/95 p-2 shadow"
+                :if={GameFormat.dock?(@view)}
+                id="dock"
+                class="sticky bottom-0 z-30 -mx-2 flex flex-col gap-2 overflow-x-clip rounded-t-xl bg-antique/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.2)] sm:mx-0 sm:px-3"
               >
-                <.replay_discard
-                  :if={frame_discard(@replay) != []}
-                  cards={frame_discard(@replay)}
-                  chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
+                <.extra_turn_notice view={@view} names={@names} />
+                <.discard_restore view={@view} minimised={@discard_minimised} />
+                <.pending_choice
+                  :if={@view.my_pending && is_nil(@selected)}
+                  action={@view.my_pending}
                 />
-                <.replay_hand
-                  :if={current_frame(@replay).hand != []}
-                  hand={current_frame(@replay).hand}
-                  chosen={GameFormat.action_card(current_frame(@replay).my_choice)}
+                <.hand
+                  :if={GameFormat.show_hand?(@view)}
+                  hand={@view.hand}
+                  selected={@selected}
+                  pending={@view.my_pending}
                 />
               </div>
+              <.discard_picker view={@view} minimised={@discard_minimised} />
+              <.action_panel
+                :if={@selected_card}
+                card={@selected_card}
+                neighbours={
+                  %{
+                    west: GameFormat.player_name(@names, @view.west),
+                    east: GameFormat.player_name(@names, @view.east)
+                  }
+                }
+                built={Enum.map(@me.built, & &1.name)}
+                next_stage={if @me.stages_built < @me.stages_total, do: @me.stages_built + 1}
+              />
               <.card_sheet
                 :if={@info_card}
                 name={@info_card.name}
                 neighbours={GameFormat.neighbours_of(@view, @info_card.owner, @names)}
                 built={Enum.map(@me.built, & &1.name)}
               />
-            </div>
-          <% else %>
-            <.table_area
-              me={@me}
-              west={@west}
-              east={@east}
-              others={@others}
-              names={@names}
-              statuses={@statuses}
-            />
-            <div
-              :if={GameFormat.dock?(@view)}
-              id="dock"
-              class="sticky bottom-0 z-30 -mx-2 flex flex-col gap-2 overflow-x-clip rounded-t-xl bg-antique/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.2)] sm:mx-0 sm:px-3"
-            >
-              <.extra_turn_notice view={@view} names={@names} />
-              <.discard_restore view={@view} minimised={@discard_minimised} />
-              <.pending_choice
-                :if={@view.my_pending && is_nil(@selected)}
-                action={@view.my_pending}
-              />
-              <.hand
-                :if={GameFormat.show_hand?(@view)}
-                hand={@view.hand}
-                selected={@selected}
-                pending={@view.my_pending}
-              />
-            </div>
-            <.discard_picker view={@view} minimised={@discard_minimised} />
-            <.action_panel
-              :if={@selected_card}
-              card={@selected_card}
-              neighbours={
-                %{
-                  west: GameFormat.player_name(@names, @view.west),
-                  east: GameFormat.player_name(@names, @view.east)
-                }
-              }
-              built={Enum.map(@me.built, & &1.name)}
-              next_stage={if @me.stages_built < @me.stages_total, do: @me.stages_built + 1}
-            />
-            <.card_sheet
-              :if={@info_card}
-              name={@info_card.name}
-              neighbours={GameFormat.neighbours_of(@view, @info_card.owner, @names)}
-              built={Enum.map(@me.built, & &1.name)}
-            />
+            <% end %>
           <% end %>
         </div>
       </div>
@@ -443,7 +456,9 @@ defmodule HeliosWeb.GameLive do
       age_summary: nil,
       last_choice: nil,
       replay: nil,
-      show_scores: false
+      show_scores: false,
+      wonder_names: Catalogue.wonder_names(),
+      setup_previews: %{}
     )
     |> assign_connected()
   end
@@ -605,6 +620,25 @@ defmodule HeliosWeb.GameLive do
     {:noreply, refresh(socket)}
   end
 
+  def handle_event("claim_wonder", params, socket),
+    do: submit_setup(socket, Choice.parse_claim(params))
+
+  def handle_event("confirm_wonder", _params, socket),
+    do: submit_setup(socket, {:ok, :confirm_wonder})
+
+  # Which side a free board shows before it is claimed: local to this page.
+  def handle_event("show_side", %{"wonder" => wonder, "side" => side}, socket)
+      when side in ["a", "b"] do
+    previews =
+      if wonder in socket.assigns.wonder_names,
+        do: Map.put(socket.assigns.setup_previews, wonder, if(side == "a", do: :a, else: :b)),
+        else: socket.assigns.setup_previews
+
+    {:noreply, assign(socket, :setup_previews, previews)}
+  end
+
+  def handle_event("show_side", _params, socket), do: {:noreply, socket}
+
   @impl true
   def handle_info({:game_updated, _seq}, socket), do: {:noreply, refresh(socket)}
   def handle_info({:game_finished}, socket), do: {:noreply, refresh(socket)}
@@ -621,6 +655,28 @@ defmodule HeliosWeb.GameLive do
 
   defp authorize(game, user) do
     if Games.seated?(game, user.id), do: :ok, else: {:error, :unauthorized}
+  end
+
+  # Claims and confirmations are ordinary engine actions; the engine decides.
+  # A lost race (`:wonder_taken`) names the board that was just taken.
+  defp submit_setup(socket, parsed) do
+    %{game: game, current_scope: %{user: user}} = socket.assigns
+    result = with {:ok, action} <- parsed, do: Games.submit(game.id, user.id, action)
+
+    socket =
+      case result do
+        :ok ->
+          clear_flash(socket, :error)
+
+        {:error, :wonder_taken} ->
+          {:ok, {:claim_wonder, %{wonder: wonder}}} = parsed
+          put_flash(socket, :error, "#{wonder} was just taken")
+
+        {:error, reason} ->
+          put_flash(socket, :error, Games.error_message(reason))
+      end
+
+    {:noreply, refresh(socket)}
   end
 
   defp refresh(socket) do
@@ -666,6 +722,25 @@ defmodule HeliosWeb.GameLive do
       {:battles, _} = event, socket ->
         assign(socket, :age_summary, event)
     end)
+  end
+
+  # During setup the engine view has no boards and no hand (`players: []`):
+  # nothing is derived from players, and the table, dock and sheets are not
+  # rendered. Selection and the card sheet are cleared so no stale panel
+  # survives into Age I.
+  defp assign_view(socket, %{phase: %{kind: :setup}} = view) do
+    assign(socket,
+      view: view,
+      me: nil,
+      west: nil,
+      east: nil,
+      others: [],
+      statuses: GameFormat.statuses(view),
+      selected: nil,
+      selected_card: nil,
+      info_card: nil,
+      discard_minimised: false
+    )
   end
 
   defp assign_view(socket, view) do
