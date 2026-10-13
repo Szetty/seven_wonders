@@ -2,18 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Given an AI seat's own player view, build a token-light decision payload and get one legal move id back from Jev or OpenRouter within a strict deadline. Readiness can also verify both providers, and an operator can test real keys with `mix helios.ai.probe`.
+**Goal:** Given an AI seat's own player view, build a token-light decision payload and get one legal move id back from Jev or OpenRouter within a strict deadline. Readiness can also verify both providers. An operator can check keys with `mix helios.ai.probe` and measure real latency and tokens with local-only live tests.
 
 **Architecture:** `Helios.AI.Prompt.build/1` turns a view into `%{state, moves, primer}`:
 - `state` is compact JSON-able data enriched from `Helios.Catalogue` and `HeliosWeb.CardText`.
 - `moves` are short ids (`b0`, `w0`, `d0`, `f0`, `x0`) with cost labels. Trades show only their cheapest cost.
 - `primer` is a fixed persona line.
 
+`Prompt.user_message/2` renders the state for chat models as TOON (default) or compact JSON.
+
 `Helios.AI.HTTP.request/2` wraps `Req` with deadline-bounded retries. `Helios.AI.Provider.Jev` sends one `choice` question to `/v1/systemone`. `Helios.AI.Provider.OpenRouter` sends a chat completion whose `response_format` is a strict JSON schema with an `enum` of move ids. Both implement `probe/1` for `Helios.AI.Readiness`.
 
-**Tech Stack:** Elixir, `Req` + `Req.Test`, Jason, ExUnit.
+**Tech Stack:** Elixir, `Req` + `Req.Test`, Jason, `toon` (TOON encoder, `~> 0.3.0`), ExUnit.
 
-**Spec:** `docs/superpowers/specs/2026-10-13-ai-players/2026-10-13-ai-players-design.md` (sections "The decision payload", "Provider adapters", "Provider readiness", "Configuration"). Cross-phase contract: `docs/superpowers/plans/2026-10-13-ai-players/README.md`.
+**Spec:** `docs/superpowers/specs/2026-10-13-ai-players/2026-10-13-ai-players-design.md` (sections "The decision payload" incl. "Formats", "Provider adapters", "Provider readiness", "Configuration", "Testing"). Cross-phase contract: `docs/superpowers/plans/2026-10-13-ai-players/README.md`.
 
 ## Global Constraints
 
@@ -22,7 +24,7 @@
 - Never send trade payment lists to a provider. A trade appears only as `trade, from <k> coins`, where k is the cheapest total.
 - Legality comes only from the view's build options (`Helios.Games.Choice.available?/1`). Aggregated production and science in the prompt are presentation only.
 - **One call per decision.** Retries happen only inside the deadline, and only for 429, 529, other 5xx, and transport errors. Each attempt's `receive_timeout` is the remaining budget.
-- No real network calls in tests. Every adapter test goes through `Req.Test` stubs configured with `req_options: [plug: {Req.Test, <adapter module>}]`.
+- No real network calls in the default test run. Every adapter test goes through `Req.Test` stubs configured with `req_options: [plug: {Req.Test, <adapter module>}]`. Only the `:live_ai`-tagged tests (Task 6) call real providers, and they are excluded by default.
 - API keys only come from `config/runtime.exs` (env `JEV_API_KEY`, `OPENROUTER_API_KEY`). The test config sets dummy keys. Keys are never logged.
 - Stage explicit paths only; never stage `helios/config/dev.exs`.
 - Run `cd helios && mix precommit` before each commit. Commit messages end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -34,20 +36,28 @@
 - The encoded `state` must be valid JSON: no tuples, no structs. Tokens must stay small, so `Jason.encode!(state)` of a 4-player sample stays under 3,000 bytes. (Test in Task 1.)
 - A provider answer that names an id that was not offered, or malformed JSON content, becomes `{:error, :invalid_move}` and is never forwarded. (Tests in Tasks 3 and 4.)
 - 401 or 403 responses are never retried, and repeated 529s stop before the deadline instead of overrunning it. (Tests in Task 2.)
+- Effect texts contain commas and colons; TOON must quote them so the table stays parseable. The TOON state must decode back to the same data. (Test in Task 1, "TOON round-trips".)
 
 ---
 
 ### Task 1: `Helios.AI.Prompt`
 
 **Files:**
+- Modify: `helios/mix.exs` (deps), `helios/mix.lock`
 - Create: `helios/lib/helios/ai/prompt.ex`
 - Test: `helios/test/helios/ai/prompt_test.exs`
 
 **Interfaces:**
 - Consumes: `Helios.Catalogue.card/1`, `wonder_board/2`, `stage/3`; `HeliosWeb.CardText.effects/1`, `cost/1`; `HeliosWeb.GameFormat.others/1`; `Helios.Games.Choice.available?/1`.
-- Produces: `Prompt.build(view) :: Prompt.t()`, `Prompt.to_choice(move) :: Choice.t()`, `Prompt.primer/0` (README "Prompt").
+- Produces: `Prompt.build(view) :: Prompt.t()`, `Prompt.to_choice(move) :: Choice.t()`, `Prompt.primer/0` (README "Prompt"), `Prompt.user_message(prompt, :toon | :json) :: String.t()`.
+- Adds the dependency `{:toon, "~> 0.3.0"}`.
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Add `toon`**
+
+In `helios/mix.exs` `deps/0`, after `{:req, "~> 0.5"},` add `{:toon, "~> 0.3.0"},`, then run `cd helios && mix deps.get`.
+Expected: `toon` is fetched. Check its docs (`mix hex.docs fetch toon` or hexdocs) for the decoder function name used in the round-trip test. The README of 0.3.0 documents `Toon.encode!/1,2`; if the decoder isn't `Toon.decode!/1`, use the package's decoder in that test.
+
+- [ ] **Step 2: Write the failing tests**
 
 Create `helios/test/helios/ai/prompt_test.exs`:
 
@@ -193,15 +203,17 @@ defmodule Helios.AI.PromptTest do
       assert [%{wonder: "Éphesos A", stages: "1/3", coins: 4, shields: 1, cards: cards}] =
                state.others
 
-      assert cards == %{"brown" => 1, "blue" => 1, "red" => 1}
+      assert cards == "1 blue, 1 brown, 1 red"
     end
 
-    test "hand cards carry colour and effect text" do
+    test "hand cards are flat rows: colour, effect text and chains as strings" do
       [baths, tavern, farm] = Prompt.build(SampleViews.view()).state.hand
-      assert %{name: "Baths", colour: "blue", effects: [baths_text]} = baths
+      assert %{name: "Baths", colour: "blue", effects: baths_text, chains_to: chains} = baths
       assert baths_text =~ "victory point"
+      assert is_binary(chains)
       assert tavern.colour == "yellow"
       assert farm.colour == "brown"
+      assert Enum.all?([baths, tavern, farm], &(Map.keys(&1) |> Enum.sort() == [:chains_to, :colour, :effects, :name]))
     end
 
     test "is JSON and small" do
@@ -214,6 +226,35 @@ defmodule Helios.AI.PromptTest do
     end
   end
 
+  describe "user_message/2" do
+    test "lists the moves after the state, in either format" do
+      prompt = Prompt.build(SampleViews.view())
+
+      for format <- [:json, :toon] do
+        assert Prompt.user_message(prompt, format) =~
+                 "\nMoves:\nw0: build wonder stage 2 with Baths: trade, from 2 coins\nd0: discard Baths: +3 coins\n"
+      end
+    end
+
+    test "TOON writes the hand as a table and is shorter than JSON" do
+      prompt = Prompt.build(SampleViews.view())
+      toon = Prompt.user_message(prompt, :toon)
+      json = Prompt.user_message(prompt, :json)
+
+      assert "State (TOON):\n" <> _ = toon
+      assert toon =~ ~r/hand\[3\]\{[a-z_,]+\}:/
+      assert "State (JSON):\n" <> _ = json
+      assert byte_size(toon) < byte_size(json)
+    end
+
+    test "TOON round-trips" do
+      prompt = Prompt.build(SampleViews.view())
+      "State (TOON):\n" <> rest = Prompt.user_message(prompt, :toon)
+      [body, _moves] = String.split(rest, "\nMoves:\n", parts: 2)
+      assert Toon.decode!(body) == prompt.state |> Jason.encode!() |> Jason.decode!()
+    end
+  end
+
   test "the primer is a short fixed persona" do
     assert Prompt.primer() =~ "7 Wonders"
     assert String.length(Prompt.primer()) < 400
@@ -222,12 +263,12 @@ defmodule Helios.AI.PromptTest do
 end
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [ ] **Step 3: Run to verify they fail**
 
 Run: `cd helios && mix test test/helios/ai/prompt_test.exs`
 Expected: FAIL (`Helios.AI.Prompt` is undefined).
 
-- [ ] **Step 3: Implement**
+- [ ] **Step 4: Implement**
 
 Create `helios/lib/helios/ai/prompt.ex`:
 
@@ -243,6 +284,8 @@ defmodule Helios.AI.Prompt do
       stage, `f<n>` Olympia free build, `d<n>` discard, `x<n>` build from the
       discard pile) with cost labels; trades show only their cheapest total;
     * `primer` — a fixed persona line that relies on the model knowing the game.
+
+  `user_message/2` renders the state for chat models (TOON or JSON).
 
   Production and science totals are presentation only (summed from catalogue
   effect specs); legality and costs come from the view's build options.
@@ -287,6 +330,22 @@ defmodule Helios.AI.Prompt do
     option = if n > 0, do: :rand.uniform(n) - 1, else: 0
     %{card: card, kind: kind, option: option}
   end
+
+  @doc """
+  The chat-model user message: the state as TOON (tables for uniform lists)
+  or compact JSON, then one `id: label` line per move.
+  """
+  @spec user_message(t(), :toon | :json) :: String.t()
+  def user_message(prompt, format) do
+    render(format, prompt.state) <>
+      "\nMoves:\n" <> Enum.map_join(prompt.moves, "", &"#{&1.id}: #{&1.label}\n")
+  end
+
+  defp render(:json, state), do: "State (JSON):\n" <> Jason.encode!(state)
+
+  # String keys (via a JSON round-trip) so the encoder sees plain data.
+  defp render(:toon, state),
+    do: "State (TOON):\n" <> Toon.encode!(state |> Jason.encode!() |> Jason.decode!())
 
   ## Moves
 
@@ -382,15 +441,24 @@ defmodule Helios.AI.Prompt do
       stages: "#{player.stages_built}/#{player.stages_total}",
       coins: player.coins,
       shields: player.shields,
-      cards: Enum.frequencies_by(player.built, &Map.fetch!(@colours, &1.category))
+      cards:
+        player.built
+        |> Enum.frequencies_by(&Map.fetch!(@colours, &1.category))
+        |> Enum.sort()
+        |> Enum.map_join(", ", fn {colour, n} -> "#{n} #{colour}" end)
     }
   end
 
+  # Flat rows of scalars with identical keys, so TOON writes them as a table.
   defp card_entry(name) do
     info = Catalogue.card(name)
 
-    %{name: name, colour: Map.fetch!(@colours, info.category), effects: CardText.effects(info.effects)}
-    |> put_if(:chains_to, info.chains_to != [] && info.chains_to)
+    %{
+      name: name,
+      colour: Map.fetch!(@colours, info.category),
+      effects: Enum.join(CardText.effects(info.effects), "; "),
+      chains_to: Enum.join(info.chains_to, ", ")
+    }
   end
 
   defp city_effects(player) do
@@ -465,15 +533,15 @@ end
 
 Note: `SampleViews.player/2` gives every board `stages_total: 3` regardless of wonder. If `Catalogue.stage/3` returns nil for a stage the real board lacks, `next_stage/1` returns nil, which is fine. If a test assertion about `next_stage` fails because of this, take the value from a real run instead of changing the code.
 
-- [ ] **Step 4: Run the tests**
+- [ ] **Step 5: Run the tests**
 
 Run: `cd helios && mix test test/helios/ai/prompt_test.exs`
 Expected: PASS. If the "is JSON and small" byte bound fails, report the real size instead of silently raising the bound. The spec's budget is roughly 1–1.5k input tokens.
 
-- [ ] **Step 5: Precommit and commit**
+- [ ] **Step 6: Precommit and commit**
 
 ```bash
-git add helios/lib/helios/ai/prompt.ex helios/test/helios/ai/prompt_test.exs
+git add helios/mix.exs helios/mix.lock helios/lib/helios/ai/prompt.ex helios/test/helios/ai/prompt_test.exs
 git commit -m "feat(ai): token-light decision payload and legal move ids
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
@@ -905,8 +973,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `helios/test/helios/ai/provider/open_router_test.exs`
 
 **Interfaces:**
-- Consumes: `Helios.AI.HTTP.request/2`, `now/0`; prompt shape from Task 1.
-- Produces: `Helios.AI.Provider.OpenRouter.decide/3` and `probe/1`. Config: `config :helios, Helios.AI.Provider.OpenRouter, api_key, base_url (default "https://openrouter.ai/api/v1"), req_options`. Model entry options: `max_tokens` (default 16) and `reasoning` (default false).
+- Consumes: `Helios.AI.HTTP.request/2`, `now/0`; `Helios.AI.Prompt.user_message/2` and the prompt shape from Task 1.
+- Produces: `Helios.AI.Provider.OpenRouter.decide/3` and `probe/1`. Config: `config :helios, Helios.AI.Provider.OpenRouter, api_key, base_url (default "https://openrouter.ai/api/v1"), req_options`. Model entry options: `max_tokens` (default 16), `reasoning` (default false) and `format` (`:toon` default, or `:json`).
 
 - [ ] **Step 1: Test config**
 
@@ -975,7 +1043,7 @@ defmodule Helios.AI.Provider.OpenRouterTest do
     assert [%{"role" => "system", "content" => "You are an expert player."}, %{"role" => "user", "content" => user}] =
              body["messages"]
 
-    assert user =~ ~s("age":1)
+    assert user =~ "State (TOON):\nage: 1"
     assert user =~ "b0: build Altar: free"
     assert user =~ "d0: discard Altar: +3 coins"
 
@@ -986,6 +1054,14 @@ defmodule Helios.AI.Provider.OpenRouterTest do
                "schema" => %{"properties" => %{"move" => %{"enum" => ["b0", "d0"]}}, "required" => ["move"]}
              }
            } = body["response_format"]
+  end
+
+  test "format: :json sends compact JSON state" do
+    capture(completion(~s({"move":"b0"})))
+    assert {:ok, "b0", _} = OpenRouter.decide(Map.put(@model, :format, :json), @prompt, HTTP.now() + 2_000)
+    assert_received {:request, _, _, _, body}
+    [_system, %{"content" => user}] = Jason.decode!(body)["messages"]
+    assert user =~ ~s(State (JSON):\n{"age":1})
   end
 
   test "reasoning models opt in explicitly" do
@@ -1056,7 +1132,8 @@ Create `helios/lib/helios/ai/provider/open_router.ex`:
 defmodule Helios.AI.Provider.OpenRouter do
   @moduledoc """
   OpenRouter chat completions. A decision is a system message (the primer)
-  plus one user message (state JSON and `id: label` move lines); the
+  plus one user message (`Prompt.user_message/2`: the state as TOON or JSON,
+  per the model's `format`, and `id: label` move lines); the
   `response_format` is a strict JSON schema whose `move` is an enum of the
   offered ids, `max_tokens` is tiny and `provider.require_parameters` keeps
   routing on backends that honour structured output. Reasoning is off unless
@@ -1070,7 +1147,7 @@ defmodule Helios.AI.Provider.OpenRouter do
 
   require Logger
 
-  alias Helios.AI.HTTP
+  alias Helios.AI.{HTTP, Prompt}
 
   @default_base_url "https://openrouter.ai/api/v1"
   @probe_budget_ms 10_000
@@ -1109,7 +1186,7 @@ defmodule Helios.AI.Provider.OpenRouter do
       model: model.model,
       messages: [
         %{role: "system", content: prompt.primer},
-        %{role: "user", content: user_message(prompt)}
+        %{role: "user", content: Prompt.user_message(prompt, Map.get(model, :format, :toon))}
       ],
       response_format: %{
         type: "json_schema",
@@ -1133,12 +1210,6 @@ defmodule Helios.AI.Provider.OpenRouter do
         do: Map.put(body, :reasoning, %{effort: "low", exclude: true}),
         else: body
     end)
-  end
-
-  defp user_message(prompt) do
-    "State:\n" <>
-      Jason.encode!(prompt.state) <>
-      "\nMoves:\n" <> Enum.map_join(prompt.moves, "\n", &"#{&1.id}: #{&1.label}")
   end
 
   defp answer(%{"choices" => [%{"message" => %{"content" => content}} | _]} = body, prompt)
@@ -1237,44 +1308,58 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 5: API keys, the real allowlist and `mix helios.ai.probe`
+### Task 5: API keys, the allowlist file and `mix helios.ai.probe`
 
 **Files:**
-- Modify: `helios/config/runtime.exs`, `helios/config/config.exs`
+- Create: `helios/config/ai_models.exs`
+- Modify: `helios/config/config.exs`, `helios/config/runtime.exs`
 - Create: `helios/lib/mix/tasks/helios.ai.probe.ex`
 - Test: `helios/test/mix/tasks/helios_ai_probe_test.exs`
 
 **Interfaces:**
-- Consumes: `Helios.AI.Readiness.probe_now/0`, `ready_models/0`; `Helios.AI.Models.provider_module/1`; `Helios.AI.Prompt.build/1`; `Helios.Core.new_game/3`, `view/2`.
-- Produces: the `mix helios.ai.probe` task, plus `Mix.Tasks.Helios.Ai.Probe.report/0 :: [String.t()]` (the lines it prints; testable without a shell).
+- Consumes: `Helios.AI.Readiness.probe_now/0`; `Helios.AI.Models.all/0`.
+- Produces: `config/ai_models.exs`, which holds the real allowlist (imported by `config/config.exs`; read directly by Task 6).
+- Produces: the `mix helios.ai.probe` task (readiness only), plus `Mix.Tasks.Helios.Ai.Probe.report/0 :: [String.t()]` (the lines it prints).
 
 - [ ] **Step 1: HUMAN CHECKPOINT — the initial allowlist**
 
 Stop and ask the user for:
-- the OpenRouter models to offer (each needs an OpenRouter slug such as `vendor/model`, a label, a `deadline_ms`, and optionally `reasoning: true` with a `max_tokens`);
+- the OpenRouter models to offer. Each needs an OpenRouter slug such as `vendor/model`, a label, a starting `deadline_ms`, and optionally `reasoning: true` with `max_tokens`, or `format: :json`;
 - whether the Jev entry should keep `deadline_ms: 5_000`.
 
-Don't pick OpenRouter models yourself.
+Don't pick OpenRouter models yourself. The deadlines are starting values: Task 6's report suggests real ones.
 
 - [ ] **Step 2: Config**
 
-In `helios/config/config.exs`, replace `models: []` in the `Helios.AI` block with the agreed list. Jev comes first, for example:
+Create `helios/config/ai_models.exs` with the agreed list. Jev comes first, for example:
 
 ```elixir
+import Config
+
+# The AI model allowlist table owners pick from (Helios.AI.Models). Kept in
+# its own file so the live provider tests (`mix test --only live_ai`) read the
+# real list even though config/test.exs overrides it with fake models.
+config :helios, Helios.AI,
   models: [
     %{id: "jev-1.13", label: "Jev 1.13", provider: :jev, model: "jev-1.13.0", deadline_ms: 5_000}
     # OpenRouter entries agreed with the user, e.g.
-    # %{id: "or-<slug>", label: "<label>", provider: :openrouter, model: "<vendor>/<model>", deadline_ms: 10_000}
+    # %{id: "or-<slug>", label: "<label>", provider: :openrouter, model: "<vendor>/<model>",
+    #   deadline_ms: 10_000, format: :toon}
   ]
 ```
 
-`config/test.exs` and `config/e2e.exs` already override `models` with fake entries (phase A). They must keep doing so; check that they still do.
+In `helios/config/config.exs`:
+- remove `models: []` from the `Helios.AI` block, keeping `probe_interval_ms`;
+- add `import_config "ai_models.exs"` directly above the final `import_config "#{config_env()}.exs"`.
+
+Keyword configs merge, so `config/test.exs` and `config/e2e.exs` (imported later) still override `models` with the fake entries. Run `cd helios && mix run -e 'IO.inspect(Helios.AI.Models.all() |> Enum.map(& &1.id))'` (dev) and `MIX_ENV=test mix run -e '…'` to confirm.
 
 In `helios/config/runtime.exs`, after the `default_port … config :helios, HeliosWeb.Endpoint, http: …` block, add:
 
 ```elixir
 # AI provider keys (server-side only). Missing keys make that provider's
-# models unavailable; tests configure dummy keys and Req.Test stubs instead.
+# models unavailable. Tests use dummy keys and Req.Test stubs; the local-only
+# live tests (`mix test --only live_ai`) read the env vars themselves.
 if config_env() != :test do
   config :helios, Helios.AI.Provider.Jev, api_key: System.get_env("JEV_API_KEY")
   config :helios, Helios.AI.Provider.OpenRouter, api_key: System.get_env("OPENROUTER_API_KEY")
@@ -1291,18 +1376,14 @@ defmodule Mix.Tasks.Helios.Ai.ProbeTest do
 
   alias Mix.Tasks.Helios.Ai.Probe
 
-  test "reports provider problems and one sample decision per ready model" do
+  test "reports which configured models are ready" do
     lines = Probe.report()
-
-    assert "fake-first: b0 in " <> _ = Enum.find(lines, &String.starts_with?(&1, "fake-first:"))
-    assert Enum.any?(lines, &String.starts_with?(&1, "fake-error: error :fake_error"))
-    assert Enum.any?(lines, &String.starts_with?(&1, "fake-timeout: error :timeout"))
-    refute Enum.any?(lines, &String.starts_with?(&1, "fake-down:"))
+    assert "fake-first: ready" in lines
+    assert "fake-down: not ready" in lines
+    assert List.last(lines) =~ "mix test --only live_ai"
   end
 end
 ```
-
-The fake models answer from the real engine's opening view. `"fake-first"` answers that view's first move id, which is `b0` only if card 0 is buildable at the start. If the run shows a different first id, assert the id from the real run.
 
 - [ ] **Step 4: Run to verify it fails**
 
@@ -1315,19 +1396,18 @@ Create `helios/lib/mix/tasks/helios.ai.probe.ex`:
 
 ```elixir
 defmodule Mix.Tasks.Helios.Ai.Probe do
-  @shortdoc "Checks the AI providers and runs one sample decision per ready model"
+  @shortdoc "Checks which configured AI models are ready (keys, credit, model listing)"
   @moduledoc """
-  Runs the readiness probes against the configured providers, prints why a
-  provider is not ready, then asks every ready model for one move on a fresh
-  3-player opening (real engine view, real prompt) and prints the answer,
-  latency and token usage. Uses the real API keys from the environment.
+  Runs the readiness probes against the configured providers with the real
+  API keys from the environment and prints each model's status and every
+  provider problem. For real decisions, latency and token counts run the
+  live tests: `mix test --only live_ai`.
 
       JEV_API_KEY=… OPENROUTER_API_KEY=… mix helios.ai.probe
   """
   use Mix.Task
 
-  alias Helios.AI.{Models, Prompt, Readiness}
-  alias Helios.Core
+  alias Helios.AI.{Models, Readiness}
 
   @impl true
   def run(_args) do
@@ -1338,34 +1418,14 @@ defmodule Mix.Tasks.Helios.Ai.Probe do
   @doc "The lines `run/1` prints."
   @spec report() :: [String.t()]
   def report do
-    %{reasons: reasons} = Readiness.probe_now()
-    problems = for {provider, reason} <- reasons, do: "#{provider}: not ready (#{inspect(reason)})"
+    %{ready: ready, reasons: reasons} = Readiness.probe_now()
 
-    {:ok, ref} = Core.new_game(["p1", "p2", "p3"], :random, 42)
-    {:ok, view} = Core.view(ref, "p1")
-    prompt = Prompt.build(view)
+    models =
+      for model <- Models.all(),
+          do: "#{model.id}: #{if MapSet.member?(ready, model.id), do: "ready", else: "not ready"}"
 
-    decisions =
-      for model <- Readiness.ready_models() do
-        started = System.monotonic_time(:millisecond)
-        provider = Models.provider_module(model)
-        task = Task.async(fn -> provider.decide(model, prompt, started + model.deadline_ms) end)
-
-        result =
-          case Task.yield(task, model.deadline_ms + 250) || Task.shutdown(task, :brutal_kill) do
-            {:ok, result} -> result
-            _timeout -> {:error, :timeout}
-          end
-
-        elapsed = System.monotonic_time(:millisecond) - started
-
-        case result do
-          {:ok, id, usage} -> "#{model.id}: #{id} in #{elapsed} ms, tokens #{inspect(usage)}"
-          {:error, reason} -> "#{model.id}: error #{inspect(reason)} after #{elapsed} ms"
-        end
-      end
-
-    problems ++ if(decisions == [], do: ["No ready models."], else: decisions)
+    problems = for {provider, reason} <- reasons, do: "#{provider}: #{inspect(reason)}"
+    models ++ problems ++ ["Run `mix test --only live_ai` for real decisions, latency and token counts."]
   end
 end
 ```
@@ -1375,16 +1435,241 @@ end
 Run: `cd helios && mix test test/mix/tasks/helios_ai_probe_test.exs`
 Expected: PASS.
 
-- [ ] **Step 7: Manual check (optional, with real keys)**
-
-If the user provides keys, run `cd helios && JEV_API_KEY=… OPENROUTER_API_KEY=… mix helios.ai.probe` and paste the output into the task report. Report token counts and latencies as observed; don't commit any keys.
-
-- [ ] **Step 8: Precommit and commit**
+- [ ] **Step 7: Precommit and commit**
 
 ```bash
-git add helios/config/runtime.exs helios/config/config.exs helios/lib/mix/tasks/helios.ai.probe.ex \
-  helios/test/mix/tasks/helios_ai_probe_test.exs
-git commit -m "feat(ai): provider keys, model allowlist and mix helios.ai.probe
+git add helios/config/ai_models.exs helios/config/config.exs helios/config/runtime.exs \
+  helios/lib/mix/tasks/helios.ai.probe.ex helios/test/mix/tasks/helios_ai_probe_test.exs
+git commit -m "feat(ai): provider keys, allowlist file and mix helios.ai.probe
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 6: Live provider tests (local only)
+
+**Files:**
+- Create: `helios/test/helios/ai/live_providers_test.exs`
+- Modify: `helios/test/test_helper.exs`
+
+**Interfaces:**
+- Consumes:
+  - `config/ai_models.exs` (Task 5);
+  - `Helios.AI.Models.provider_module/1`;
+  - `Helios.AI.Prompt.build/1`;
+  - each adapter's `probe/1` and `decide/3`;
+  - `Helios.Core`;
+  - `Helios.GameDriver.core_funs/1`, `play_until/5` and `find_seed/4`.
+- Produces: the `:live_ai` ExUnit tag (excluded by default) and its per-model report.
+
+- [ ] **Step 1: Exclude the tag by default**
+
+In `helios/test/test_helper.exs`, replace `ExUnit.start()` with:
+
+```elixir
+# :live_ai tests call real providers with real keys; run them locally with
+# `JEV_API_KEY=… OPENROUTER_API_KEY=… mix test --only live_ai`.
+ExUnit.start(exclude: [:live_ai])
+```
+
+- [ ] **Step 2: Write the live test**
+
+Create `helios/test/helios/ai/live_providers_test.exs`:
+
+```elixir
+defmodule Helios.AI.LiveProvidersTest do
+  @moduledoc """
+  Real calls to every model in config/ai_models.exs. Local only (excluded by
+  default):
+
+      JEV_API_KEY=… OPENROUTER_API_KEY=… mix test --only live_ai
+      LIVE_AI_MODEL=jev-1.13 LIVE_AI_RUNS=10 mix test --only live_ai
+
+  Per model: the readiness probe (key, credit, listing), then real engine
+  positions decided with a #{30_000} ms cap (OpenRouter models in both TOON
+  and JSON). Every answer must be an offered id. Prints latency, token and
+  deadline figures per model; models without a key are skipped.
+  """
+  use ExUnit.Case, async: false
+
+  alias Helios.AI.{Models, Prompt}
+  alias Helios.{Core, GameDriver}
+
+  @moduletag :live_ai
+  @moduletag timeout: :infinity
+
+  @cap_ms 30_000
+  @keys %{jev: "JEV_API_KEY", openrouter: "OPENROUTER_API_KEY"}
+  @modules %{jev: Helios.AI.Provider.Jev, openrouter: Helios.AI.Provider.OpenRouter}
+
+  # Real keys, no Req.Test plug, for the duration of this module.
+  setup_all do
+    for {provider, var} <- @keys do
+      module = Map.fetch!(@modules, provider)
+      original = Application.get_env(:helios, module, [])
+      Application.put_env(:helios, module, api_key: System.get_env(var))
+      on_exit(fn -> Application.put_env(:helios, module, original) end)
+    end
+
+    %{positions: positions()}
+  end
+
+  test "allowlisted models answer legal moves; latency and token report", %{positions: positions} do
+    models = live_models()
+    assert models != [], "no model selected (check LIVE_AI_MODEL and config/ai_models.exs)"
+
+    results = Enum.map(models, &run_model(&1, positions))
+    Enum.each(results, &IO.puts(report(&1)))
+
+    for %{model: model, failures: failures} <- results do
+      assert failures == [], "#{model.id}: #{inspect(failures, limit: 5)}"
+    end
+  end
+
+  defp live_models do
+    models =
+      "../../../config/ai_models.exs"
+      |> Path.expand(__DIR__)
+      |> Config.Reader.read!()
+      |> get_in([:helios, Helios.AI, :models])
+
+    case System.get_env("LIVE_AI_MODEL") do
+      nil -> models
+      id -> Enum.filter(models, &(&1.id == id))
+    end
+  end
+
+  defp runs, do: String.to_integer(System.get_env("LIVE_AI_RUNS", "3"))
+
+  defp run_model(model, positions) do
+    var = Map.fetch!(@keys, model.provider)
+
+    if System.get_env(var) in [nil, ""] do
+      %{model: model, skipped: "#{var} not set", samples: [], failures: []}
+    else
+      module = Models.provider_module(model)
+
+      case module.probe([model]) do
+        {:ok, [_ready]} -> sample(model, module, positions)
+        {:ok, []} -> %{model: model, skipped: nil, samples: [], failures: [:not_listed]}
+        {:error, reason} -> %{model: model, skipped: nil, samples: [], failures: [{:probe, reason}]}
+      end
+    end
+  end
+
+  defp sample(model, module, positions) do
+    formats = if model.provider == :openrouter, do: [:toon, :json], else: [:json]
+
+    samples =
+      for {name, view} <- positions, format <- formats, _run <- 1..runs() do
+        prompt = Prompt.build(view)
+        started = System.monotonic_time(:millisecond)
+        result = module.decide(Map.put(model, :format, format), prompt, started + @cap_ms)
+
+        %{
+          position: name,
+          format: format,
+          ms: System.monotonic_time(:millisecond) - started,
+          result: result,
+          legal?: legal?(result, prompt)
+        }
+      end
+
+    failures = for s <- samples, !s.legal?, do: {s.position, s.format, s.result}
+    %{model: model, skipped: nil, samples: samples, failures: failures}
+  end
+
+  defp legal?({:ok, id, _usage}, prompt), do: Enum.any?(prompt.moves, &(&1.id == id))
+  defp legal?(_result, _prompt), do: false
+
+  defp report(%{model: model, skipped: reason}) when is_binary(reason),
+    do: "#{model.id}: skipped (#{reason})"
+
+  defp report(%{model: model, samples: [], failures: failures}),
+    do: "#{model.id}: not ready #{inspect(failures)}"
+
+  defp report(%{model: model, samples: samples, failures: failures}) do
+    ms = samples |> Enum.map(& &1.ms) |> Enum.sort()
+    p95 = percentile(ms, 95)
+    late = Enum.count(ms, &(&1 > model.deadline_ms))
+
+    tokens_in =
+      samples
+      |> Enum.group_by(& &1.format)
+      |> Enum.map_join(" / ", fn {format, group} -> "#{avg(group, :input_tokens)} (#{format})" end)
+
+    """
+    #{model.id}  runs=#{length(samples)}  ok=#{length(samples) - length(failures)}  failed=#{length(failures)}
+      latency ms: min #{hd(ms)}  p50 #{percentile(ms, 50)}  p95 #{p95}  max #{List.last(ms)}
+      tokens in: avg #{tokens_in}  out: avg #{avg(samples, :output_tokens)}
+      configured deadline #{model.deadline_ms} ms -> #{late} would have timed out · suggested deadline ≈ #{suggest(p95)} ms (p95 × 1.5)
+    """
+  end
+
+  defp avg(samples, key) do
+    values = for %{result: {:ok, _id, usage}} <- samples, do: Map.get(usage, key, 0)
+    if values == [], do: 0, else: div(Enum.sum(values), length(values))
+  end
+
+  defp percentile(sorted, p), do: Enum.at(sorted, min(length(sorted) - 1, div(p * length(sorted), 100)))
+
+  defp suggest(p95), do: trunc(Float.ceil(p95 * 1.5 / 250) * 250)
+
+  ## Positions: real engine views, deterministic seeds
+
+  defp positions do
+    ids = ["p1", "p2", "p3", "p4"]
+    {:ok, ref} = Core.new_game(ids, :random, 7)
+    {:ok, opening} = Core.view(ref, "p1")
+
+    [
+      {"age1-turn1", opening},
+      {"age2-turn3", reach(ids, &match?(%{phase: %{kind: :choosing_cards, age: 2, turn: 3}}, &1))},
+      {"age3-turn5", reach(ids, &match?(%{phase: %{kind: :choosing_cards, age: 3, turn: 5}}, &1))},
+      {"build-from-discard", discard_turn()}
+    ]
+  end
+
+  defp reach(ids, stop?) do
+    {:ok, ref} = Core.new_game(ids, :random, 7)
+    {view_fun, submit_fun} = GameDriver.core_funs(ref)
+    strategies = Map.new(ids, &{&1, :build})
+    {:reached, _view} = GameDriver.play_until(ids, strategies, view_fun, submit_fun, stop?)
+    view_fun.("p1")
+  end
+
+  defp discard_turn do
+    ids = ["p1", "p2", "p3"]
+    wonders = [{"Halikarnassós", :b}, {"Gizah", :a}, {"Rhódos", :a}]
+    strategies = %{"p1" => :wonder, "p2" => :build, "p3" => :build}
+    stop? = &match?(%{phase: %{kind: :extra_turn, extra_turn_kind: :build_from_discard}}, &1)
+    seed = GameDriver.find_seed(ids, wonders, strategies, stop?)
+    {:ok, ref} = Core.new_game(ids, {:explicit, wonders}, seed)
+    {view_fun, submit_fun} = GameDriver.core_funs(ref)
+    {:reached, _view} = GameDriver.play_until(ids, strategies, view_fun, submit_fun, stop?)
+    view_fun.("p1")
+  end
+end
+```
+
+- [ ] **Step 3: Check the default run skips it**
+
+Run: `cd helios && mix test`
+Expected: the suite passes and reports the live test as excluded (`1 excluded` or similar). No network access.
+
+Run: `cd helios && mix test --only live_ai` with **no** keys set.
+Expected: every model prints `skipped (… not set)` and the test passes. This proves the harness works without spending anything.
+
+- [ ] **Step 4: Optional real run (user's keys)**
+
+If the user provides keys, run `cd helios && JEV_API_KEY=… OPENROUTER_API_KEY=… mix test --only live_ai` and paste the report into the task summary. Report the observed latencies, the suggested deadlines and the TOON-vs-JSON token figures. Don't change `config/ai_models.exs` deadlines or formats without the user's agreement. Never commit keys or reports containing them.
+
+- [ ] **Step 5: Precommit and commit**
+
+```bash
+git add helios/test/test_helper.exs helios/test/helios/ai/live_providers_test.exs
+git commit -m "test(ai): local-only live provider tests with latency and token report
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```

@@ -7,7 +7,7 @@ Plans implementing `docs/superpowers/specs/2026-10-13-ai-players/2026-10-13-ai-p
 | Step | Plan | Touches | Notes |
 |---|---|---|---|
 | 1 | `2026-10-13-phase-a-ai-foundation.md` | helios | `Req` dependency, model allowlist (`Helios.AI.Models`), provider behaviour, fake provider, `Helios.AI.Readiness`, AI supervisors. |
-| 2 | `2026-10-13-phase-b-prompt-and-providers.md` | helios | Decision payload (`Helios.AI.Prompt`), deadline-bounded HTTP, Jev and OpenRouter adapters, API keys, real allowlist, `mix helios.ai.probe`. |
+| 2 | `2026-10-13-phase-b-prompt-and-providers.md` | helios | Decision payload (`Helios.AI.Prompt`, TOON or JSON user message), deadline-bounded HTTP, Jev and OpenRouter adapters, API keys, allowlist in `config/ai_models.exs`, `mix helios.ai.probe`, local-only live provider tests (`mix test --only live_ai`). |
 | 3 | `2026-10-13-phase-c-seats-and-players.md` | helios | Migration (nullable `user_id`, `ai_model`, `seat`, `source`), `Helios.Games.Actor`, lobby AI seats, start game with AI seats, sources and random-move keys, owner setup for AI seats, `Helios.AI.Player`. |
 | 4 | `2026-10-13-phase-d-ui-and-e2e.md` | helios, e2e | Lobby AI seat controls, table bot icons and "random" tags, setup screen acting for AI seats, past games, e2e spec. |
 
@@ -20,11 +20,11 @@ Each phase ends with every check green for the parts it touched:
 
 ## Cross-phase interfaces (fixed here so plans agree)
 
-- **Model entry** (`Helios.AI.Models.model()`): `%{id: String.t(), label: String.t(), provider: :jev | :openrouter | :fake, model: String.t(), deadline_ms: pos_integer()}`, plus optional `reasoning: boolean()` and `max_tokens: pos_integer()` (OpenRouter only).
+- **Model entry** (`Helios.AI.Models.model()`): `%{id: String.t(), label: String.t(), provider: :jev | :openrouter | :fake, model: String.t(), deadline_ms: pos_integer()}`, plus optional `reasoning: boolean()`, `max_tokens: pos_integer()` and `format: :toon | :json` (default `:toon`; OpenRouter only). The real list lives in `config/ai_models.exs` (imported by `config/config.exs`); test and e2e configs override it with fake models.
 - **Provider behaviour** (`Helios.AI.Provider`):
   - `decide(model, prompt, deadline_ms_monotonic) :: {:ok, move_id, %{input_tokens: n, output_tokens: n}} | {:error, term()}`
   - `probe([model]) :: {:ok, [model_id]} | {:error, term()}`
-- **Prompt** (`Helios.AI.Prompt.t()`): `%{state: map(), moves: [move()], primer: String.t()}`, where `move()` is `%{id: String.t(), label: String.t(), card: String.t(), kind: String.t(), trade_options: non_neg_integer()}`. `Prompt.to_choice(move) :: Helios.Games.Choice.t()` picks a random payment index for trades.
+- **Prompt** (`Helios.AI.Prompt.t()`): `%{state: map(), moves: [move()], primer: String.t()}`, where `move()` is `%{id: String.t(), label: String.t(), card: String.t(), kind: String.t(), trade_options: non_neg_integer()}`. `Prompt.to_choice(move) :: Helios.Games.Choice.t()` picks a random payment index for trades. `Prompt.user_message(prompt, :toon | :json) :: String.t()` renders the state plus `id: label` move lines for chat models. Entries of `hand`, `discard_pile` and `others` are flat maps of scalars (tabular for TOON).
 - **Readiness** (`Helios.AI.Readiness`): `ready_models/0`, `ready?/1`, `refresh/0`, `probe_now/0` (returns `%{ready: MapSet.t(), reasons: %{provider => reason}}`), PubSub topic `"ai:readiness"` with message `{:ai_readiness_changed}`.
 - **Supervisors** (started in `Helios.Application`): `Helios.AI.TaskSupervisor` (Task.Supervisor), `Helios.AI.Supervisor` (DynamicSupervisor for `Helios.AI.Player`), then `Helios.AI.Readiness`.
 - **Actors and engine ids** (`Helios.Games.Actor`): an actor is a user id (integer) or `{:ai, seat}`. Engine player ids are `"<user_id>"` and `"ai-<seat>"` (a hyphen, not a colon, so ids stay valid in DOM ids and CSS selectors).
@@ -52,7 +52,8 @@ Subagent-driven, as for previous initiatives: for each task, a fresh implementer
 
 ## Human checkpoints (the executor must stop and ask)
 
-- Phase B, Task 5: the initial OpenRouter model slugs, labels and `deadline_ms` values. The user picks them.
+- Phase B, Task 5: the initial OpenRouter model slugs, labels, `deadline_ms` and `format` values. The user picks them.
+- Phase B, Task 6: any change to deadlines or formats suggested by the live-test report needs the user's agreement. Never commit API keys.
 - Any push, PR, or CI-dependent acceptance step.
 - If a plan step can't be followed as written (a file or function differs from what the plan quotes), stop and ask rather than redesigning.
 - If the history `{:turn, event}` fields for an extra turn don't match the phase the extra turn was submitted in (phase C, Task 4 test "random keys match history"), stop and ask.

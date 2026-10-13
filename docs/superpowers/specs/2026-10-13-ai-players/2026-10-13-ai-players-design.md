@@ -31,14 +31,14 @@ Success criteria:
 
 ## Configuration
 
-`config/config.exs`:
+`config/ai_models.exs` (imported by `config/config.exs`; the live provider tests read this file directly):
 
 ```elixir
 config :helios, Helios.AI,
   models: [
     %{id: "jev-1.13", label: "Jev 1.13", provider: :jev, model: "jev-1.13.0", deadline_ms: 5_000},
     %{id: "or-<slug>", label: "<label>", provider: :openrouter, model: "<vendor>/<model>",
-      deadline_ms: 10_000, reasoning: false}
+      deadline_ms: 10_000, reasoning: false, format: :toon}
     # …
   ],
   probe_interval_ms: 600_000
@@ -46,6 +46,8 @@ config :helios, Helios.AI,
 
 - `id` is a stable key stored on seats (`lobby_ai_seats.model_id`, `game_players.ai_model`). Removing a model from config does not break existing games: the seat's moves fall back to random, and the label shown is the stored id.
 - `reasoning` (OpenRouter only, default `false`) opts a model into reasoning tokens; off by default for cost and latency.
+- `format` (OpenRouter only, `:toon` | `:json`, default `:toon`) picks how the state is written in the user message (see "Formats"). Jev always receives JSON.
+- `probe_interval_ms` stays in `config/config.exs`.
 - `config/runtime.exs` reads `JEV_API_KEY` and `OPENROUTER_API_KEY` (both optional in every env). A provider without a key is never ready.
 - `config/test.exs` and `config/e2e.exs` add a `:fake` provider (see Testing) and point the real providers at `Req.Test` stubs.
 
@@ -100,9 +102,10 @@ me:      wonder + side, coins, stages built/total, next stage (cost → effect t
 west/east: same fields as `me` (public info)
 others:  one compact entry each: wonder, stages built/total, coins, shields,
          built-card counts by colour
-hand:    each card: name, colour, effect text, chains_to
+hand:    each card: name, colour, effect text (one string), chains_to (one string, "" if none)
 ```
 
+- Entries of `hand`, `discard_pile` and `others` are flat maps of scalars with identical keys, and `others[].cards` is a single string such as `"1 blue, 1 brown, 1 red"`. That keeps them tabular for TOON (and short in JSON).
 - Effect text comes from `HeliosWeb.CardText` (or a shared, terser variant moved to `Helios`) applied to catalogue effect specs.
 - Aggregated production, science and shield totals are **presentation only**, summed from catalogue effect specs of built cards and wonder stages. Legality and costs always come from the view's build options.
 - Not sent: trade payment lists, history, other players' scores, discard-pile contents (except as move options on a Halicarnassus turn).
@@ -128,6 +131,15 @@ A short persona that relies on the model's own knowledge of the game instead of 
 > You are an expert player of the 7 Wonders board game (base game). You see your current position and your legal moves. Choose the move that maximises your final score.
 
 The primer is a fixed module attribute, identical on every call (cache-friendly), under 100 tokens.
+
+### Formats
+
+`Prompt.user_message(prompt, :toon | :json)` renders the state for chat models:
+
+- `:json`: compact JSON (`Jason.encode!/1`).
+- `:toon`: [TOON](https://github.com/toon-format/spec) via the `toon` hex package (`Toon.encode!/1`, pinned `~> 0.3.0`). Uniform lists (`hand`, `others`, `discard_pile`) become tables (`hand[3]{chains_to,colour,effects,name}:` plus one row per card), which is where TOON saves the most.
+
+The default is `:toon` for OpenRouter. The live provider tests send every sample position in both formats, so the per-model token difference is measured, not assumed. A model that misreads TOON is switched to `format: :json` in `config/ai_models.exs`. Tools, MCP servers and prompt caching are not used: tool schemas add tokens to every call, and the only static prefix (the primer) is far below providers' caching thresholds.
 
 ## Provider adapters (`Helios.AI.Provider` behaviour; modules `Helios.AI.Provider.Jev`, `.OpenRouter`, `.Fake`)
 
@@ -162,7 +174,7 @@ The answer is `answers.move.choice`. An id outside the offered set is an `{:erro
 ### OpenRouter (`Helios.AI.Provider.OpenRouter`)
 
 `POST https://openrouter.ai/api/v1/chat/completions` with:
-- `messages`: system = primer; user = state JSON + moves (`id: label` lines).
+- `messages`: system = primer; user = `Prompt.user_message(prompt, format)`, the state in the model's `format` plus the moves (`id: label` lines).
 - `response_format`: `json_schema`, strict, `{"move": {"type": "string", "enum": [ids]}}`.
 - `max_tokens` ≈ 16, `temperature` 0.2, reasoning excluded unless the model entry sets `reasoning: true`.
 - `provider: %{require_parameters: true}` so OpenRouter routes only to backends honouring structured output.
@@ -250,7 +262,13 @@ The answer is the parsed `move`. Unparseable or out-of-set → `{:error, :invali
 - **Full game**: 1 human + 2 AI seats on the fake provider play to `game_over` with `GameDriver` driving the human.
 - **LiveView**: bot icon and label in lobby and table, "Add AI player" dropdown, "thinking…" state, "random" tag in history and replay, owner setup controls for AI seats.
 - **e2e** (`MIX_ENV=e2e`, fake provider enabled only there): the owner adds an AI seat and plays a turn; the AI's move appears; with the fake set to time out, the move is tagged "random".
-- **No real provider calls in tests or CI.** `mix helios.ai.probe` runs the readiness probes and one sample decision against the real configured providers, for manual verification of keys and models.
+- **No real provider calls in tests or CI.** `mix helios.ai.probe` runs the readiness probes against the real configured providers and prints which models are ready (quick key check).
+- **Live provider tests (local only).** Tagged `:live_ai` and excluded by default (`ExUnit.start(exclude: [:live_ai])`); run with `JEV_API_KEY=… OPENROUTER_API_KEY=… mix test --only live_ai`, optionally `LIVE_AI_MODEL=<id>` and `LIVE_AI_RUNS=<n>` (default 3). For every model in `config/ai_models.exs` whose key is set:
+  - the provider probe must pass, so the key, the credit and the model are all checked;
+  - several real engine positions are decided with a 30 s cap: Age I turn 1, Age II turn 3, Age III turn 5, and a Halicarnassus build-from-discard turn. OpenRouter models decide each position in both formats;
+  - every answer must be one of the offered ids.
+
+  The test prints a report per model: runs, ok/failed counts, latency min/p50/p95/max, average input tokens per format, average output tokens, how many samples would have missed the configured `deadline_ms`, and a suggested deadline (p95 × 1.5, rounded up to 250 ms). Models without a key are reported as skipped.
 
 ## Out of scope
 
