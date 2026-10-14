@@ -17,6 +17,8 @@ defmodule Helios.Games do
   @registry Helios.Games.Registry
   @supervisor Helios.Games.Supervisor
 
+  @sources [:human, :ai, :random]
+
   @spec topic(Ecto.UUID.t()) :: String.t()
   def topic(game_id), do: "game:#{game_id}"
 
@@ -255,27 +257,72 @@ defmodule Helios.Games do
     end
   end
 
-  @spec submit(term(), integer(), term()) :: :ok | {:error, term()}
-  def submit(game_id, user_id, action), do: call(game_id, {:submit, user_id, action})
+  @doc "`actor` is a user id or `{:ai, seat}`; `source` is `:human`, `:ai` or `:random`."
+  @spec submit(term(), Actor.t(), term(), atom()) :: :ok | {:error, term()}
+  def submit(game_id, actor, action, source \\ :human)
 
-  @spec submit_choice(term(), integer(), Helios.Games.Choice.t()) :: :ok | {:error, term()}
-  def submit_choice(game_id, user_id, %{} = choice),
-    do: call(game_id, {:submit_choice, user_id, choice})
+  def submit(game_id, actor, action, source) when source in @sources,
+    do: call(game_id, {:submit, actor, action, source})
+
+  def submit(_game_id, _actor, _action, _source), do: {:error, :invalid_source}
+
+  @spec submit_choice(term(), Actor.t(), Helios.Games.Choice.t(), atom()) ::
+          :ok | {:error, term()}
+  def submit_choice(game_id, actor, choice, source \\ :human)
+
+  def submit_choice(game_id, actor, %{} = choice, source) when source in @sources,
+    do: call(game_id, {:submit_choice, actor, choice, source})
+
+  def submit_choice(_game_id, _actor, _choice, _source), do: {:error, :invalid_source}
+
+  @doc """
+  The lobby owner's setup choice (claim or confirm a board) for one of the
+  game's AI seats. Logged under the AI seat with source `:human`.
+  """
+  @spec submit_for_ai_seat(Scope.t(), term(), term(), term()) :: :ok | {:error, term()}
+  def submit_for_ai_seat(%Scope{user: user}, game_id, seat, action) do
+    with :ok <- setup_action(action),
+         {:ok, game} <- fetch_game(game_id),
+         :ok <- check_ai_controller(game, user, seat) do
+      submit(game.id, {:ai, seat}, action, :human)
+    end
+  end
+
+  defp setup_action({:claim_wonder, %{wonder: _, side: _}}), do: :ok
+  defp setup_action(:confirm_wonder), do: :ok
+  defp setup_action(_action), do: {:error, :invalid_choice}
+
+  defp check_ai_controller(game, user, seat) when is_integer(seat) do
+    owner? =
+      Repo.exists?(
+        from l in Lobbies.Lobby, where: l.id == ^game.lobby_id and l.owner_id == ^user.id
+      )
+
+    ai? =
+      Repo.exists?(
+        from p in GamePlayer,
+          where: p.game_id == ^game.id and p.seat == ^seat and not is_nil(p.ai_model)
+      )
+
+    if owner? and ai?, do: :ok, else: {:error, :not_leader}
+  end
+
+  defp check_ai_controller(_game, _user, _seat), do: {:error, :not_leader}
 
   @spec view(term(), Actor.t()) :: {:ok, map()} | {:error, term()}
-  # interim: Task 4 moves actor conversion into GameServer
-  def view(game_id, actor), do: call(game_id, {:view, Actor.player_id(actor)})
+  def view(game_id, actor), do: call(game_id, {:view, actor})
 
   @spec history(term()) :: {:ok, [term()]} | {:error, term()}
   def history(game_id), do: call(game_id, :history)
 
   @doc """
-  The viewer's view and the public history read in one `GameServer` call, so
-  the two can never be split by a concurrent submit the way separate
-  `view/2` + `history/1` calls can.
+  The viewer's view, the public history and the random-move marks
+  (`Helios.Games.RandomMoves`) read in one `GameServer` call, so they can
+  never be split by a concurrent submit.
   """
-  @spec snapshot(term(), integer()) :: {:ok, %{view: map(), history: [term()]}} | {:error, term()}
-  def snapshot(game_id, user_id), do: call(game_id, {:snapshot, user_id})
+  @spec snapshot(term(), Actor.t()) ::
+          {:ok, %{view: map(), history: [term()], random: MapSet.t()}} | {:error, term()}
+  def snapshot(game_id, actor), do: call(game_id, {:snapshot, actor})
 
   @doc """
   Rebuilds a finished game from its log in a throwaway engine: the viewer's
@@ -287,16 +334,24 @@ defmodule Helios.Games do
   `{:error, :not_finished}` if the log stops short of game over.
   """
   @spec replay(Game.t(), integer()) ::
-          {:ok, %{view: map(), history: [term()], frames: [map()]}} | {:error, term()}
+          {:ok, %{view: map(), history: [term()], frames: [map()], random: MapSet.t()}}
+          | {:error, term()}
   def replay(%Game{} = game, user_id) do
     me = to_string(user_id)
     init = fn ref -> %{current: opening_frame(ref, me), done: [], turns: 0, my_last: nil} end
     step = fn row, ref, acc -> frame_step(row, ref, acc, me) end
 
-    with {:ok, ref, acc} <- Replay.rebuild(game, Replay.actions(game.id), init, step),
+    with {:ok, ref, acc, random} <-
+           Replay.rebuild_with_random(game, Replay.actions(game.id), init, step),
          {:ok, %{phase: %{kind: :game_over}} = view} <- Core.view(ref, me),
          {:ok, history} <- Core.history(ref) do
-      {:ok, %{view: view, history: history, frames: Enum.reverse(acc.done, [acc.current])}}
+      {:ok,
+       %{
+         view: view,
+         history: history,
+         frames: Enum.reverse(acc.done, [acc.current]),
+         random: random
+       }}
     else
       {:ok, _view} -> {:error, :not_finished}
       {:error, reason} -> {:error, reason}
@@ -310,7 +365,7 @@ defmodule Helios.Games do
 
   defp frame_step(row, ref, acc, me) do
     acc =
-      if to_string(row.user_id) == me do
+      if row |> Actor.of_row() |> Actor.player_id() == me do
         {:ok, action} = ActionCodec.decode(row.action)
         %{acc | my_last: action}
       else

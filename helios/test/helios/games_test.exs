@@ -275,6 +275,65 @@ defmodule Helios.GamesTest do
     end
   end
 
+  describe "submit_for_ai_seat/4" do
+    setup do
+      on_exit(&stop_game_servers/0)
+      put_ai_config(players: false)
+      [owner, b] = for _ <- 1..2, do: player_fixture()
+      game = game_fixture([owner, b, {:ai, "fake-first"}], selection: :choose_side)
+      %{game: game, owner: owner, b: b}
+    end
+
+    test "the owner claims and confirms for an AI seat", %{game: game, owner: owner} do
+      {:ok, %{setup: setup}} = Games.view(game.id, owner.id)
+      wonder = Enum.find(setup.seats, &(&1.player == "ai-2")).wonder
+      scope = Scope.for_user(owner)
+
+      assert :ok =
+               Games.submit_for_ai_seat(
+                 scope,
+                 game.id,
+                 2,
+                 {:claim_wonder, %{wonder: wonder, side: :b}}
+               )
+
+      assert :ok = Games.submit_for_ai_seat(scope, game.id, 2, :confirm_wonder)
+
+      {:ok, %{setup: setup}} = Games.view(game.id, owner.id)
+      assert %{side: :b, confirmed: true} = Enum.find(setup.seats, &(&1.player == "ai-2"))
+
+      assert [%{seat: 2, user_id: nil, source: "human"} | _] =
+               Repo.all(
+                 from a in Helios.Games.GameAction, where: a.game_id == ^game.id, order_by: a.seq
+               )
+    end
+
+    test "non-owners, human seats and card actions are rejected", %{
+      game: game,
+      owner: owner,
+      b: b
+    } do
+      claim = {:claim_wonder, %{wonder: "Gizah", side: :a}}
+
+      assert {:error, :not_leader} =
+               Games.submit_for_ai_seat(Scope.for_user(b), game.id, 2, claim)
+
+      assert {:error, :not_leader} =
+               Games.submit_for_ai_seat(Scope.for_user(owner), game.id, 1, claim)
+
+      assert {:error, :not_leader} =
+               Games.submit_for_ai_seat(Scope.for_user(owner), game.id, 9, claim)
+
+      assert {:error, :invalid_choice} =
+               Games.submit_for_ai_seat(Scope.for_user(owner), game.id, 2, {:discard, "Altar"})
+
+      assert Repo.aggregate(
+               from(a in Helios.Games.GameAction, where: a.game_id == ^game.id),
+               :count
+             ) == 0
+    end
+  end
+
   describe "start_blocker/2" do
     test "explains why a game cannot start" do
       assert Games.start_blocker(nil, 2) == "Need at least 3 connected players"

@@ -9,13 +9,17 @@ defmodule Helios.Games.GameServer do
   the process is not started (`:ignore`). An insert failure crashes the
   process on purpose: the supervisor restarts it and replay drops the
   unpersisted action, so memory is never ahead of the log.
+
+  Submissions carry a `source` (`:human | :ai | :random`); random ones are
+  kept as `Helios.Games.RandomMoves` keys, rebuilt from the log on init and
+  returned by `:snapshot`.
   """
   use GenServer, restart: :transient
 
   require Logger
 
   alias Helios.{Core, Games, Repo}
-  alias Helios.Games.{ActionCodec, Choice, Game, GameAction, Replay}
+  alias Helios.Games.{ActionCodec, Actor, Choice, Game, GameAction, Replay}
 
   def start_link(opts) do
     game_id = Keyword.fetch!(opts, :game_id)
@@ -25,6 +29,13 @@ defmodule Helios.Games.GameServer do
     )
   end
 
+  @doc "Direct call for processes holding the server pid (AI players): no ensure_started, no retry."
+  def view(server, actor), do: GenServer.call(server, {:view, actor})
+
+  @doc "Direct call for processes holding the server pid (AI players)."
+  def submit_choice(server, actor, choice, source),
+    do: GenServer.call(server, {:submit_choice, actor, choice, source})
+
   @impl true
   def init(opts) do
     game = Repo.get!(Game, Keyword.fetch!(opts, :game_id))
@@ -32,14 +43,17 @@ defmodule Helios.Games.GameServer do
     actions = Replay.actions(game.id)
     warn_on_engine_version(game)
 
-    case Replay.rebuild(game, actions, fn _ref -> nil end, fn _row, _ref, acc -> acc end) do
-      {:ok, ref, nil} ->
+    case Replay.rebuild_with_random(game, actions, fn _ref -> nil end, fn _row, _ref, acc ->
+           acc
+         end) do
+      {:ok, ref, nil, random} ->
         state = %{
           game_id: game.id,
           lobby_id: game.lobby_id,
           ref: ref,
           seq: last_seq(actions),
           players: Replay.player_ids(game.id),
+          random: random,
           status: game.status,
           idle_timeout: idle_timeout
         }
@@ -58,31 +72,32 @@ defmodule Helios.Games.GameServer do
   end
 
   @impl true
-  def handle_call({:submit, user_id, action}, _from, state) do
-    do_submit(state, user_id, action)
+  def handle_call({:submit, actor, action, source}, _from, state) do
+    do_submit(state, actor, action, source)
   end
 
-  def handle_call({:submit_choice, user_id, choice}, _from, state) do
-    with {:ok, view} <- Core.view(state.ref, to_string(user_id)),
+  def handle_call({:submit_choice, actor, choice, source}, _from, state) do
+    with {:ok, view} <- Core.view(state.ref, Actor.player_id(actor)),
          {:ok, action} <- Choice.resolve(view, choice) do
-      do_submit(state, user_id, action)
+      do_submit(state, actor, action, source)
     else
       {:error, reason} -> {:reply, {:error, reason}, state, state.idle_timeout}
     end
   end
 
-  def handle_call({:view, user_id}, _from, state) do
-    {:reply, Core.view(state.ref, to_string(user_id)), state, state.idle_timeout}
+  def handle_call({:view, actor}, _from, state) do
+    {:reply, Core.view(state.ref, Actor.player_id(actor)), state, state.idle_timeout}
   end
 
   def handle_call(:history, _from, state) do
     {:reply, Core.history(state.ref), state, state.idle_timeout}
   end
 
-  def handle_call({:snapshot, user_id}, _from, state) do
-    with {:ok, view} <- Core.view(state.ref, to_string(user_id)),
+  def handle_call({:snapshot, actor}, _from, state) do
+    with {:ok, view} <- Core.view(state.ref, Actor.player_id(actor)),
          {:ok, history} <- Core.history(state.ref) do
-      {:reply, {:ok, %{view: view, history: history}}, state, state.idle_timeout}
+      {:reply, {:ok, %{view: view, history: history, random: state.random}}, state,
+       state.idle_timeout}
     else
       {:error, reason} -> {:reply, {:error, reason}, state, state.idle_timeout}
     end
@@ -92,25 +107,32 @@ defmodule Helios.Games.GameServer do
   def handle_info(:timeout, state), do: {:stop, :normal, state}
   def handle_info(_message, state), do: {:noreply, state, state.idle_timeout}
 
-  defp do_submit(state, user_id, action) do
-    case Core.submit(state.ref, to_string(user_id), action) do
-      :ok ->
-        seq = state.seq + 1
+  defp do_submit(state, actor, action, source) do
+    player = Actor.player_id(actor)
 
-        # Raises on failure -> crash -> restart + replay without this action.
-        Repo.insert!(%GameAction{
-          game_id: state.game_id,
-          seq: seq,
-          user_id: user_id,
-          action: ActionCodec.encode(action)
-        })
+    with {:ok, %{phase: phase}} <- Core.view(state.ref, player),
+         :ok <- Core.submit(state.ref, player, action) do
+      seq = state.seq + 1
 
-        state = maybe_finish(%{state | seq: seq})
-        Phoenix.PubSub.broadcast(Helios.PubSub, Games.topic(state.game_id), {:game_updated, seq})
-        {:reply, :ok, state, state.idle_timeout}
+      # Raises on failure -> crash -> restart + replay without this action.
+      Repo.insert!(
+        struct(
+          GameAction,
+          Map.merge(Actor.row_fields(actor), %{
+            game_id: state.game_id,
+            seq: seq,
+            source: Atom.to_string(source),
+            action: ActionCodec.encode(action)
+          })
+        )
+      )
 
-      {:error, reason} ->
-        {:reply, {:error, reason}, state, state.idle_timeout}
+      random = Helios.Games.RandomMoves.record(state.random, source, phase, player)
+      state = maybe_finish(%{state | seq: seq, random: random})
+      Phoenix.PubSub.broadcast(Helios.PubSub, Games.topic(state.game_id), {:game_updated, seq})
+      {:reply, :ok, state, state.idle_timeout}
+    else
+      {:error, reason} -> {:reply, {:error, reason}, state, state.idle_timeout}
     end
   end
 

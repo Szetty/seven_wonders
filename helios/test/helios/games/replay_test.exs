@@ -191,5 +191,31 @@ defmodule Helios.Games.ReplayTest do
                  acc
                end)
     end
+
+    test "replay returns the random marks of a finished game" do
+      put_ai_config(players: false)
+      on_exit(&stop_game_servers/0)
+      [a, b] = for _ <- 1..2, do: player_fixture()
+      game = game_fixture([a, b, {:ai, "fake-first"}])
+      ids = [to_string(a.id), to_string(b.id), "ai-2"]
+      {view_fun, _submit} = Helios.GameDriver.games_funs(game.id)
+
+      submit = fn
+        "ai-2", action -> Games.submit(game.id, {:ai, 2}, action, :random)
+        player, action -> Games.submit(game.id, String.to_integer(player), action)
+      end
+
+      {:game_over, _} =
+        Helios.GameDriver.play_until(ids, %{}, view_fun, submit, fn _ -> false end)
+
+      assert {:ok, %{random: random, history: history}} =
+               Games.replay(Repo.get!(Game, game.id), a.id)
+
+      turns =
+        for {:turn, event} <- history, Enum.any?(event.plays, &(&1.player == "ai-2")), do: event
+
+      assert MapSet.size(random) == length(turns)
+      assert Enum.all?(turns, &Helios.Games.RandomMoves.random?(random, &1, "ai-2"))
+    end
   end
 end

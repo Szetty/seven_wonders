@@ -107,9 +107,12 @@ defmodule Helios.GameDriver do
 
   def games_funs(game_id) do
     {fn player ->
-       {:ok, view} = Games.view(game_id, String.to_integer(player))
+       {:ok, view} = Games.view(game_id, Helios.Games.Actor.from_player_id(player))
        view
-     end, fn player, action -> Games.submit(game_id, String.to_integer(player), action) end}
+     end,
+     fn player, action ->
+       Games.submit(game_id, Helios.Games.Actor.from_player_id(player), action)
+     end}
   end
 
   @doc "First seed whose deterministic playthrough reaches `stop?` (raises if none does)."
