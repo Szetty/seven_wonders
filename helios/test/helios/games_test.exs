@@ -211,6 +211,70 @@ defmodule Helios.GamesTest do
     end
   end
 
+  describe "AI seats" do
+    setup do
+      on_exit(&stop_game_servers/0)
+      put_ai_config(players: false)
+      :ok
+    end
+
+    test "put_ai_config(players: false) is in effect during these tests" do
+      config = Helios.AI.Models.config()
+      assert Keyword.get(config, :players) == false
+      assert Keyword.get(config, :models) != []
+    end
+
+    test "seat_plan lists connected humans, then AI seats" do
+      [owner, b] = for _ <- 1..2, do: player_fixture()
+      lobby = Lobbies.get_or_create_own_lobby(owner)
+      invite_all(owner, lobby, [b])
+      {:ok, _} = Lobbies.add_ai_seat(Scope.for_user(owner), lobby, "fake-first")
+
+      plan = fn ->
+        Enum.map(Games.seat_plan(lobby), fn
+          {:user, user} -> {:user, user.id}
+          ai -> ai
+        end)
+      end
+
+      assert plan.() == [{:user, owner.id}, {:ai, "fake-first"}]
+      connect_to_lobby(lobby, [b])
+      assert plan.() == [{:user, owner.id}, {:user, b.id}, {:ai, "fake-first"}]
+    end
+
+    test "the owner starts with AI seats filling the table" do
+      owner = player_fixture()
+      lobby = Lobbies.get_or_create_own_lobby(owner)
+      scope = Scope.for_user(owner)
+      {:ok, _} = Lobbies.add_ai_seat(scope, lobby, "fake-first")
+      assert {:error, :not_enough_players} = Games.start_game(scope, lobby)
+
+      {:ok, _} = Lobbies.add_ai_seat(scope, lobby, "fake-last")
+      assert {:ok, game} = Games.start_game(scope, lobby)
+
+      players = Games.players(game)
+
+      assert Enum.map(players, &{&1.seat, &1.user_id, &1.ai_model}) ==
+               [{0, owner.id, nil}, {1, nil, "fake-first"}, {2, nil, "fake-last"}]
+
+      assert Enum.map(players, &Games.player_id/1) == [to_string(owner.id), "ai-1", "ai-2"]
+      assert {:ok, %{me: "ai-1"}} = Games.view(game.id, {:ai, 1})
+      assert Games.ai_player_ids(players) == MapSet.new(["ai-1", "ai-2"])
+    end
+
+    test "display names: user names for humans, numbered labels for AI" do
+      owner = player_fixture()
+      game = game_fixture([owner, {:ai, "fake-first"}, {:ai, "fake-first"}, {:ai, "gone"}])
+
+      assert Games.display_names(Games.players(game)) == %{
+               to_string(owner.id) => owner.name,
+               "ai-1" => "Fake First",
+               "ai-2" => "Fake First #2",
+               "ai-3" => "gone"
+             }
+    end
+  end
+
   describe "start_blocker/2" do
     test "explains why a game cannot start" do
       assert Games.start_blocker(nil, 2) == "Need at least 3 connected players"

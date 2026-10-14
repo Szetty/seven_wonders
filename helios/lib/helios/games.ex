@@ -8,7 +8,7 @@ defmodule Helios.Games do
   alias Ecto.Multi
   alias Helios.{Core, Lobbies, Repo}
   alias Helios.Accounts.Scope
-  alias Helios.Games.{ActionCodec, Game, GamePlayer, GameServer, Replay}
+  alias Helios.Games.{ActionCodec, Actor, Game, GamePlayer, GameServer, Replay}
   alias HeliosWeb.Presence
 
   @min_players 3
@@ -73,6 +73,39 @@ defmodule Helios.Games do
         do: user
   end
 
+  @doc "Who would be seated if the game started now: connected humans (members order), then the lobby's AI seats."
+  @spec seat_plan(Lobbies.Lobby.t()) :: [{:user, Helios.Accounts.User.t()} | {:ai, String.t()}]
+  def seat_plan(lobby) do
+    Enum.map(eligible_players(lobby), &{:user, &1}) ++
+      Enum.map(Lobbies.ai_seats(lobby), &{:ai, &1.model_id})
+  end
+
+  @doc "The engine id of a seat."
+  @spec player_id(GamePlayer.t()) :: String.t()
+  def player_id(%GamePlayer{} = player), do: player |> Actor.of_seat() |> Actor.player_id()
+
+  @doc "Engine id => display name; AI seats are their model label, numbered when repeated."
+  @spec display_names([GamePlayer.t()]) :: %{String.t() => String.t()}
+  def display_names(players) do
+    {ai, humans} = Enum.split_with(players, &is_binary(&1.ai_model))
+    labels = Helios.AI.Models.seat_labels(Enum.map(ai, & &1.ai_model))
+
+    Map.new(
+      Enum.map(humans, &{player_id(&1), &1.user.name}) ++
+        Enum.zip(Enum.map(ai, &player_id/1), labels)
+    )
+  end
+
+  @spec ai_player_ids([GamePlayer.t()]) :: MapSet.t(String.t())
+  def ai_player_ids(players),
+    do:
+      for(
+        %GamePlayer{ai_model: model} = p <- players,
+        is_binary(model),
+        into: MapSet.new(),
+        do: player_id(p)
+      )
+
   @spec start_blocker(Game.t() | nil, non_neg_integer()) :: String.t() | nil
   def start_blocker(%Game{}, _count), do: error_message(:game_in_progress)
 
@@ -85,16 +118,16 @@ defmodule Helios.Games do
 
   @spec start_game(Scope.t(), Lobbies.Lobby.t()) :: {:ok, Game.t()} | {:error, term()}
   def start_game(%Scope{user: user}, lobby) do
-    players = eligible_players(lobby)
+    seats = seat_plan(lobby)
 
     with :ok <- check_leader(lobby, user),
-         :ok <- check_player_count(length(players)),
+         :ok <- check_player_count(length(seats)),
          :ok <- check_no_active_game(lobby),
-         player_ids = Enum.map(players, &to_string(&1.id)),
-         wonders = configured_wonders(lobby, length(players)),
+         player_ids = seat_player_ids(seats),
+         wonders = configured_wonders(lobby, length(seats)),
          seed = new_seed(),
          :ok <- validate_setup(player_ids, wonders, seed),
-         {:ok, game} <- insert_game(lobby, players, seed, wonders),
+         {:ok, game} <- insert_game(lobby, seats, seed, wonders),
          {:ok, game} <- boot(game) do
       Phoenix.PubSub.broadcast(Helios.PubSub, "lobby:#{lobby.id}", {:game_started, game.id})
       {:ok, game}
@@ -165,7 +198,16 @@ defmodule Helios.Games do
     end
   end
 
-  defp insert_game(lobby, players, seed, wonders) do
+  defp seat_player_ids(seats) do
+    seats
+    |> Enum.with_index()
+    |> Enum.map(fn
+      {{:user, user}, _seat} -> Actor.player_id(user.id)
+      {{:ai, _model}, seat} -> Actor.player_id({:ai, seat})
+    end)
+  end
+
+  defp insert_game(lobby, seats, seed, wonders) do
     attrs = %{
       seed: seed,
       engine_version: Core.game_settings().engine_version,
@@ -175,8 +217,9 @@ defmodule Helios.Games do
     Multi.new()
     |> Multi.insert(:game, Game.create_changeset(%Game{lobby_id: lobby.id}, attrs))
     |> Multi.insert_all(:players, GamePlayer, fn %{game: game} ->
-      Enum.with_index(players, fn user, seat ->
-        %{game_id: game.id, user_id: user.id, seat: seat}
+      Enum.with_index(seats, fn
+        {:user, user}, seat -> %{game_id: game.id, user_id: user.id, ai_model: nil, seat: seat}
+        {:ai, model}, seat -> %{game_id: game.id, user_id: nil, ai_model: model, seat: seat}
       end)
     end)
     |> Repo.transaction()
@@ -219,8 +262,9 @@ defmodule Helios.Games do
   def submit_choice(game_id, user_id, %{} = choice),
     do: call(game_id, {:submit_choice, user_id, choice})
 
-  @spec view(term(), integer()) :: {:ok, map()} | {:error, term()}
-  def view(game_id, user_id), do: call(game_id, {:view, user_id})
+  @spec view(term(), Actor.t()) :: {:ok, map()} | {:error, term()}
+  # interim: Task 4 moves actor conversion into GameServer
+  def view(game_id, actor), do: call(game_id, {:view, Actor.player_id(actor)})
 
   @spec history(term()) :: {:ok, [term()]} | {:error, term()}
   def history(game_id), do: call(game_id, :history)
