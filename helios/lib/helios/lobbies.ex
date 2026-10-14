@@ -11,7 +11,8 @@ defmodule Helios.Lobbies do
 
     * `"user:<user_id>"` — `{:invited, %Invite{lobby: %Lobby{owner: %User{}}}}`,
       `{:uninvited, lobby_id}`, `{:invite_resolved, lobby_id}`
-    * `"lobby:<lobby_id>"` — `{:members_changed}`, `{:declined, %User{}}`, `{:settings_changed}`
+    * `"lobby:<lobby_id>"` — `{:members_changed}` (members or AI seats changed),
+      `{:declined, %User{}}`, `{:settings_changed}`
   """
 
   import Ecto.Query, warn: false
@@ -20,6 +21,7 @@ defmodule Helios.Lobbies do
   alias Helios.Accounts.User
   alias Helios.Games.Game
   alias Helios.Games.GamePlayer
+  alias Helios.Lobbies.AISeat
   alias Helios.Lobbies.Invite
   alias Helios.Lobbies.Lobby
   alias Helios.Repo
@@ -223,6 +225,44 @@ defmodule Helios.Lobbies do
     end
   end
 
+  @doc "The lobby's AI seats, in the order they were added."
+  @spec ai_seats(Lobby.t()) :: [AISeat.t()]
+  def ai_seats(%Lobby{id: lobby_id}) do
+    Repo.all(
+      from s in AISeat, where: s.lobby_id == ^lobby_id, order_by: [asc: s.inserted_at, asc: s.id]
+    )
+  end
+
+  @doc """
+  The owner seats an AI player using `model_id`, which must be ready
+  (`Helios.AI.Readiness`). AI seats and invites share the #{@max_players} seats.
+  """
+  @spec add_ai_seat(Scope.t(), Lobby.t(), term()) ::
+          {:ok, AISeat.t()} | {:error, :not_leader | :model_unavailable | :lobby_full}
+  def add_ai_seat(%Scope{user: %User{} = user}, %Lobby{} = lobby, model_id) do
+    with :ok <- ensure_leader(lobby, user),
+         :ok <- ensure_ready(model_id),
+         {:ok, seat} <- insert_ai_seat(lobby, model_id) do
+      broadcast(lobby_topic(lobby.id), {:members_changed})
+      {:ok, seat}
+    end
+  end
+
+  @doc "The owner removes an AI seat (`seat_id` integer or numeric string)."
+  @spec remove_ai_seat(Scope.t(), Lobby.t(), term()) :: :ok | {:error, :not_leader | :no_ai_seat}
+  def remove_ai_seat(%Scope{user: %User{} = user}, %Lobby{} = lobby, seat_id) do
+    with :ok <- ensure_leader(lobby, user),
+         {:ok, seat_id} <- parse_user_id(seat_id, :no_ai_seat),
+         {1, _} <-
+           Repo.delete_all(from s in AISeat, where: s.lobby_id == ^lobby.id and s.id == ^seat_id) do
+      broadcast(lobby_topic(lobby.id), {:members_changed})
+      :ok
+    else
+      {0, _} -> {:error, :no_ai_seat}
+      {:error, _reason} = error -> error
+    end
+  end
+
   @doc "Pending invites for `user`, newest first."
   @spec pending_invites(User.t()) :: [%{lobby_id: Ecto.UUID.t(), owner_name: String.t()}]
   def pending_invites(%User{id: user_id}) do
@@ -307,6 +347,8 @@ defmodule Helios.Lobbies do
   def error_message(:invalid_user), do: "That player does not exist"
   def error_message(:not_invited), do: "That invitation is no longer valid"
   def error_message(:invalid_wonder_mode), do: "That board mode does not exist"
+  def error_message(:model_unavailable), do: "That AI model is not available right now"
+  def error_message(:no_ai_seat), do: "That AI player is no longer at the table"
 
   defp cast_lobby_id(id) when is_binary(id), do: Ecto.UUID.cast(id)
   defp cast_lobby_id(_id), do: :error
@@ -343,10 +385,18 @@ defmodule Helios.Lobbies do
     end
   end
 
+  defp ensure_ready(model_id) when is_binary(model_id) do
+    if Helios.AI.Readiness.ready?(model_id), do: :ok, else: {:error, :model_unavailable}
+  end
+
+  defp ensure_ready(_model_id), do: {:error, :model_unavailable}
+
+  # Owner + invitees + AI seats must stay within @max_players.
   defp ensure_capacity(%Lobby{id: lobby_id}) do
     invites = Repo.aggregate(from(i in Invite, where: i.lobby_id == ^lobby_id), :count)
+    ai = Repo.aggregate(from(s in AISeat, where: s.lobby_id == ^lobby_id), :count)
 
-    if invites + 1 >= @max_players, do: {:error, :lobby_full}, else: :ok
+    if invites + ai + 1 >= @max_players, do: {:error, :lobby_full}, else: :ok
   end
 
   defp insert_invite(%Lobby{id: lobby_id} = lobby, %User{id: user_id}) do
@@ -359,6 +409,16 @@ defmodule Helios.Lobbies do
         invite
       else
         {:error, %Ecto.Changeset{}} -> Repo.rollback(:already_invited)
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp insert_ai_seat(lobby, model_id) do
+    Repo.transaction(fn ->
+      with :ok <- ensure_capacity(lobby) do
+        Repo.insert!(%AISeat{lobby_id: lobby.id, model_id: model_id})
+      else
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
