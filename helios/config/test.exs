@@ -60,3 +60,7 @@ config :helios, Helios.AI,
     },
     %{id: "fake-down", label: "Fake Down", provider: :fake, model: "down", deadline_ms: 2_000}
   ]
+
+config :helios, Helios.AI.Provider.Jev,
+  api_key: "test-jev-key",
+  req_options: [plug: {Req.Test, Helios.AI.Provider.Jev}]
