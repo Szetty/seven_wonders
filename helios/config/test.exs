@@ -64,3 +64,7 @@ config :helios, Helios.AI,
 config :helios, Helios.AI.Provider.Jev,
   api_key: "test-jev-key",
   req_options: [plug: {Req.Test, Helios.AI.Provider.Jev}]
+
+config :helios, Helios.AI.Provider.OpenRouter,
+  api_key: "test-openrouter-key",
+  req_options: [plug: {Req.Test, Helios.AI.Provider.OpenRouter}]
