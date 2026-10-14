@@ -5,6 +5,10 @@ defmodule Helios.AI.Provider.Jev do
   state is the `state`, the primer the instructions. The answer can only be
   one of the offered ids. Priced per input token; output is free.
 
+  The response body is decoded here, not by Req (`decode_body: false`), so a
+  malformed 200 is one `{:error, :invalid_move}` instead of a decode failure
+  Helios.AI.HTTP would class as a transport error and retry.
+
   Readiness: `GET /v1/models` with the key; if the API has no listing
   (404), a two-option decision (a few input tokens) proves the key works.
   """
@@ -31,11 +35,14 @@ defmodule Helios.AI.Provider.Jev do
       }
 
       case HTTP.request(req(key, method: :post, url: "/v1/systemone", json: body), deadline) do
-        {:ok,
-         %Req.Response{status: 200, body: %{"answers" => %{"move" => %{"choice" => id}}} = body}} ->
-          if Enum.any?(prompt.moves, &(&1.id == id)),
-            do: {:ok, id, usage(body)},
-            else: {:error, :invalid_move}
+        {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
+          with {:ok, decoded} <- Jason.decode(body),
+               {:ok, id} <- choice(decoded),
+               true <- Enum.any?(prompt.moves, &(&1.id == id)) do
+            {:ok, id, usage(decoded)}
+          else
+            _not_a_valid_answer -> {:error, :invalid_move}
+          end
 
         {:ok, %Req.Response{status: 200}} ->
           {:error, :invalid_move}
@@ -80,6 +87,9 @@ defmodule Helios.AI.Provider.Jev do
     end
   end
 
+  defp choice(%{"answers" => %{"move" => %{"choice" => id}}}) when is_binary(id), do: {:ok, id}
+  defp choice(_other), do: :error
+
   defp usage(body) do
     %{
       input_tokens: get_in(body, ["usage", "input_tokens"]) || 0,
@@ -89,6 +99,7 @@ defmodule Helios.AI.Provider.Jev do
 
   defp req(key, options) do
     [base_url: Keyword.get(config(), :base_url, @default_base_url), auth: {:bearer, key}]
+    |> Keyword.merge(decode_body: false)
     |> Keyword.merge(options)
     |> Keyword.merge(Keyword.get(config(), :req_options, []))
   end

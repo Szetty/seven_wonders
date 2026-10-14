@@ -85,6 +85,18 @@ defmodule Helios.AI.Provider.JevTest do
     refute_received {:request, _, _, _, _}
   end
 
+  test "an unparseable 200 body is :invalid_move without retry" do
+    capture(fn conn ->
+      conn
+      |> Plug.Conn.put_resp_content_type("application/json")
+      |> Plug.Conn.send_resp(200, "{not json")
+    end)
+
+    assert {:error, :invalid_move} = Jev.decide(@model, @prompt, HTTP.now() + 2_000)
+    assert_received {:request, _, _, _, _}
+    refute_received {:request, _, _, _, _}
+  end
+
   test "no key: not ready, no request" do
     original = Application.get_env(:helios, Jev)
     Application.put_env(:helios, Jev, Keyword.put(original, :api_key, nil))
