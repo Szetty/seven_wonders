@@ -13,10 +13,12 @@ defmodule Helios.AI.Models do
     fake: Helios.AI.Provider.Fake
   }
 
+  @type provider :: :jev | :openrouter | :fake
+
   @type model :: %{
           required(:id) => String.t(),
           required(:label) => String.t(),
-          required(:provider) => atom(),
+          required(:provider) => provider(),
           required(:model) => String.t(),
           required(:deadline_ms) => pos_integer(),
           optional(atom()) => term()
@@ -45,7 +47,7 @@ defmodule Helios.AI.Models do
   end
 
   @doc "The adapter module for a model's provider (whitelisted; raises on unknown providers)."
-  @spec provider_module(%{provider: atom()}) :: module()
+  @spec provider_module(%{provider: provider()}) :: module()
   def provider_module(%{provider: provider}), do: Map.fetch!(@providers, provider)
 
   @doc "Display names for AI seats in seat order: the label, then `#2`, `#3`… for repeats."
