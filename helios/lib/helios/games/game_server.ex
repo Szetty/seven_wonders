@@ -12,7 +12,8 @@ defmodule Helios.Games.GameServer do
 
   Submissions carry a `source` (`:human | :ai | :random`); random ones are
   kept as `Helios.Games.RandomMoves` keys, rebuilt from the log on init and
-  returned by `:snapshot`.
+  returned by `:snapshot`. Starts one `Helios.AI.Player` per AI seat of an
+  active game.
   """
   use GenServer, restart: :transient
 
@@ -59,6 +60,7 @@ defmodule Helios.Games.GameServer do
         }
 
         state = maybe_finish(state)
+        if state.status == "active", do: start_ai_players(game.id)
         {:ok, state, state.idle_timeout}
 
       {:error, reason} ->
@@ -171,6 +173,21 @@ defmodule Helios.Games.GameServer do
         "Game #{game.id} was created with engine version #{version}, running #{current}; replaying anyway"
       )
     end
+  end
+
+  # One Helios.AI.Player per AI seat; each monitors this server and stops with it.
+  defp start_ai_players(game_id) do
+    if Keyword.get(Application.get_env(:helios, Helios.AI, []), :players, true) do
+      for %{ai_model: model, seat: seat} <- Replay.seats(game_id), is_binary(model) do
+        {:ok, _pid} =
+          DynamicSupervisor.start_child(
+            Helios.AI.Supervisor,
+            {Helios.AI.Player, game_id: game_id, seat: seat, model_id: model, server: self()}
+          )
+      end
+    end
+
+    :ok
   end
 
   defp last_seq([]), do: 0
