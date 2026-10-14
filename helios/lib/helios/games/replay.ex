@@ -7,14 +7,15 @@ defmodule Helios.Games.Replay do
   import Ecto.Query
 
   alias Helios.{Core, Repo}
-  alias Helios.Games.{ActionCodec, Game, GameAction, GamePlayer}
+  alias Helios.Games.{ActionCodec, Actor, Game, GameAction, GamePlayer}
+
+  @spec seats(Ecto.UUID.t()) :: [GamePlayer.t()]
+  def seats(game_id),
+    do: Repo.all(from p in GamePlayer, where: p.game_id == ^game_id, order_by: p.seat)
 
   @spec player_ids(Ecto.UUID.t()) :: [String.t()]
-  def player_ids(game_id) do
-    from(p in GamePlayer, where: p.game_id == ^game_id, order_by: p.seat, select: p.user_id)
-    |> Repo.all()
-    |> Enum.map(&to_string/1)
-  end
+  def player_ids(game_id),
+    do: game_id |> seats() |> Enum.map(&(&1 |> Actor.of_seat() |> Actor.player_id()))
 
   @spec actions(Ecto.UUID.t()) :: [GameAction.t()]
   def actions(game_id),
@@ -37,7 +38,7 @@ defmodule Helios.Games.Replay do
       actions
       |> Enum.reduce_while({:ok, init.(ref)}, fn %GameAction{} = row, {:ok, acc} ->
         with {:ok, action} <- ActionCodec.decode(row.action),
-             :ok <- Core.submit(ref, to_string(row.user_id), action) do
+             :ok <- Core.submit(ref, row |> Actor.of_row() |> Actor.player_id(), action) do
           {:cont, {:ok, step.(row, ref, acc)}}
         else
           {:error, reason} -> {:halt, {:error, {:replay_failed, row.seq, reason}}}

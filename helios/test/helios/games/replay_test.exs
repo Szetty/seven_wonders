@@ -154,4 +154,42 @@ defmodule Helios.Games.ReplayTest do
              match?({:claim_wonder, _}, frame.my_choice) or frame.my_choice == :confirm_wonder
            end)
   end
+
+  describe "AI seats" do
+    test "player ids name AI seats ai-<seat>, in seat order" do
+      [a, b] = for _ <- 1..2, do: player_fixture()
+      game = game_fixture([a, b, {:ai, "fake-first"}])
+
+      assert Replay.player_ids(game.id) == [to_string(a.id), to_string(b.id), "ai-2"]
+
+      assert [%{ai_model: nil}, %{ai_model: nil}, %{ai_model: "fake-first", user_id: nil}] =
+               Replay.seats(game.id)
+    end
+
+    test "existing rows survive with source human and replay" do
+      users = for _ <- 1..3, do: player_fixture()
+      game = game_fixture(users)
+      [a | _] = users
+
+      {:ok, view} =
+        Helios.Core.view(
+          elem(Replay.rebuild(game, [], fn _ -> nil end, fn _, _, acc -> acc end), 1),
+          to_string(a.id)
+        )
+
+      Repo.insert!(%GameAction{
+        game_id: game.id,
+        seq: 1,
+        user_id: a.id,
+        action: Helios.Games.ActionCodec.encode({:discard, hd(view.hand).name})
+      })
+
+      assert [%GameAction{source: "human", seat: nil}] = Replay.actions(game.id)
+
+      assert {:ok, _ref, nil} =
+               Replay.rebuild(game, Replay.actions(game.id), fn _ -> nil end, fn _, _, acc ->
+                 acc
+               end)
+    end
+  end
 end
