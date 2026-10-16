@@ -415,7 +415,7 @@ defmodule HeliosWeb.LobbyLive do
     |> assign(:seated?, active_game != nil and Games.seated?(active_game, user.id))
     |> assign(
       :start_blocker,
-      Games.start_blocker(active_game, length(Games.eligible_players(lobby)))
+      Games.start_blocker(active_game, length(Games.seat_plan(lobby)))
     )
   end
 end
