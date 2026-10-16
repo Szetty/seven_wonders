@@ -69,7 +69,10 @@ defmodule HeliosWeb.GameLive do
           <%= if @view.phase.kind == :setup do %>
             <.wonder_setup
               setup={@view.setup}
-              me={@view.me}
+              me={@setup_as}
+              viewer={@view.me}
+              acting={@setup_acting}
+              ai_ids={@ai_ids}
               names={@names}
               wonders={@wonder_names}
               previews={@setup_previews}
@@ -469,12 +472,21 @@ defmodule HeliosWeb.GameLive do
 
     players = Games.players(game)
 
+    owner? =
+      case Lobbies.fetch_lobby(game.lobby_id) do
+        {:ok, lobby} -> lobby.owner_id == user.id
+        {:error, _reason} -> false
+      end
+
     socket
     |> assign(
       page_title: "7 Wonders",
       game: game,
       names: Games.display_names(players),
       ai_ids: Games.ai_player_ids(players),
+      owner?: owner?,
+      setup_as: nil,
+      setup_acting: [],
       random: MapSet.new(),
       info_card: nil,
       discard_minimised: false,
@@ -652,6 +664,15 @@ defmodule HeliosWeb.GameLive do
   def handle_event("confirm_wonder", _params, socket),
     do: submit_setup(socket, {:ok, :confirm_wonder})
 
+  # Only seats in @setup_acting (the viewer, plus AI seats for the owner) can be chosen.
+  def handle_event("setup_as", %{"seat" => seat}, socket) do
+    if Enum.any?(socket.assigns.setup_acting, &(&1.id == seat)),
+      do: {:noreply, assign(socket, :setup_as, seat)},
+      else: {:noreply, socket}
+  end
+
+  def handle_event("setup_as", _params, socket), do: {:noreply, socket}
+
   # Which side a free board shows before it is claimed: local to this page.
   def handle_event("show_side", %{"wonder" => wonder, "side" => side}, socket)
       when side in ["a", "b"] do
@@ -687,7 +708,16 @@ defmodule HeliosWeb.GameLive do
   # A lost race (`:wonder_taken`) names the board that was just taken.
   defp submit_setup(socket, parsed) do
     %{game: game, current_scope: %{user: user}} = socket.assigns
-    result = with {:ok, action} <- parsed, do: Games.submit(game.id, user.id, action)
+
+    result =
+      with {:ok, action} <- parsed do
+        if socket.assigns.setup_as in [nil, socket.assigns.view.me] do
+          Games.submit(game.id, user.id, action)
+        else
+          {:ai, seat} = Helios.Games.Actor.from_player_id(socket.assigns.setup_as)
+          Games.submit_for_ai_seat(socket.assigns.current_scope, game.id, seat, action)
+        end
+      end
 
     socket =
       case result do
@@ -756,6 +786,25 @@ defmodule HeliosWeb.GameLive do
   # rendered. Selection and the card sheet are cleared so no stale panel
   # survives into Age I.
   defp assign_view(socket, %{phase: %{kind: :setup}} = view) do
+    acting =
+      [%{id: view.me, name: "You"}] ++
+        if socket.assigns.owner?,
+          do:
+            for(
+              seat <- view.setup.seats,
+              MapSet.member?(socket.assigns.ai_ids, seat.player),
+              do: %{
+                id: seat.player,
+                name: GameFormat.player_name(socket.assigns.names, seat.player)
+              }
+            ),
+          else: []
+
+    setup_as =
+      if Enum.any?(acting, &(&1.id == socket.assigns[:setup_as])),
+        do: socket.assigns.setup_as,
+        else: view.me
+
     assign(socket,
       view: view,
       me: nil,
@@ -766,7 +815,9 @@ defmodule HeliosWeb.GameLive do
       selected: nil,
       selected_card: nil,
       info_card: nil,
-      discard_minimised: false
+      discard_minimised: false,
+      setup_acting: acting,
+      setup_as: setup_as
     )
   end
 
