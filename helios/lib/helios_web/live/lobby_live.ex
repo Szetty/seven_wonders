@@ -7,6 +7,7 @@ defmodule HeliosWeb.LobbyLive do
 
   import HeliosWeb.LobbyGamePanel
 
+  alias Helios.AI.{Models, Readiness}
   alias Helios.Games
   alias Helios.Lobbies
   alias HeliosWeb.Notifications
@@ -40,6 +41,8 @@ defmodule HeliosWeb.LobbyLive do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Helios.PubSub, topic)
       Phoenix.PubSub.subscribe(Helios.PubSub, @online_topic)
+      Phoenix.PubSub.subscribe(Helios.PubSub, Readiness.topic())
+      Readiness.refresh()
       {:ok, _ref} = Presence.track(self(), topic, user.id, %{name: user.name})
     end
 
@@ -48,7 +51,9 @@ defmodule HeliosWeb.LobbyLive do
     |> assign(:owner?, lobby.owner_id == user.id)
     |> assign(:online, OnlineTracker.new(Presence.list(@online_topic)))
     |> assign(:invite_form, invite_form(""))
+    |> assign(:ai_form, to_form(%{"model_id" => ""}, as: :ai))
     |> assign(:connected_ids, MapSet.new([user.id]))
+    |> assign(:ai_seats, Lobbies.ai_seats(lobby))
     |> load_members()
     |> load_connected()
   end
@@ -108,6 +113,33 @@ defmodule HeliosWeb.LobbyLive do
           </.button>
         </.form>
 
+        <.form
+          :if={@owner?}
+          for={@ai_form}
+          id="ai-seat-form"
+          phx-submit="add_ai_seat"
+          class="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3"
+        >
+          <div class="flex-1">
+            <.input
+              field={@ai_form[:model_id]}
+              type="select"
+              label="Add an AI player"
+              options={@ai_options}
+              prompt={if @ai_options == [], do: "No AI models available", else: "Select model"}
+            />
+          </div>
+          <.button
+            id="add-ai-seat"
+            type="submit"
+            disabled={@ai_options == [] or @free_slots == 0}
+            title={ai_hint(@ai_options, @free_slots)}
+            class="w-full rounded-lg bg-zinc-900 px-5 py-2 font-semibold text-white shadow-sm transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 sm:mb-2 sm:w-auto pointer-coarse:min-h-11"
+          >
+            Add AI player
+          </.button>
+        </.form>
+
         <.game_panel
           owner?={@owner?}
           active_game={@active_game}
@@ -153,6 +185,40 @@ defmodule HeliosWeb.LobbyLive do
                     phx-click="uninvite"
                     phx-value-id={row.user.id}
                     aria-label={"Remove #{row.user.name}"}
+                    class="inline-flex size-8 items-center justify-center rounded-md bg-zinc-900 text-white transition hover:bg-red-700 active:bg-red-800 pointer-coarse:size-11"
+                  >
+                    <.icon name="hero-x-mark" class="size-4" />
+                  </button>
+                </td>
+              </tr>
+              <tr
+                :for={seat <- @ai_rows}
+                id={"ai-seat-#{seat.id}"}
+                data-ai-seat
+                data-model={seat.model_id}
+                data-ready={to_string(seat.ready?)}
+                class="border-t border-zinc-900/10 text-zinc-900"
+              >
+                <td class="px-4 py-3">
+                  <span class="flex min-w-0 flex-wrap items-center gap-2 font-medium">
+                    <.icon name="hero-cpu-chip" class="size-4 shrink-0 text-sky-700" />
+                    <span class="truncate">{seat.label}</span>
+                    <span
+                      :if={!seat.ready?}
+                      data-unavailable
+                      class="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800"
+                    >
+                      unavailable — moves will be random
+                    </span>
+                  </span>
+                </td>
+                <td :if={@owner?} class="px-4 py-3 text-right">
+                  <button
+                    id={"remove-ai-seat-#{seat.id}"}
+                    type="button"
+                    phx-click="remove_ai_seat"
+                    phx-value-id={seat.id}
+                    aria-label={"Remove #{seat.label}"}
                     class="inline-flex size-8 items-center justify-center rounded-md bg-zinc-900 text-white transition hover:bg-red-700 active:bg-red-800 pointer-coarse:size-11"
                   >
                     <.icon name="hero-x-mark" class="size-4" />
@@ -229,6 +295,30 @@ defmodule HeliosWeb.LobbyLive do
     {:noreply, put_flash(socket, :error, Lobbies.error_message(:not_invited))}
   end
 
+  def handle_event("add_ai_seat", %{"ai" => %{"model_id" => model_id}}, socket) do
+    %{current_scope: scope, lobby: lobby} = socket.assigns
+
+    case Lobbies.add_ai_seat(scope, lobby, model_id) do
+      {:ok, _seat} -> {:noreply, socket |> load_members() |> assign_game_state()}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, Lobbies.error_message(reason))}
+    end
+  end
+
+  def handle_event("add_ai_seat", _params, socket),
+    do: {:noreply, put_flash(socket, :error, Lobbies.error_message(:model_unavailable))}
+
+  def handle_event("remove_ai_seat", %{"id" => seat_id}, socket) do
+    %{current_scope: scope, lobby: lobby} = socket.assigns
+
+    case Lobbies.remove_ai_seat(scope, lobby, seat_id) do
+      :ok -> {:noreply, socket |> load_members() |> assign_game_state()}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, Lobbies.error_message(reason))}
+    end
+  end
+
+  def handle_event("remove_ai_seat", _params, socket),
+    do: {:noreply, put_flash(socket, :error, Lobbies.error_message(:no_ai_seat))}
+
   def handle_event("start_game", _params, socket) do
     case Games.start_game(socket.assigns.current_scope, socket.assigns.lobby) do
       {:ok, _game} ->
@@ -279,6 +369,8 @@ defmodule HeliosWeb.LobbyLive do
     {:noreply, socket |> load_members() |> assign_game_state()}
   end
 
+  def handle_info({:ai_readiness_changed}, socket), do: {:noreply, assign_derived(socket)}
+
   # The owner changed a table setting (possibly in another tab): reload the row.
   def handle_info({:settings_changed}, socket) do
     case Lobbies.fetch_lobby(socket.assigns.lobby.id) do
@@ -316,6 +408,10 @@ defmodule HeliosWeb.LobbyLive do
 
   defp invite_form(user_id), do: to_form(%{"user_id" => user_id}, as: :invite)
 
+  defp ai_hint([], _free), do: "No AI model is available right now"
+  defp ai_hint(_options, 0), do: "The table is full"
+  defp ai_hint(_options, _free), do: nil
+
   defp notify_presence(socket, events) do
     me = socket.assigns.current_scope.user.id
 
@@ -339,6 +435,7 @@ defmodule HeliosWeb.LobbyLive do
     socket
     |> assign(:members, members)
     |> assign(:page_title, title)
+    |> assign(:ai_seats, Lobbies.ai_seats(socket.assigns.lobby))
     |> assign_derived()
   end
 
@@ -364,6 +461,7 @@ defmodule HeliosWeb.LobbyLive do
       owner?: owner?,
       online: online,
       invite_form: form,
+      ai_seats: ai_seats,
       current_scope: %{user: me}
     } = socket.assigns
 
@@ -395,14 +493,32 @@ defmodule HeliosWeb.LobbyLive do
         do: form,
         else: invite_form("")
 
+    labels = Models.seat_labels(Enum.map(ai_seats, & &1.model_id))
+
+    ai_rows =
+      Enum.zip_with(ai_seats, labels, fn seat, label ->
+        %{
+          id: seat.id,
+          model_id: seat.model_id,
+          label: label,
+          ready?: Readiness.ready?(seat.model_id)
+        }
+      end)
+
+    ai_options = for model <- Readiness.ready_models(), do: {model.label, model.id}
+
     socket
     |> assign(:rows, rows)
     |> assign(
       :free_slots,
-      if(owner?, do: max(Lobbies.max_players() - length(members), 0), else: 0)
+      if(owner?,
+        do: max(Lobbies.max_players() - length(members) - length(ai_seats), 0),
+        else: 0
+      )
     )
     |> assign(:invite_options, invite_options)
     |> assign(:invite_form, form)
+    |> assign(ai_rows: ai_rows, ai_options: ai_options)
   end
 
   defp assign_game_state(socket) do
