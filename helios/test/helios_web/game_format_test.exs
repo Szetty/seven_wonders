@@ -199,4 +199,20 @@ defmodule HeliosWeb.GameFormatTest do
       assert GameFormat.statuses(over) == %{"1" => nil, "2" => nil, "3" => nil, "4" => nil}
     end
   end
+
+  describe "last_random/2" do
+    test "players whose play in the latest turn was random" do
+      plays = fn players -> Enum.map(players, &%{player: &1, action: :discarded}) end
+
+      history = [
+        {:turn, %{age: 1, turn: 1, kind: :regular, plays: plays.(["1", "ai-1"]), coins: []}},
+        {:turn,
+         %{age: 1, turn: 2, kind: :regular, plays: plays.(["1", "ai-1", "ai-2"]), coins: []}}
+      ]
+
+      random = MapSet.new([{"ai-1", 1, 1, :regular}, {"ai-2", 1, 2, :regular}])
+      assert GameFormat.last_random(history, random) == MapSet.new(["ai-2"])
+      assert GameFormat.last_random([], random) == MapSet.new()
+    end
+  end
 end

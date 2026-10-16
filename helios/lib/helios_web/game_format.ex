@@ -173,6 +173,20 @@ defmodule HeliosWeb.GameFormat do
 
   def statuses(view), do: Map.new(seat_ids(view), &{&1, player_status(view, &1)})
 
+  @doc "Players whose play in the latest resolved turn was a random AI fallback."
+  def last_random(history, random) do
+    case history |> Enum.filter(&match?({:turn, _}, &1)) |> List.last() do
+      {:turn, event} ->
+        for play <- event.plays,
+            Helios.Games.RandomMoves.random?(random, event, play.player),
+            into: MapSet.new(),
+            do: play.player
+
+      nil ->
+        MapSet.new()
+    end
+  end
+
   @doc "Players other than me and my neighbours, in seat order starting after my east neighbour."
   def others(%{players: players, me: me}) do
     count = length(players)

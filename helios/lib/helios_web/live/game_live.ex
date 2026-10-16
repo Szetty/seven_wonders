@@ -41,7 +41,7 @@ defmodule HeliosWeb.GameLive do
         <.fx_layer />
         <.history_drawer
           history={@history}
-          ctx={%{me: @view.me, names: @names, view: @view}}
+          ctx={%{me: @view.me, names: @names, view: @view, random: @random}}
           frames={if @replay, do: frame_links(@replay), else: %{}}
         />
         <.age_summary
@@ -63,6 +63,7 @@ defmodule HeliosWeb.GameLive do
             }
             names={@names}
             connected={@connected}
+            ai_ids={@ai_ids}
             replay={@replay != nil}
           />
           <%= if @view.phase.kind == :setup do %>
@@ -115,6 +116,10 @@ defmodule HeliosWeb.GameLive do
                   others={@others}
                   names={@names}
                   statuses={@statuses}
+                  ai_ids={@ai_ids}
+                  random_now={
+                    if @replay, do: MapSet.new(), else: GameFormat.last_random(@history, @random)
+                  }
                 />
                 <div
                   :if={@replay && (current_frame(@replay).hand != [] or frame_discard(@replay) != [])}
@@ -146,6 +151,10 @@ defmodule HeliosWeb.GameLive do
                 others={@others}
                 names={@names}
                 statuses={@statuses}
+                ai_ids={@ai_ids}
+                random_now={
+                  if @replay, do: MapSet.new(), else: GameFormat.last_random(@history, @random)
+                }
               />
               <div
                 :if={GameFormat.dock?(@view)}
@@ -198,6 +207,8 @@ defmodule HeliosWeb.GameLive do
   attr :others, :list, required: true
   attr :names, :map, required: true
   attr :statuses, :map, required: true
+  attr :ai_ids, :any, default: MapSet.new()
+  attr :random_now, :any, default: MapSet.new()
 
   defp table_area(assigns) do
     ~H"""
@@ -209,6 +220,8 @@ defmodule HeliosWeb.GameLive do
           player={@west}
           names={@names}
           status={@statuses[@west.name]}
+          ai={MapSet.member?(@ai_ids, @west.name)}
+          random={MapSet.member?(@random_now, @west.name)}
         />
         <.player_board
           id="my-board"
@@ -216,6 +229,8 @@ defmodule HeliosWeb.GameLive do
           player={@me}
           names={@names}
           status={@statuses[@me.name]}
+          ai={MapSet.member?(@ai_ids, @me.name)}
+          random={MapSet.member?(@random_now, @me.name)}
           mine
           class="order-first md:col-span-2 lg:order-none lg:col-span-1"
         />
@@ -225,6 +240,8 @@ defmodule HeliosWeb.GameLive do
           player={@east}
           names={@names}
           status={@statuses[@east.name]}
+          ai={MapSet.member?(@ai_ids, @east.name)}
+          random={MapSet.member?(@random_now, @east.name)}
         />
       </div>
       <section
@@ -239,6 +256,8 @@ defmodule HeliosWeb.GameLive do
             player={player}
             names={@names}
             status={@statuses[player.name]}
+            ai={MapSet.member?(@ai_ids, player.name)}
+            random={MapSet.member?(@random_now, player.name)}
           />
         </article>
       </section>
@@ -292,8 +311,13 @@ defmodule HeliosWeb.GameLive do
 
   defp mount_active(socket, game, user) do
     case Games.snapshot(game.id, user.id) do
-      {:ok, %{view: view, history: history}} ->
-        {:ok, socket |> setup(game, user) |> assign_view(view) |> assign(:history, history)}
+      {:ok, %{view: view, history: history, random: random}} ->
+        {:ok,
+         socket
+         |> setup(game, user)
+         |> assign_view(view)
+         |> assign(:history, history)
+         |> assign(:random, random)}
 
       {:error, reason} ->
         {:ok, leave(socket, reason, game.lobby_id)}
@@ -322,9 +346,9 @@ defmodule HeliosWeb.GameLive do
     end
   end
 
-  defp enter_replay(socket, %{view: view, history: history, frames: frames}) do
+  defp enter_replay(socket, %{view: view, history: history, frames: frames, random: random}) do
     socket
-    |> assign(history: history, show_scores: false)
+    |> assign(history: history, show_scores: false, random: random)
     |> assign(:replay, %{frames: frames, index: length(frames) - 1, playing: false})
     |> assign_view(view)
     |> assign_frame()
@@ -443,13 +467,15 @@ defmodule HeliosWeb.GameLive do
       {:ok, _ref} = Presence.track(self(), Games.topic(game.id), user.id, %{name: user.name})
     end
 
-    names = Map.new(Games.players(game), &{to_string(&1.user_id), &1.user.name})
+    players = Games.players(game)
 
     socket
     |> assign(
       page_title: "7 Wonders",
       game: game,
-      names: names,
+      names: Games.display_names(players),
+      ai_ids: Games.ai_player_ids(players),
+      random: MapSet.new(),
       info_card: nil,
       discard_minimised: false,
       boards_available: true,
@@ -468,7 +494,7 @@ defmodule HeliosWeb.GameLive do
   # needs, and the fixed end state supplies the phase (game over only happens
   # in age III, after the sixth turn discards every last card).
   defp assign_finished_view(socket, game, user) do
-    ids = for player <- Games.players(game), do: to_string(player.user_id)
+    ids = Enum.map(Games.players(game), &Games.player_id/1)
     me = to_string(user.id)
     index = Enum.find_index(ids, &(&1 == me)) || 0
     count = length(ids)
@@ -683,11 +709,12 @@ defmodule HeliosWeb.GameLive do
     %{game: game, current_scope: %{user: user}} = socket.assigns
 
     case Games.snapshot(game.id, user.id) do
-      {:ok, %{view: view, history: history}} ->
+      {:ok, %{view: view, history: history, random: random}} ->
         socket =
           socket
           |> animate_new_events(history, view)
           |> assign(:history, history)
+          |> assign(:random, random)
           |> assign(:last_choice, GameFormat.action_card(view.my_pending))
           |> assign_view(view)
 
@@ -768,8 +795,10 @@ defmodule HeliosWeb.GameLive do
     assign(socket, selected: card && card.name, selected_card: card)
   end
 
+  # AI seats have no browser: they always count as connected.
   defp assign_connected(socket) do
-    assign(socket, :connected, Games.connected_user_ids(Games.topic(socket.assigns.game.id)))
+    humans = Games.connected_user_ids(Games.topic(socket.assigns.game.id))
+    assign(socket, :connected, MapSet.union(humans, socket.assigns.ai_ids))
   end
 
   defp leave(socket, reason, lobby_id) do
