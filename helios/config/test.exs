@@ -7,7 +7,14 @@ import Config
 # Run `mix help test` for more information.
 config :helios, Helios.Repo,
   database: Path.expand("../helios_test.db", __DIR__),
-  pool_size: 5,
+  # A single connection serialises all sandbox transactions: with more
+  # connections, a test that has already written holds the SQLite WAL write
+  # lock for the rest of its (deferred) sandbox transaction, and the NEXT
+  # test's first write on another connection then fails instantly with
+  # SQLITE_BUSY — inside an open transaction SQLite does not invoke the busy
+  # handler (sqlite3BtreeBeginTrans only calls it while TRANS_NONE), so
+  # busy_timeout cannot save it. One writer at a time makes it impossible.
+  pool_size: 1,
   pool: Ecto.Adapters.SQL.Sandbox,
   # SQLite WAL allows one writer at a time; sandbox checkouts and app
   # processes can hold the write lock while another connection tears down.
