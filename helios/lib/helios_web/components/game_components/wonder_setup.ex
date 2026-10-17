@@ -4,7 +4,8 @@ defmodule HeliosWeb.GameComponents.WonderSetup do
   table and dock: claim a board and side (`choose_board`) or pick a side of
   your drawn board (`choose_side`), then confirm. All of it is public. The
   engine decides every claim; buttons are only disabled when `view.setup`
-  says the action cannot succeed.
+  says the action cannot succeed. `me` is the seat being chosen for: the
+  viewer, or, for the table owner, one of the AI seats (`acting`).
   """
   use HeliosWeb, :html
 
@@ -12,6 +13,13 @@ defmodule HeliosWeb.GameComponents.WonderSetup do
 
   attr :setup, :map, required: true, doc: "view.setup"
   attr :me, :string, required: true
+
+  attr :viewer, :string,
+    default: nil,
+    doc: "the signed-in player's id (\"You\"); defaults to `me`"
+
+  attr :acting, :list, default: [], doc: "seats the viewer may choose for: [%{id, name}]"
+  attr :ai_ids, :any, default: MapSet.new(), doc: "engine ids of AI seats"
   attr :names, :map, required: true
   attr :wonders, :list, required: true, doc: "every base wonder name"
   attr :previews, :map, default: %{}, doc: "wonder name => side shown on a free board"
@@ -24,7 +32,8 @@ defmodule HeliosWeb.GameComponents.WonderSetup do
           !seat.confirmed,
           do: GameFormat.player_name(assigns.names, seat.player)
 
-    assigns = assign(assigns, mine: mine, waiting: waiting)
+    assigns =
+      assign(assigns, mine: mine, waiting: waiting, viewer: assigns.viewer || assigns.me)
 
     ~H"""
     <section id="wonder-setup" data-mode={@setup.mode} class="flex flex-1 flex-col gap-3 sm:gap-4">
@@ -41,6 +50,32 @@ defmodule HeliosWeb.GameComponents.WonderSetup do
       </header>
 
       <div
+        :if={length(@acting) > 1}
+        id="setup-as"
+        role="group"
+        aria-label="Choosing for"
+        class="flex flex-wrap gap-2"
+      >
+        <button
+          :for={seat <- @acting}
+          id={"setup-as-#{seat.id}"}
+          type="button"
+          phx-click="setup_as"
+          phx-value-seat={seat.id}
+          aria-pressed={to_string(seat.id == @me)}
+          class={[
+            "rounded-lg px-3 py-1.5 text-sm font-semibold ring-1 transition pointer-coarse:min-h-11",
+            if(seat.id == @me,
+              do: "bg-zinc-900 text-white ring-zinc-900",
+              else: "bg-white text-zinc-900 ring-zinc-300 hover:bg-zinc-100"
+            )
+          ]}
+        >
+          {seat.name}
+        </button>
+      </div>
+
+      <div
         :if={@setup.mode == :choose_board}
         id="setup-boards"
         class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
@@ -50,6 +85,7 @@ defmodule HeliosWeb.GameComponents.WonderSetup do
           wonder={wonder}
           holder={Enum.find(@setup.seats, &(&1.wonder == wonder))}
           me={@me}
+          viewer={@viewer}
           names={@names}
           preview={Map.get(@previews, wonder, :a)}
           locked={@mine.confirmed}
@@ -101,7 +137,14 @@ defmodule HeliosWeb.GameComponents.WonderSetup do
               {GameFormat.player_name(@names, seat.player)}
             </span>
             <span class="whitespace-nowrap text-zinc-700">
-              {seat.wonder} · {if(seat.side, do: GameFormat.side_label(seat.side), else: "choosing")}
+              {seat.wonder} · {if(seat.side,
+                do: GameFormat.side_label(seat.side),
+                else:
+                  if(MapSet.member?(@ai_ids, seat.player),
+                    do: "owner is choosing",
+                    else: "choosing"
+                  )
+              )}
             </span>
             <span :if={seat.confirmed} data-confirmed class="shrink-0 text-emerald-600">
               <.icon name="hero-check-circle" class="size-4" />
@@ -131,6 +174,7 @@ defmodule HeliosWeb.GameComponents.WonderSetup do
   attr :wonder, :string, required: true
   attr :holder, :map, default: nil
   attr :me, :string, required: true
+  attr :viewer, :string, required: true
   attr :names, :map, required: true
   attr :preview, :atom, required: true
   attr :locked, :boolean, required: true
@@ -179,7 +223,10 @@ defmodule HeliosWeb.GameComponents.WonderSetup do
         <span class="flex min-w-0 items-center gap-1.5 text-sm">
           <span class="font-semibold text-zinc-900">{@wonder}</span>
           <span :if={@holder} data-holder-name class="truncate text-zinc-700">
-            {if(@mine?, do: "You", else: GameFormat.player_name(@names, @holder.player))}
+            {if(@holder.player == @viewer,
+              do: "You",
+              else: GameFormat.player_name(@names, @holder.player)
+            )}
           </span>
           <span :if={@holder && @holder.confirmed} data-confirmed class="shrink-0 text-emerald-600">
             <.icon name="hero-check-circle" class="size-4" />

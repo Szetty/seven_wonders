@@ -74,6 +74,13 @@ defmodule HeliosWeb.GameComponents.HistoryDrawer do
             <% end %>
             <p :for={play <- event.plays} class="flex flex-wrap items-center gap-1">
               {HistoryText.play(play, @ctx)}
+              <span
+                :if={random_play?(@ctx, event, play)}
+                data-random
+                class="rounded bg-amber-100 px-1 text-xs font-semibold text-amber-800"
+              >
+                random
+              </span>
               <button
                 :if={card_of(play)}
                 type="button"
@@ -100,4 +107,7 @@ defmodule HeliosWeb.GameComponents.HistoryDrawer do
     do: card
 
   defp card_of(_play), do: nil
+
+  defp random_play?(ctx, event, play),
+    do: Helios.Games.RandomMoves.random?(Map.get(ctx, :random, MapSet.new()), event, play.player)
 end

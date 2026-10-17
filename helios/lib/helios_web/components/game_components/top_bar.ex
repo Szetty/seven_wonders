@@ -18,6 +18,8 @@ defmodule HeliosWeb.GameComponents.TopBar do
     default: false,
     doc: "true while stepping through a finished game: nobody is waiting, so no waiting UI"
 
+  attr :ai_ids, :any, default: MapSet.new(), doc: "engine ids of AI seats"
+
   def top_bar(assigns) do
     assigns =
       assign(assigns,
@@ -103,6 +105,9 @@ defmodule HeliosWeb.GameComponents.TopBar do
           </span>
           <span class="max-w-32 truncate sm:max-w-none">
             {GameFormat.player_name(@names, id)}
+          </span>
+          <span :if={MapSet.member?(@ai_ids, id)} data-ai-icon class="shrink-0 text-white/80">
+            <.icon name="hero-cpu-chip" class="size-3.5" />
           </span>
           <.icon
             :if={@statuses[id] == :chosen}

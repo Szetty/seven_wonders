@@ -15,6 +15,9 @@ defmodule Helios.Application do
       {DNSCluster, query: Application.get_env(:helios, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Helios.PubSub},
       HeliosWeb.Presence,
+      {Task.Supervisor, name: Helios.AI.TaskSupervisor},
+      {DynamicSupervisor, name: Helios.AI.Supervisor, strategy: :one_for_one},
+      Helios.AI.Readiness,
       {Registry, keys: :unique, name: Helios.Games.Registry},
       # One crashing game must not take down every other game's supervisor.
       {DynamicSupervisor,

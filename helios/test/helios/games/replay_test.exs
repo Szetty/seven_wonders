@@ -154,4 +154,68 @@ defmodule Helios.Games.ReplayTest do
              match?({:claim_wonder, _}, frame.my_choice) or frame.my_choice == :confirm_wonder
            end)
   end
+
+  describe "AI seats" do
+    test "player ids name AI seats ai-<seat>, in seat order" do
+      [a, b] = for _ <- 1..2, do: player_fixture()
+      game = game_fixture([a, b, {:ai, "fake-first"}])
+
+      assert Replay.player_ids(game.id) == [to_string(a.id), to_string(b.id), "ai-2"]
+
+      assert [%{ai_model: nil}, %{ai_model: nil}, %{ai_model: "fake-first", user_id: nil}] =
+               Replay.seats(game.id)
+    end
+
+    test "existing rows survive with source human and replay" do
+      users = for _ <- 1..3, do: player_fixture()
+      game = game_fixture(users)
+      [a | _] = users
+
+      {:ok, view} =
+        Helios.Core.view(
+          elem(Replay.rebuild(game, [], fn _ -> nil end, fn _, _, acc -> acc end), 1),
+          to_string(a.id)
+        )
+
+      Repo.insert!(%GameAction{
+        game_id: game.id,
+        seq: 1,
+        user_id: a.id,
+        action: Helios.Games.ActionCodec.encode({:discard, hd(view.hand).name})
+      })
+
+      assert [%GameAction{source: "human", seat: nil}] = Replay.actions(game.id)
+
+      assert {:ok, _ref, nil} =
+               Replay.rebuild(game, Replay.actions(game.id), fn _ -> nil end, fn _, _, acc ->
+                 acc
+               end)
+    end
+
+    test "replay returns the random marks of a finished game" do
+      put_ai_config(players: false)
+      on_exit(&stop_game_servers/0)
+      [a, b] = for _ <- 1..2, do: player_fixture()
+      game = game_fixture([a, b, {:ai, "fake-first"}])
+      ids = [to_string(a.id), to_string(b.id), "ai-2"]
+      {view_fun, _submit} = Helios.GameDriver.games_funs(game.id)
+
+      submit = fn
+        "ai-2", action -> Games.submit(game.id, {:ai, 2}, action, :random)
+        player, action -> Games.submit(game.id, String.to_integer(player), action)
+      end
+
+      {:game_over, _} =
+        Helios.GameDriver.play_until(ids, %{}, view_fun, submit, fn _ -> false end)
+
+      assert {:ok, %{random: random, history: history}} =
+               Games.replay(Repo.get!(Game, game.id), a.id)
+
+      turns =
+        for {:turn, event} <- history, Enum.any?(event.plays, &(&1.player == "ai-2")), do: event
+
+      assert MapSet.size(random) == length(turns)
+      assert Enum.all?(turns, &Helios.Games.RandomMoves.random?(random, &1, "ai-2"))
+    end
+  end
 end

@@ -7,6 +7,7 @@ defmodule Helios.LobbiesTest do
   alias Helios.Accounts.User
   alias Helios.Games.Game
   alias Helios.Lobbies
+  alias Helios.Lobbies.AISeat
   alias Helios.Lobbies.Invite
   alias Helios.Lobbies.Lobby
 
@@ -345,6 +346,74 @@ defmodule Helios.LobbiesTest do
 
       assert Repo.get!(Lobby, lobby.id).wonder_mode == "random"
       assert_raise ArgumentError, fn -> String.to_existing_atom(name) end
+    end
+  end
+
+  describe "AI seats" do
+    test "the owner adds ready models; seats are listed in order and broadcast" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.lobby_topic(lobby.id))
+
+      assert {:ok, %AISeat{model_id: "fake-first"}} =
+               Lobbies.add_ai_seat(scope, lobby, "fake-first")
+
+      assert_receive {:members_changed}
+      assert {:ok, _} = Lobbies.add_ai_seat(scope, lobby, "fake-first")
+      assert {:ok, _} = Lobbies.add_ai_seat(scope, lobby, "fake-last")
+
+      assert Enum.map(Lobbies.ai_seats(lobby), & &1.model_id) ==
+               ~w(fake-first fake-first fake-last)
+    end
+
+    test "unknown or unready models are rejected" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+
+      for model <- ["fake-down", "not-configured", nil, 3] do
+        assert Lobbies.add_ai_seat(scope, lobby, model) == {:error, :model_unavailable}
+      end
+
+      assert Lobbies.ai_seats(lobby) == []
+    end
+
+    test "only the owner adds or removes" do
+      %{owner: owner, lobby: lobby, scope: scope} = owner_and_lobby()
+      guest = player_fixture()
+      invite_fixture(lobby, owner, guest)
+      {:ok, seat} = Lobbies.add_ai_seat(scope, lobby, "fake-first")
+
+      assert {:error, :not_leader} =
+               Lobbies.add_ai_seat(Scope.for_user(guest), lobby, "fake-first")
+
+      assert {:error, :not_leader} = Lobbies.remove_ai_seat(Scope.for_user(guest), lobby, seat.id)
+      assert length(Lobbies.ai_seats(lobby)) == 1
+    end
+
+    test "remove deletes the seat; a second remove is :no_ai_seat" do
+      %{lobby: lobby, scope: scope} = owner_and_lobby()
+      {:ok, seat} = Lobbies.add_ai_seat(scope, lobby, "fake-first")
+      Phoenix.PubSub.subscribe(Helios.PubSub, Lobbies.lobby_topic(lobby.id))
+
+      assert :ok = Lobbies.remove_ai_seat(scope, lobby, to_string(seat.id))
+      assert_receive {:members_changed}
+      assert Lobbies.ai_seats(lobby) == []
+      assert {:error, :no_ai_seat} = Lobbies.remove_ai_seat(scope, lobby, seat.id)
+      assert {:error, :no_ai_seat} = Lobbies.remove_ai_seat(scope, lobby, "nope")
+    end
+
+    test "AI seats and invites share the 7 seats" do
+      %{owner: owner, lobby: lobby, scope: scope} = owner_and_lobby()
+      for _ <- 1..4, do: invite_fixture(lobby, owner, player_fixture())
+      assert {:ok, _} = Lobbies.add_ai_seat(scope, lobby, "fake-first")
+      assert {:ok, _} = Lobbies.add_ai_seat(scope, lobby, "fake-first")
+      assert {:error, :lobby_full} = Lobbies.add_ai_seat(scope, lobby, "fake-first")
+      assert {:error, :lobby_full} = Lobbies.invite(scope, lobby, player_fixture().id)
+    end
+
+    test "error messages" do
+      assert Lobbies.error_message(:model_unavailable) ==
+               "That AI model is not available right now"
+
+      assert Lobbies.error_message(:no_ai_seat) == "That AI player is no longer at the table"
     end
   end
 

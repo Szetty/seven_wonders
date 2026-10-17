@@ -42,7 +42,11 @@ defmodule Helios.GamesFixtures do
     end)
   end
 
-  @doc "Inserts an active game directly (no GameServer is started). opts: :lobby, :wonders, :seed, :selection (:choose_board | :choose_side | {:explicit, …})."
+  @doc """
+  Inserts an active game directly (no GameServer is started). `users` may
+  contain `{:ai, model_id}` entries (any position except the first). opts:
+  :lobby, :wonders, :seed, :selection (:choose_board | :choose_side | {:explicit, …}).
+  """
   def game_fixture(users, opts \\ []) do
     lobby = Keyword.get_lazy(opts, :lobby, fn -> Lobbies.get_or_create_own_lobby(hd(users)) end)
     wonders = opts |> Keyword.get(:wonders, @default_wonders) |> Enum.take(length(users))
@@ -59,8 +63,12 @@ defmodule Helios.GamesFixtures do
 
     users
     |> Enum.with_index()
-    |> Enum.each(fn {user, seat} ->
-      Repo.insert!(%GamePlayer{game_id: game.id, user_id: user.id, seat: seat})
+    |> Enum.each(fn
+      {{:ai, model_id}, seat} ->
+        Repo.insert!(%GamePlayer{game_id: game.id, user_id: nil, ai_model: model_id, seat: seat})
+
+      {user, seat} ->
+        Repo.insert!(%GamePlayer{game_id: game.id, user_id: user.id, seat: seat})
     end)
 
     game
@@ -106,6 +114,13 @@ defmodule Helios.GamesFixtures do
     original = Application.get_env(:helios, Helios.Games, [])
     Application.put_env(:helios, Helios.Games, Keyword.merge(original, overrides))
     ExUnit.Callbacks.on_exit(fn -> Application.put_env(:helios, Helios.Games, original) end)
+  end
+
+  @doc "Merges `overrides` into `config :helios, Helios.AI` for the current test (e.g. `players: false`)."
+  def put_ai_config(overrides) do
+    original = Application.get_env(:helios, Helios.AI, [])
+    Application.put_env(:helios, Helios.AI, Keyword.merge(original, overrides))
+    ExUnit.Callbacks.on_exit(fn -> Application.put_env(:helios, Helios.AI, original) end)
   end
 
   def log_in_conn(conn, token), do: Phoenix.ConnTest.init_test_session(conn, %{user_token: token})

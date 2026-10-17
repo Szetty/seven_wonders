@@ -19,6 +19,8 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
   attr :label, :string, required: true
   attr :status, :atom, default: nil
   attr :mine, :boolean, default: false
+  attr :ai, :boolean, default: false, doc: "an AI seat (bot icon)"
+  attr :random, :boolean, default: false, doc: "this player's latest play was a random fallback"
   attr :class, :any, default: nil
 
   def player_board(assigns) do
@@ -40,6 +42,14 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
       data-player={@player.name}
       class={["group min-w-0 flex flex-col gap-2 rounded-xl bg-antique/90 p-2 shadow sm:p-3", @class]}
     >
+      <span
+        :if={@random}
+        id={"random-badge-#{@player.name}"}
+        data-random-badge
+        class="self-start rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800"
+      >
+        random move
+      </span>
       <button
         :if={!@mine}
         id={"#{@id}-toggle"}
@@ -66,6 +76,9 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
               {@label}
             </span>
             <span class="truncate font-semibold text-zinc-900">{@name}</span>
+            <span :if={@ai} data-ai-icon title="AI player" class="shrink-0 text-sky-700">
+              <.icon name="hero-cpu-chip" class="size-4" />
+            </span>
             <span
               :if={@status}
               data-status-dot={@status}
@@ -108,6 +121,9 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
           <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">{@label}</span>
           <.status_chip id={"status-#{@player.name}"} status={@status} />
           <span :if={!@mine} class="min-w-0 truncate font-semibold text-zinc-900">{@name}</span>
+          <span :if={@ai} data-ai-icon title="AI player" class="shrink-0 text-sky-700">
+            <.icon name="hero-cpu-chip" class="size-4" />
+          </span>
         </header>
         <div class="relative overflow-hidden rounded-lg">
           <img

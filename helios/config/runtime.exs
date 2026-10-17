@@ -26,6 +26,14 @@ default_port = if config_env() == :e2e, do: "4004", else: "4000"
 config :helios, HeliosWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", default_port))]
 
+# AI provider keys (server-side only). Missing keys make that provider's
+# models unavailable. Tests use dummy keys and Req.Test stubs; the local-only
+# live tests (`mix test --only live_ai`) read the env vars themselves.
+if config_env() != :test do
+  config :helios, Helios.AI.Provider.Jev, api_key: System.get_env("JEV_API_KEY")
+  config :helios, Helios.AI.Provider.OpenRouter, api_key: System.get_env("OPENROUTER_API_KEY")
+end
+
 if config_env() == :dev do
   if access_token = System.get_env("ACCESS_TOKEN") do
     config :helios, access_token: access_token
