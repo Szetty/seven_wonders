@@ -7,11 +7,24 @@ import Config
 # Run `mix help test` for more information.
 config :helios, Helios.Repo,
   database: Path.expand("../helios_test.db", __DIR__),
-  pool_size: 5,
+  # A single connection serialises all sandbox transactions: with more
+  # connections, a test that has already written holds the SQLite WAL write
+  # lock for the rest of its (deferred) sandbox transaction, and the NEXT
+  # test's first write — when that test is already inside its own
+  # transaction — then fails instantly with SQLITE_BUSY: inside an open
+  # transaction SQLite does not invoke the busy handler
+  # (sqlite3BtreeBeginTrans only calls it while TRANS_NONE), so
+  # busy_timeout cannot save it. One writer at a time makes it impossible.
+  # Keep DB-using tests `async: false` — an `async: true` DB module would
+  # queue checkouts on this single connection.
+  pool_size: 1,
   pool: Ecto.Adapters.SQL.Sandbox,
   # SQLite WAL allows one writer at a time; sandbox checkouts and app
   # processes can hold the write lock while another connection tears down.
-  # The exqlite default of 2000ms was too short for CI (SQLITE_BUSY).
+  # This only helps at TRANS_NONE (no transaction open yet) — it cannot
+  # help mid-transaction; see the pool_size note above. Kept as
+  # belt-and-braces against writers outside the pool. The exqlite default
+  # of 2000ms was too short for CI (SQLITE_BUSY).
   busy_timeout: 10_000
 
 # We don't run a server during test. If one is required,
