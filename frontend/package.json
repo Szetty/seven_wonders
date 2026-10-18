@@ -32,7 +32,7 @@
     "websocket-client": "file:../websocket-client"
   },
   "devDependencies": {
-    "css-loader": "^3.5.3",
+    "css-loader": "^7.1.5",
     "node-sass": "^4.14.1",
     "resolve-url-loader": "^3.1.2",
     "sass-loader": "^8.0.2",
