@@ -7,14 +7,15 @@ defmodule Helios.Games.Replay do
   import Ecto.Query
 
   alias Helios.{Core, Repo}
-  alias Helios.Games.{ActionCodec, Game, GameAction, GamePlayer}
+  alias Helios.Games.{ActionCodec, Actor, Game, GameAction, GamePlayer, RandomMoves}
+
+  @spec seats(Ecto.UUID.t()) :: [GamePlayer.t()]
+  def seats(game_id),
+    do: Repo.all(from p in GamePlayer, where: p.game_id == ^game_id, order_by: p.seat)
 
   @spec player_ids(Ecto.UUID.t()) :: [String.t()]
-  def player_ids(game_id) do
-    from(p in GamePlayer, where: p.game_id == ^game_id, order_by: p.seat, select: p.user_id)
-    |> Repo.all()
-    |> Enum.map(&to_string/1)
-  end
+  def player_ids(game_id),
+    do: game_id |> seats() |> Enum.map(&(&1 |> Actor.of_seat() |> Actor.player_id()))
 
   @spec actions(Ecto.UUID.t()) :: [GameAction.t()]
   def actions(game_id),
@@ -32,21 +33,41 @@ defmodule Helios.Games.Replay do
           {:ok, Core.game(), acc} | {:error, term()}
         when acc: term()
   def rebuild(%Game{} = game, actions, init, step) do
+    with {:ok, ref, acc, _random} <- rebuild_with_random(game, actions, init, step),
+         do: {:ok, ref, acc}
+  end
+
+  @doc "`rebuild/4` that also returns the `Helios.Games.RandomMoves` set of the log."
+  @spec rebuild_with_random(Game.t(), [GameAction.t()], (Core.game() -> acc), (GameAction.t(),
+                                                                               Core.game(),
+                                                                               acc ->
+                                                                                 acc)) ::
+          {:ok, Core.game(), acc, RandomMoves.t()} | {:error, term()}
+        when acc: term()
+  def rebuild_with_random(%Game{} = game, actions, init, step) do
     with {:ok, wonders} <- ActionCodec.decode_wonders(game.wonders),
          {:ok, ref} <- Core.new_game(player_ids(game.id), wonders, game.seed) do
       actions
-      |> Enum.reduce_while({:ok, init.(ref)}, fn %GameAction{} = row, {:ok, acc} ->
+      |> Enum.reduce_while({:ok, init.(ref), RandomMoves.new()}, fn %GameAction{} = row,
+                                                                    {:ok, acc, random} ->
+        player = row |> Actor.of_row() |> Actor.player_id()
+
         with {:ok, action} <- ActionCodec.decode(row.action),
-             :ok <- Core.submit(ref, to_string(row.user_id), action) do
-          {:cont, {:ok, step.(row, ref, acc)}}
+             {:ok, %{phase: phase}} <- Core.view(ref, player),
+             :ok <- Core.submit(ref, player, action) do
+          random = RandomMoves.record(random, source(row), phase, player)
+          {:cont, {:ok, step.(row, ref, acc), random}}
         else
           {:error, reason} -> {:halt, {:error, {:replay_failed, row.seq, reason}}}
         end
       end)
       |> case do
-        {:ok, acc} -> {:ok, ref, acc}
+        {:ok, acc, random} -> {:ok, ref, acc, random}
         error -> error
       end
     end
   end
+
+  defp source(%GameAction{source: "random"}), do: :random
+  defp source(%GameAction{}), do: :human
 end

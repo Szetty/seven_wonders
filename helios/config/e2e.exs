@@ -40,3 +40,16 @@ config :helios, Helios.Games,
     {"Olympía", :a},
     {"Halikarnassós", :a}
   ]
+
+config :helios, Helios.AI,
+  probe_interval_ms: :timer.hours(1),
+  models: [
+    %{id: "fake-first", label: "Fake AI", provider: :fake, model: "first", deadline_ms: 2_000},
+    %{
+      id: "fake-timeout",
+      label: "Fake AI (slow)",
+      provider: :fake,
+      model: "timeout",
+      deadline_ms: 500
+    }
+  ]

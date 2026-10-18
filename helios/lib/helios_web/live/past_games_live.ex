@@ -54,6 +54,7 @@ defmodule HeliosWeb.PastGamesLive do
   defp row(game, me) do
     scores = Map.new(get_in(game.final_scores || %{}, ["scores"]) || [], &{&1["player"], &1})
     mine = Map.get(scores, me, %{})
+    names = Games.display_names(game.players)
 
     %{
       id: game.id,
@@ -62,8 +63,8 @@ defmodule HeliosWeb.PastGamesLive do
       my_total: mine["total"],
       players:
         Enum.map(game.players, fn player ->
-          id = to_string(player.user_id)
-          %{name: player.user.name, winner?: get_in(scores, [id, "rank"]) == 1}
+          id = Games.player_id(player)
+          %{name: Map.fetch!(names, id), winner?: get_in(scores, [id, "rank"]) == 1}
         end)
     }
   end

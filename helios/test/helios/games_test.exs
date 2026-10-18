@@ -211,6 +211,129 @@ defmodule Helios.GamesTest do
     end
   end
 
+  describe "AI seats" do
+    setup do
+      on_exit(&stop_game_servers/0)
+      put_ai_config(players: false)
+      :ok
+    end
+
+    test "put_ai_config(players: false) is in effect during these tests" do
+      config = Helios.AI.Models.config()
+      assert Keyword.get(config, :players) == false
+      assert Keyword.get(config, :models) != []
+    end
+
+    test "seat_plan lists connected humans, then AI seats" do
+      [owner, b] = for _ <- 1..2, do: player_fixture()
+      lobby = Lobbies.get_or_create_own_lobby(owner)
+      invite_all(owner, lobby, [b])
+      {:ok, _} = Lobbies.add_ai_seat(Scope.for_user(owner), lobby, "fake-first")
+
+      plan = fn ->
+        Enum.map(Games.seat_plan(lobby), fn
+          {:user, user} -> {:user, user.id}
+          ai -> ai
+        end)
+      end
+
+      assert plan.() == [{:user, owner.id}, {:ai, "fake-first"}]
+      connect_to_lobby(lobby, [b])
+      assert plan.() == [{:user, owner.id}, {:user, b.id}, {:ai, "fake-first"}]
+    end
+
+    test "the owner starts with AI seats filling the table" do
+      owner = player_fixture()
+      lobby = Lobbies.get_or_create_own_lobby(owner)
+      scope = Scope.for_user(owner)
+      {:ok, _} = Lobbies.add_ai_seat(scope, lobby, "fake-first")
+      assert {:error, :not_enough_players} = Games.start_game(scope, lobby)
+
+      {:ok, _} = Lobbies.add_ai_seat(scope, lobby, "fake-last")
+      assert {:ok, game} = Games.start_game(scope, lobby)
+
+      players = Games.players(game)
+
+      assert Enum.map(players, &{&1.seat, &1.user_id, &1.ai_model}) ==
+               [{0, owner.id, nil}, {1, nil, "fake-first"}, {2, nil, "fake-last"}]
+
+      assert Enum.map(players, &Games.player_id/1) == [to_string(owner.id), "ai-1", "ai-2"]
+      assert {:ok, %{me: "ai-1"}} = Games.view(game.id, {:ai, 1})
+      assert Games.ai_player_ids(players) == MapSet.new(["ai-1", "ai-2"])
+    end
+
+    test "display names: user names for humans, numbered labels for AI" do
+      owner = player_fixture()
+      game = game_fixture([owner, {:ai, "fake-first"}, {:ai, "fake-first"}, {:ai, "gone"}])
+
+      assert Games.display_names(Games.players(game)) == %{
+               to_string(owner.id) => owner.name,
+               "ai-1" => "Fake First",
+               "ai-2" => "Fake First #2",
+               "ai-3" => "gone"
+             }
+    end
+  end
+
+  describe "submit_for_ai_seat/4" do
+    setup do
+      on_exit(&stop_game_servers/0)
+      put_ai_config(players: false)
+      [owner, b] = for _ <- 1..2, do: player_fixture()
+      game = game_fixture([owner, b, {:ai, "fake-first"}], selection: :choose_side)
+      %{game: game, owner: owner, b: b}
+    end
+
+    test "the owner claims and confirms for an AI seat", %{game: game, owner: owner} do
+      {:ok, %{setup: setup}} = Games.view(game.id, owner.id)
+      wonder = Enum.find(setup.seats, &(&1.player == "ai-2")).wonder
+      scope = Scope.for_user(owner)
+
+      assert :ok =
+               Games.submit_for_ai_seat(
+                 scope,
+                 game.id,
+                 2,
+                 {:claim_wonder, %{wonder: wonder, side: :b}}
+               )
+
+      assert :ok = Games.submit_for_ai_seat(scope, game.id, 2, :confirm_wonder)
+
+      {:ok, %{setup: setup}} = Games.view(game.id, owner.id)
+      assert %{side: :b, confirmed: true} = Enum.find(setup.seats, &(&1.player == "ai-2"))
+
+      assert [%{seat: 2, user_id: nil, source: "human"} | _] =
+               Repo.all(
+                 from a in Helios.Games.GameAction, where: a.game_id == ^game.id, order_by: a.seq
+               )
+    end
+
+    test "non-owners, human seats and card actions are rejected", %{
+      game: game,
+      owner: owner,
+      b: b
+    } do
+      claim = {:claim_wonder, %{wonder: "Gizah", side: :a}}
+
+      assert {:error, :not_leader} =
+               Games.submit_for_ai_seat(Scope.for_user(b), game.id, 2, claim)
+
+      assert {:error, :not_leader} =
+               Games.submit_for_ai_seat(Scope.for_user(owner), game.id, 1, claim)
+
+      assert {:error, :not_leader} =
+               Games.submit_for_ai_seat(Scope.for_user(owner), game.id, 9, claim)
+
+      assert {:error, :invalid_choice} =
+               Games.submit_for_ai_seat(Scope.for_user(owner), game.id, 2, {:discard, "Altar"})
+
+      assert Repo.aggregate(
+               from(a in Helios.Games.GameAction, where: a.game_id == ^game.id),
+               :count
+             ) == 0
+    end
+  end
+
   describe "start_blocker/2" do
     test "explains why a game cannot start" do
       assert Games.start_blocker(nil, 2) == "Need at least 3 connected players"

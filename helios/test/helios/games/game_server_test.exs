@@ -78,6 +78,51 @@ defmodule Helios.Games.GameServerTest do
     end
   end
 
+  describe "AI seats and sources" do
+    setup do
+      put_ai_config(players: false)
+      [human] = [player_fixture()]
+      game = game_fixture([human, {:ai, "fake-first"}, {:ai, "fake-first"}])
+      %{ai_game: game, human: human}
+    end
+
+    test "AI actors submit with a source; random ones are marked", %{ai_game: game, human: human} do
+      {:ok, view} = Games.view(game.id, {:ai, 1})
+      assert view.me == "ai-1"
+      card = hd(view.hand).name
+
+      assert :ok =
+               Games.submit_choice(
+                 game.id,
+                 {:ai, 1},
+                 %{card: card, kind: "discard", option: 0},
+                 :random
+               )
+
+      {:ok, view2} = Games.view(game.id, {:ai, 2})
+      assert :ok = Games.submit(game.id, {:ai, 2}, {:discard, hd(view2.hand).name}, :ai)
+
+      assert [
+               %GameAction{seat: 1, user_id: nil, source: "random"},
+               %GameAction{seat: 2, source: "ai"}
+             ] =
+               Repo.all(from a in GameAction, where: a.game_id == ^game.id, order_by: a.seq)
+
+      assert {:ok, %{random: random}} = Games.snapshot(game.id, human.id)
+      assert random == MapSet.new([{"ai-1", 1, 1, :regular}])
+      assert {:error, :invalid_source} = Games.submit(game.id, human.id, {:discard, "x"}, :bogus)
+    end
+
+    test "random marks survive a restart", %{ai_game: game, human: human} do
+      {:ok, view} = Games.view(game.id, {:ai, 1})
+      :ok = Games.submit(game.id, {:ai, 1}, {:discard, hd(view.hand).name}, :random)
+      stop_game_servers()
+
+      assert {:ok, %{random: random}} = Games.snapshot(game.id, human.id)
+      assert MapSet.member?(random, {"ai-1", 1, 1, :regular})
+    end
+  end
+
   test "history/1 goes through the GameServer", %{game: game, users: users} do
     for user <- users do
       [card | _] = hand_names(game, user)
