@@ -4,6 +4,8 @@ defmodule HeliosWeb.TableLayout do
   roles and the closed ring path, returned in narrow order (W, me, E, …).
   """
 
+  alias HeliosWeb.GameFormat
+
   @type arrow :: String.t()
   @type role :: :me | :west | :east | :opposite | nil
   @type seat :: %{
@@ -128,6 +130,16 @@ defmodule HeliosWeb.TableLayout do
     %{seats: seats, ring_height: ring_height, ring_path: ring_path(anchors)}
   end
 
+  @spec neighbours(seat(), map(), String.t()) :: map()
+  def neighbours(seat, names, me) do
+    %{
+      west: neighbour_name(seat.west, names, me),
+      east: neighbour_name(seat.east, names, me),
+      ring: seat.ring_arrows,
+      list: seat.list_arrows
+    }
+  end
+
   @spec label(seat()) :: String.t()
   def label(%{role: role}) do
     case role do
@@ -137,6 +149,10 @@ defmodule HeliosWeb.TableLayout do
       :opposite -> "Opposite"
       nil -> ""
     end
+  end
+
+  defp neighbour_name(id, names, me) do
+    if id == me, do: "You", else: GameFormat.player_name(names, id)
   end
 
   defp role(0, _n), do: :me

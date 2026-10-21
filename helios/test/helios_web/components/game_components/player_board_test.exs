@@ -75,4 +75,21 @@ defmodule HeliosWeb.GameComponents.PlayerBoardTest do
     assert count(html, "#my-built [data-card]") == 0
     assert count(html, "[data-latest]") == 0
   end
+
+  test "the neighbour line shows ring arrows on xl and list arrows below" do
+    html =
+      board(SampleViews.player("2"),
+        neighbours: %{west: "You", east: "Cid", ring: {"←", "↓"}, list: {"↑", "↓"}}
+      )
+
+    assert attrs(html, "#east-panel [data-neighbours]", "aria-label") == [
+             "Neighbours: You and Cid"
+           ]
+
+    assert text(html, "#east-panel [data-neighbours] [data-ring-arrow='west']") == "←"
+    assert text(html, "#east-panel [data-neighbours] [data-list-arrow='east']") == "↓"
+    assert attrs(html, "[data-ring-arrow='west']", "class") |> hd() =~ "hidden xl:inline"
+    assert attrs(html, "[data-list-arrow='west']", "class") |> hd() =~ "xl:hidden"
+    assert attrs(html, "[data-ring-arrow]", "aria-hidden") |> Enum.uniq() == ["true"]
+  end
 end

@@ -82,4 +82,12 @@ defmodule HeliosWeb.TableLayoutTest do
     names = build(players(5), "3").seats |> Enum.map(& &1.player.name)
     assert names == ["2", "3", "4", "5", "1"]
   end
+
+  test "neighbours/3 resolves display names, You for the viewer" do
+    # West = "3"
+    seat = hd(build(players(3), "1").seats)
+
+    assert TableLayout.neighbours(seat, %{"2" => "Bob", "3" => "Cid"}, "1") ==
+             %{west: "Bob", east: "You", ring: seat.ring_arrows, list: seat.list_arrows}
+  end
 end

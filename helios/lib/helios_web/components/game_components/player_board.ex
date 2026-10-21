@@ -22,6 +22,7 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
   attr :ai, :boolean, default: false, doc: "an AI seat (bot icon)"
   attr :random, :boolean, default: false, doc: "this player's latest play was a random fallback"
   attr :class, :any, default: nil
+  attr :neighbours, :map, default: nil, doc: "resolved neighbour names + arrows; omit to hide"
 
   def player_board(assigns) do
     player = assigns.player
@@ -125,6 +126,32 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
             <.icon name="hero-cpu-chip" class="size-4" />
           </span>
         </header>
+        <p
+          :if={@neighbours}
+          data-neighbours
+          aria-label={"Neighbours: #{@neighbours.west} and #{@neighbours.east}"}
+          class="flex items-center gap-1 text-xs text-zinc-600"
+        >
+          <span class="inline-flex items-center gap-0.5">
+            <span data-ring-arrow="west" aria-hidden="true" class="hidden xl:inline">
+              {elem(@neighbours.ring, 0)}
+            </span>
+            <span data-list-arrow="west" aria-hidden="true" class="xl:hidden">
+              {elem(@neighbours.list, 0)}
+            </span>
+            {@neighbours.west}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span class="inline-flex items-center gap-0.5">
+            <span data-ring-arrow="east" aria-hidden="true" class="hidden xl:inline">
+              {elem(@neighbours.ring, 1)}
+            </span>
+            <span data-list-arrow="east" aria-hidden="true" class="xl:hidden">
+              {elem(@neighbours.list, 1)}
+            </span>
+            {@neighbours.east}
+          </span>
+        </p>
         <div class="relative overflow-hidden rounded-lg">
           <img
             src={GameAssets.wonder_path(@player.wonder, @player.side)}
