@@ -113,7 +113,7 @@ defmodule HeliosWeb.GameLive do
                 </p>
                 <.table_area
                   :if={@boards_available}
-                  table_layout={@table_layout}
+                  layout={@table_layout}
                   me_id={@view.me}
                   names={@names}
                   statuses={@statuses}
@@ -146,7 +146,7 @@ defmodule HeliosWeb.GameLive do
               </div>
             <% else %>
               <.table_area
-                table_layout={@table_layout}
+                layout={@table_layout}
                 me_id={@view.me}
                 names={@names}
                 statuses={@statuses}
@@ -200,7 +200,7 @@ defmodule HeliosWeb.GameLive do
     """
   end
 
-  attr :table_layout, :map, required: true
+  attr :layout, :map, required: true
   attr :me_id, :string, required: true
   attr :names, :map, required: true
   attr :statuses, :map, required: true
@@ -214,18 +214,18 @@ defmodule HeliosWeb.GameLive do
         id="seats"
         phx-hook=".BoardPanels"
         class="mx-auto flex max-w-2xl flex-col gap-3 sm:gap-4 xl:relative xl:block xl:max-w-none xl:min-h-(--ring-height)"
-        style={"--ring-height: #{@table_layout.ring_height}rem; --me-built-max: #{TableLayout.me_built_max()}rem"}
+        style={"--ring-height: #{@layout.ring_height}rem; --me-built-max: #{TableLayout.me_built_max()}rem"}
       >
         <svg
           id="table-ring"
           class="hidden xl:block absolute inset-x-0 top-0 pointer-events-none"
-          style={"height: #{@table_layout.ring_height}rem"}
-          viewBox={"0 0 100 #{@table_layout.ring_height}"}
+          style={"height: #{@layout.ring_height}rem"}
+          viewBox={"0 0 100 #{@layout.ring_height}"}
           preserveAspectRatio="none"
           aria-hidden="true"
         >
           <path
-            d={@table_layout.ring_path}
+            d={@layout.ring_path}
             fill="none"
             stroke="currentColor"
             stroke-width="0.25"
@@ -233,7 +233,7 @@ defmodule HeliosWeb.GameLive do
           />
         </svg>
         <.player_board
-          :for={seat <- @table_layout.seats}
+          :for={seat <- @layout.seats}
           id={board_dom_id(seat)}
           label={TableLayout.label(seat)}
           player={seat.player}
