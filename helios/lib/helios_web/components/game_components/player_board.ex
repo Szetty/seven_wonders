@@ -24,6 +24,7 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
   attr :class, :any, default: nil
   attr :neighbours, :map, default: nil, doc: "resolved neighbour names + arrows; omit to hide"
   attr :panel_align, :atom, default: :left, doc: "which edge the cards panel hangs from on xl"
+  attr :style, :any, default: nil, doc: "inline style (ring CSS custom properties on xl)"
 
   def player_board(assigns) do
     player = assigns.player
@@ -43,6 +44,7 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
     <section
       id={@id}
       data-player={@player.name}
+      style={@style}
       class={[
         "group relative min-w-0 flex flex-col gap-2 rounded-xl bg-antique/90 p-2 shadow sm:p-3",
         @class

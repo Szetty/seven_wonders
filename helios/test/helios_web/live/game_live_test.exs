@@ -32,32 +32,32 @@ defmodule HeliosWeb.GameLiveTest do
     assert has_element?(view, "#my-board")
     assert has_element?(view, "#west-panel")
     assert has_element?(view, "#east-panel")
+    assert has_element?(view, "#table-ring path")
     refute has_element?(view, "#other-players")
     assert has_element?(view, "#hand-card-6")
     refute has_element?(view, "#hand-card-7")
     refute has_element?(view, "#action-panel")
   end
 
-  test "every board is on the table; others continue from the east neighbour" do
+  test "boards are in ring order: W, me, E, then on around the table" do
     {players, game} = table_of(5)
     [{_a, ta} | _] = players
     ids = Enum.map(players, fn {user, _} -> to_string(user.id) end)
     {:ok, view, _html} = open(ta, game.id)
 
-    assert has_element?(view, "#my-board[data-player='#{Enum.at(ids, 0)}']")
-    assert has_element?(view, "#east-panel[data-player='#{Enum.at(ids, 1)}']")
-    assert has_element?(view, "#west-panel[data-player='#{Enum.at(ids, 4)}']")
-
-    html = render(view)
-
-    others =
-      html
+    order =
+      view
+      |> render()
       |> LazyHTML.from_fragment()
-      |> LazyHTML.query("#other-players article")
-      |> LazyHTML.attribute("id")
+      |> LazyHTML.query("#seats > section[data-player]")
+      |> LazyHTML.attribute("data-player")
 
-    assert others == ["player-#{Enum.at(ids, 2)}", "player-#{Enum.at(ids, 3)}"]
-    assert has_element?(view, "#player-#{Enum.at(ids, 2)} [id^='wonder-stages-']")
+    assert order == Enum.map([4, 0, 1, 2, 3], &Enum.at(ids, &1))
+    assert has_element?(view, "#board-#{Enum.at(ids, 2)} [id^='wonder-stages-']")
+    assert has_element?(view, "#board-#{Enum.at(ids, 3)} [data-neighbours]")
+    assert has_element?(view, "#seats[style*='--ring-height: 64rem']")
+    assert has_element?(view, "#east-panel[style*='--ring-left: 78%']")
+    refute has_element?(view, "#my-board.order-first")
   end
 
   test "a neighbour's tile opens their card sheet with their terms relative to me", %{

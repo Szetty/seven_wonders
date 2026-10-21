@@ -130,6 +130,10 @@ defmodule HeliosWeb.TableLayout do
     %{seats: seats, ring_height: ring_height, ring_path: ring_path(anchors)}
   end
 
+  @doc "Max height in rem for my built-cards column: the reserved room minus the wonder strip."
+  @spec me_built_max() :: pos_integer()
+  def me_built_max, do: @me_reserve - 14
+
   @spec neighbours(seat(), map(), String.t()) :: map()
   def neighbours(seat, names, me) do
     %{
