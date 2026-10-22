@@ -115,6 +115,236 @@ test.describe("desktop 1280x800, 4 players: ring and nothing moves", () => {
   });
 });
 
+/** Worst-case DOM: 7 [data-category] columns × 10 tiles in #my-built, 7 chips per compact toggle. */
+function injectWorstCaseBoard() {
+  // Inlined because page.evaluate serializes only this function's source.
+  const categories = [
+    "raw_material",
+    "manufactured_good",
+    "civilian",
+    "commercial",
+    "military",
+    "scientific",
+    "guild",
+  ];
+  // Two-digit counts on the busiest chips: the widest plausible chip row.
+  const chipCounts: Array<[string, string]> = [
+    ["raw_material", "12"],
+    ["manufactured_good", "7"],
+    ["civilian", "4"],
+    ["commercial", "3"],
+    ["military", "2"],
+    ["scientific", "2"],
+    ["guild", "1"],
+  ];
+
+  const myBuilt = document.querySelector("#my-built");
+  if (!myBuilt) throw new Error("#my-built not found");
+
+  const existingTile = myBuilt.querySelector("[data-category] > *");
+  let template: Element;
+  if (existingTile) {
+    template = existingTile;
+  } else {
+    const handImg = document.querySelector("#hand [data-card] img");
+    if (!handImg) throw new Error("no #hand [data-card] img to clone");
+    const tile = document.createElement("div");
+    tile.className = "h-10 w-16 overflow-hidden rounded";
+    const img = handImg.cloneNode(true) as HTMLImageElement;
+    img.className = "w-full object-cover object-top";
+    tile.appendChild(img);
+    template = tile;
+  }
+
+  myBuilt.replaceChildren();
+  for (const category of categories) {
+    const column = document.createElement("div");
+    column.setAttribute("data-category", category);
+    column.className = "flex shrink-0 flex-col gap-1";
+    for (let i = 0; i < 10; i++) {
+      const tile = template.cloneNode(true) as HTMLElement;
+      tile.removeAttribute("id");
+      for (const el of tile.querySelectorAll("[id]")) el.removeAttribute("id");
+      column.appendChild(tile);
+    }
+    myBuilt.appendChild(column);
+  }
+
+  let chips = 0;
+  for (const section of document.querySelectorAll("#seats > section:not(#my-board)")) {
+    const holder = section.querySelector("[data-board-toggle] > span");
+    if (!holder) throw new Error(`${section.id}: toggle chips holder not found`);
+    for (const [category, count] of chipCounts) {
+      if (holder.querySelector(`[data-chip="${category}"]`)) continue;
+      const chip = document.createElement("span");
+      chip.setAttribute("data-chip", category);
+      chip.className =
+        "flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold text-white bg-zinc-500";
+      chip.textContent = count;
+      holder.appendChild(chip);
+      chips++;
+    }
+  }
+
+  return { columns: myBuilt.querySelectorAll("[data-category]").length, chips };
+}
+
+type TableFit = {
+  cardsFit: boolean;
+  built: [number, number];
+  overlaps: string[];
+  chips: string[];
+  vp: number;
+  win: number;
+  seats: number;
+  west: number;
+};
+
+/** The three measurement checks at the current viewport: cards, board boxes, chips. */
+function measureTableFit(): TableFit {
+  const EPS = 1;
+  const docWidth = document.documentElement.clientWidth;
+
+  const myBuilt = document.querySelector("#my-built");
+  if (!myBuilt) throw new Error("#my-built not found");
+  const cardsFit = myBuilt.scrollWidth <= myBuilt.clientWidth + EPS;
+
+  const sections = [...document.querySelectorAll("#seats > section")];
+  const boxes = sections.map((section) => {
+    const r = section.getBoundingClientRect();
+    return { id: section.id, left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+  });
+  const overlaps: string[] = [];
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i];
+      const b = boxes[j];
+      const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (overlapX > EPS && overlapY > EPS) overlaps.push(`${a.id} x ${b.id}`);
+    }
+  }
+
+  const chipProblems: string[] = [];
+  for (const section of sections) {
+    if (section.id === "my-board") continue;
+    const summary = section.querySelector("[id$='-summary']");
+    if (!summary) {
+      chipProblems.push(`${section.id}: no summary box`);
+      continue;
+    }
+    const s = summary.getBoundingClientRect();
+
+    const toggle = section.querySelector("[data-board-toggle]");
+    if (toggle) {
+      const t = toggle.getBoundingClientRect();
+      if (t.left < s.left - EPS || t.right > s.right + EPS || t.top < s.top - EPS || t.bottom > s.bottom + EPS) {
+        chipProblems.push(`${section.id}: toggle clipped by summary`);
+      }
+    }
+
+    const holder = section.querySelector("[data-board-toggle] > span");
+    if (holder && holder.scrollWidth > holder.clientWidth + EPS) {
+      chipProblems.push(`${section.id}: chips clipped (${holder.scrollWidth} > ${holder.clientWidth})`);
+    }
+
+    for (const chip of section.querySelectorAll("[data-chip]")) {
+      const c = chip.getBoundingClientRect();
+      const name = `${section.id}[${chip.getAttribute("data-chip")}]`;
+      if (c.width <= 0 || c.height <= 0) {
+        chipProblems.push(`${name}: not rendered`);
+      } else if (c.left < s.left - EPS || c.right > s.right + EPS || c.top < s.top - EPS || c.bottom > s.bottom + EPS) {
+        chipProblems.push(`${name}: outside summary box`);
+      } else if (c.left < -EPS || c.right > docWidth + EPS) {
+        chipProblems.push(`${name}: outside viewport`);
+      }
+    }
+  }
+
+  return {
+    cardsFit,
+    built: [myBuilt.scrollWidth, myBuilt.clientWidth],
+    overlaps,
+    chips: chipProblems,
+    vp: document.documentElement.clientWidth,
+    win: window.innerWidth,
+    seats: (document.querySelector("#seats") as HTMLElement | null)?.clientWidth ?? -1,
+    west: (document.querySelector("#west-panel") as HTMLElement | null)?.clientWidth ?? -1,
+  };
+}
+
+test.describe("measurement 1280-2400x1100, 7 players: worst-case fit", () => {
+  test.use({ viewport: { width: 1280, height: 1100 }, hasTouch: false, isMobile: false });
+
+  test("7 players, fully built own board fits at the max width", async ({ browser }) => {
+    test.setTimeout(300_000);
+    const { owner, players } = await setupTable(browser, 7, LONG_NAME_PREFIX);
+    await startGame(owner, players);
+    const page = owner.page;
+    await waitForTurn(page, 1, 1);
+
+    const injected = await page.evaluate(injectWorstCaseBoard);
+    expect(injected.columns, "worst-case built columns were not injected").toBe(7);
+
+    let firstFit: number | null = null;
+    let firstFailure = "";
+    let lastFailure = "";
+    for (let width = 1280; width <= 2400; width += 32) {
+      await page.setViewportSize({ width, height: 1100 });
+      const state = await page.evaluate(measureTableFit);
+      if (state.cardsFit && state.overlaps.length === 0 && state.chips.length === 0) {
+        firstFit = width;
+        break;
+      }
+      const line = `width ${width}: vp ${state.vp} win ${state.win} seats ${state.seats} west ${state.west}, built ${state.built[0]}/${state.built[1]}, overlaps [${state.overlaps.join("; ")}], chips [${state.chips.join("; ")}]`;
+      if (!firstFailure) firstFailure = line;
+      lastFailure = line;
+    }
+
+    if (firstFailure) console.log(`first failing width: ${firstFailure}`);
+    if (firstFit === null) console.log(`no fitting width; last: ${lastFailure}`);
+    else console.log(`first-fit width: ${firstFit}px`);
+    expect(firstFit, `no width in 1280..2400 fits (${firstFailure})`).not.toBeNull();
+    const fit = firstFit as number;
+
+    // The injected DOM survived the sweep — otherwise the checks went vacuous.
+    expect(await page.locator("#my-built [data-category]").count(), "injected built columns wiped").toBe(7);
+    expect(
+      await page.locator("#seats > section:not(#my-board) [data-chip]").count(),
+      "injected toggle chips wiped",
+    ).toBe(42); // 6 compact boards x 7 chips
+
+    const configured = await page.evaluate(() => {
+      const container = [...document.querySelectorAll("#game > div")].find(
+        (el) => getComputedStyle(el).maxWidth !== "none",
+      );
+      if (!container) throw new Error("#game container with a max-width not found");
+      const style = getComputedStyle(container);
+      return {
+        max: parseFloat(style.maxWidth),
+        padding: parseFloat(style.paddingLeft) + parseFloat(style.paddingRight),
+      };
+    });
+    const configuredWidth = Math.round(configured.max + configured.padding);
+    console.log(
+      `configured container: max-width ${configured.max}px + ${configured.padding}px padding = ${configuredWidth}px`,
+    );
+    expect(configuredWidth, "configured table width below the measured first-fit width").toBeGreaterThanOrEqual(fit);
+
+    for (const width of [Math.round(configured.max), configuredWidth]) {
+      await page.setViewportSize({ width, height: 1100 });
+      const state = await page.evaluate(measureTableFit);
+      expect(state.cardsFit, `#my-built scrolls horizontally at ${width}px (built ${state.built[0]}/${state.built[1]})`).toBe(
+        true,
+      );
+      expect(state.overlaps, `boards intersect at ${width}px`).toEqual([]);
+      expect(state.chips, `toggle chips not fully visible at ${width}px`).toEqual([]);
+    }
+
+    await closeAll(players);
+  });
+});
+
 test.describe("phone 390x844, 4 players: ring order and in-place expansion", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 

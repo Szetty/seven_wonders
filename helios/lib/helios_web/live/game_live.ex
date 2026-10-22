@@ -213,7 +213,7 @@ defmodule HeliosWeb.GameLive do
       <div
         id="seats"
         phx-hook=".BoardPanels"
-        class="mx-auto flex max-w-2xl flex-col gap-3 sm:gap-4 xl:relative xl:block xl:max-w-none xl:min-h-(--ring-height)"
+        class="mx-auto flex max-w-2xl flex-col gap-3 sm:gap-4 xl:relative xl:block xl:w-full xl:max-w-none xl:min-h-(--ring-height)"
         style={"--ring-height: #{@layout.ring_height}rem; --me-built-max: #{TableLayout.me_built_max()}rem"}
       >
         <svg
