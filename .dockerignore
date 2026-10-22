@@ -1,7 +1,0 @@
-.git
-**/node_modules
-**/elm-stuff
-**/build
-.DS_Store
-.idea
-**/.env

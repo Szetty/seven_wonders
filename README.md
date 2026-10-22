@@ -11,9 +11,6 @@ Online implementation of the 7 Wonders board game (base game, 3–7 players).
 - [`core/`](core/) — Rust 7 Wonders engine, loaded into Helios as a Rustler NIF
 - [`e2e/`](e2e/) — Playwright end-to-end tests (chromium, mobile and responsive projects)
 - [`docs/superpowers/`](docs/superpowers/) — design specs and implementation plans
-- [`bin/`](bin/) — deployment scripts
-
-Legacy folders (`backend_old/`, `frontend/`, `websocket-client/`) are deprecated: kept only as behavioural reference and removed phase by phase (see [`AGENTS.md`](AGENTS.md)).
 
 The game UI is responsive: desktop, phones (360 px and up) and landscape phones (custom `short` variant for viewports ≤ 500 px tall).
 
@@ -78,10 +75,3 @@ mise exec -- npx playwright test --project=mobile  # one project
 - **Core** — `cargo fmt --check`, clippy with `-D warnings`, `cargo test`
 - **Helios** — compile with `--warnings-as-errors` (builds the NIF), `mix format --check-formatted`, `mix test`
 - **E2E** — full Playwright suite against an `MIX_ENV=e2e` server
-
-## Deployment
-
-```shell
-bin/build.sh
-bin/run.sh
-```
