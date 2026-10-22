@@ -32,25 +32,40 @@ defmodule HeliosWeb.GameComponents.Fx do
           const r = el.getBoundingClientRect()
           return r.width > 0 && r.height > 0 ? r : null
         },
+        // A built tile inside a collapsed panel has no box; land on that
+        // player's category chip instead (or their coins when the board has
+        // no chip for that category).
+        landTarget(player, target) {
+          if (this.visible(target)) return target
+          if (!target) return null
+          const category = target.closest("[data-category]")?.dataset.category
+          const board = `section[data-player="${player}"]`
+          if (category) {
+            const chip = document.querySelector(`${board} [data-chip="${category}"]`)
+            if (chip) return chip
+          }
+          return document.querySelector(`${board} [data-stat="coins"]`)
+        },
         play({plays, coins, me, my_card, pass}) {
           if (this.reduced()) return
           const rects = window.sevenWondersHandRects || {}
           const mine = my_card && rects[my_card]
           for (const play of plays) {
             const target = play.target && document.getElementById(play.target)
+            const land = this.landTarget(play.player, target)
             if (play.from) {
               const from = this.origin(play.from, target)
-              if (from && this.visible(target)) {
-                this.fly(from, target, true)
-                this.arrive(target, 550)
-              } else if (target) {
-                this.arrive(target)
+              if (from && this.visible(land)) {
+                this.fly(from, land, true)
+                this.arrive(land, 550)
+              } else if (land) {
+                this.arrive(land)
               }
             } else if (play.player === me && mine) {
-              const to = target || document.querySelector(`section[data-player="${me}"] [data-stat="coins"]`)
+              const to = land || document.querySelector(`section[data-player="${me}"] [data-stat="coins"]`)
               this.fly(mine, to, !target)
-            } else if (target) {
-              this.arrive(target)
+            } else if (land) {
+              this.arrive(land)
             }
           }
           for (const {player, delta} of coins) this.float(player, delta)

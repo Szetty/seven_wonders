@@ -163,3 +163,12 @@ Taken by the designer, not explicitly confirmed by the user:
 - The final-score card stays compact and centred.
 - The compact board's category-count chips replace today's per-card colour squares.
 - The narrow list's wrap-around neighbour arrow (↑ vs a special marker).
+
+## Measured (2026-10-22)
+
+Measured with the Task-6 test in a real browser (`cd e2e && npx playwright test seating.spec.ts -g "fully built"`; this session ran it against a Playwright-spawned server via a session-only `playwright.4005.config.ts` because the worktree's usual 4004 server was started before these edits). Setup: 7 players, turn 1, `#my-built` injected with the worst case (7 category columns × 10 tiles = 496px of content) and all 6 compact boards' toggles filled with their 7 category chips.
+
+- **Measured first-fit width: 1376px.** First viewport width in the 1280→2400 (step 32) sweep where the built board fits without horizontal scrolling, no two boards intersect, and every toggle chip is fully visible.
+- **Chosen maximum width: 1600px** (unchanged `max-w-[96rem]` = 1536px container + 64px `lg:px-8` padding) ≥ 1376px, with headroom to spare; the spec's 1,300–1,500px estimate holds.
+- **Final geometry values: `@me_reserve` 48rem, `@side_width` 22rem** — unchanged from Task 1; no ring-value tuning was needed.
+- **Required sizing fix (deviation from "values only"): `xl:w-full` added to `#seats`.** Before it, `#seats` shrink-wrapped to its max-content (824px — set by the wonder image's intrinsic width through `#my-board-summary`, with `mx-auto` suppressing flex stretch), so ring geometry never changed with viewport width and *no* width in 1280..2400 could fit the worst case. With `xl:w-full` the ring fills its container up to the 96rem cap, as the percentage-based slot geometry assumes.

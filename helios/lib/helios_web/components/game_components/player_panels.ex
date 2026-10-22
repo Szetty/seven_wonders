@@ -38,10 +38,11 @@ defmodule HeliosWeb.GameComponents.PlayerPanels do
   defp status_class(:playing), do: "bg-amber-100 text-amber-800"
 
   attr :player, :map, required: true
+  attr :class, :any, default: "flex-wrap", doc: "extra classes for the stats row"
 
   def player_stats(assigns) do
     ~H"""
-    <div class="flex flex-wrap items-center gap-3 text-sm text-zinc-800">
+    <div data-stats class={["flex items-center gap-3 text-sm text-zinc-800", @class]}>
       <span class="flex items-center gap-1" title="Coins">
         <img src={GameAssets.token_path(:coin)} alt="Coins" class="size-5" />
         <span data-stat="coins">{@player.coins}</span>
