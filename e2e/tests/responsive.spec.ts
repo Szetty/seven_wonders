@@ -144,29 +144,24 @@ for (const vp of VIEWPORTS) {
       }
 
       // --- table: neighbours fold into summaries below md, and stay open across updates
-      if (vp.width < 768) {
-        await expect(page.locator("#west-panel-details")).toBeHidden();
-        await page.locator("#west-panel-toggle").click();
-        await expect(page.locator("#west-panel-details")).toBeVisible();
-        await expect(page.locator("#west-panel-toggle")).toHaveAttribute("aria-expanded", "true");
-        if (vp.touch) await expectTapTargets(page.locator("#west-panel-toggle, #east-panel-toggle"));
+      // Details are hidden until the toggle is pressed on every size (ring layout).
+      await expect(page.locator("#west-panel-details")).toBeHidden();
+      await page.locator("#west-panel-toggle").click();
+      await expect(page.locator("#west-panel-details")).toBeVisible();
+      await expect(page.locator("#west-panel-toggle")).toHaveAttribute("aria-expanded", "true");
+      if (vp.touch) await expectTapTargets(page.locator("#west-panel-toggle, #east-panel-toggle"));
 
-        // Phones: open the list before the update to check it survives the patch.
-        if (vp.width < 640) await page.locator("#waiting-count").click();
-        await playFirstBuildableOrDiscard(players[1].page);
-        await expect(page.locator("#waiting-count")).toHaveText(/Waiting for 2/);
-        if (vp.width < 640) {
-          await expect(page.locator("#waiting-list")).toBeVisible();
-          await expect(page.locator("#waiting-list li")).toHaveCount(2);
-          await page.locator("#age-label").click();
-          await expect(page.locator("#waiting-list")).toBeHidden();
-        }
-        await expect(page.locator("#west-panel-details")).toBeVisible();
-      } else {
-        await expect(page.locator("#west-panel-toggle")).toBeHidden();
-        await expect(page.locator("#west-panel-details")).toBeVisible();
-        await playFirstBuildableOrDiscard(players[1].page);
+      // Phones: open the list before the update to check it survives the patch.
+      if (vp.width < 640) await page.locator("#waiting-count").click();
+      await playFirstBuildableOrDiscard(players[1].page);
+      await expect(page.locator("#waiting-count")).toHaveText(/Waiting for 2/);
+      if (vp.width < 640) {
+        await expect(page.locator("#waiting-list")).toBeVisible();
+        await expect(page.locator("#waiting-list li")).toHaveCount(2);
+        await page.locator("#age-label").click();
+        await expect(page.locator("#waiting-list")).toBeHidden();
       }
+      await expect(page.locator("#west-panel-details")).toBeVisible();
       await expectNoHorizontalScroll(page);
 
       // --- dock: the hand is always on screen and never covers the table
@@ -249,9 +244,14 @@ test.describe("seven players on a small phone", () => {
     await expectViewport(page, { name: "small-android", width: 360, height: 740, touch: true });
     await expectNoHorizontalScroll(page);
     expect((await boxOf(page.locator("#top-bar"))).height).toBeLessThanOrEqual(120);
-    await expect(page.locator("#other-players article")).toHaveCount(4);
-    const strip = await boxOf(page.locator("#other-players"));
-    expect(strip.x + strip.width).toBeLessThanOrEqual(360);
+    const sections = page.locator("#seats > section");
+    await expect(sections).toHaveCount(7);
+    const ids = await sections.evaluateAll((els) => els.map((el) => (el as HTMLElement).id));
+    expect(ids.slice(0, 3)).toEqual(["west-panel", "my-board", "east-panel"]);
+    for (const section of await sections.all()) {
+      const box = await boxOf(section);
+      expect(box.x + box.width, `${section} overflows`).toBeLessThanOrEqual(360);
+    }
     await closeAll(players);
   });
 });
