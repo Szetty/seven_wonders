@@ -78,19 +78,15 @@ test.describe("desktop 1280x800, 4 players: ring and nothing moves", () => {
       await playFirstBuildableOrDiscard(player.page);
     }
     await waitForTurn(page, 1, 2);
-    // Re-open east if the patch closed it; the panel is sticky, but be explicit.
-    if (!(await page.locator("#east-panel-details").isVisible())) {
-      await page.locator("#east-panel-toggle").click();
-    }
+    // A tile in the open east panel opens the card sheet; the panel stays open.
     const tile = page.locator("#east-panel-details [data-card]").first();
-    if ((await tile.count()) > 0) {
-      await tile.click();
-      await expect(page.locator("#card-sheet")).toBeVisible();
-      await expect(page.locator("#east-panel")).toHaveClass(/is-open/);
-      await page.keyboard.press("Escape");
-      await expect(page.locator("#card-sheet")).toHaveCount(0);
-      await expect(page.locator("#east-panel")).toHaveClass(/is-open/);
-    }
+    await expect(tile).toHaveCount(1);
+    await tile.click();
+    await expect(page.locator("#card-sheet")).toBeVisible();
+    await expect(page.locator("#east-panel")).toHaveClass(/is-open/);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#card-sheet")).toHaveCount(0);
+    await expect(page.locator("#east-panel")).toHaveClass(/is-open/);
 
     // Clicking outside the panel closes it.
     await page.locator("#age-label").click();
@@ -139,13 +135,17 @@ test.describe("phone 390x844, 4 players: ring order and in-place expansion", () 
     await expect(page.locator("#table-ring")).toBeHidden();
     await expectNoHorizontalScroll(page);
 
-    // West expands in place: west stays put, me is pushed down.
-    const westY = (await boxOf(page.locator("#west-panel"))).y;
-    const meY = (await boxOf(page.locator("#my-board"))).y;
+    // West expands in place: west stays put relative to #seats, me is pushed
+    // down. Compare deltas against #seats so a scroll between the two
+    // boundingBox measurements cancels out.
+    const seatsBefore = await boxOf(page.locator("#seats"));
+    const westRel = (await boxOf(page.locator("#west-panel"))).y - seatsBefore.y;
+    const meRel = (await boxOf(page.locator("#my-board"))).y - seatsBefore.y;
     await page.locator("#west-panel-toggle").click();
     await expect(page.locator("#west-panel-details")).toBeVisible();
-    expect((await boxOf(page.locator("#west-panel"))).y).toBe(westY);
-    expect((await boxOf(page.locator("#my-board"))).y).toBeGreaterThan(meY);
+    const seatsAfter = await boxOf(page.locator("#seats"));
+    expect((await boxOf(page.locator("#west-panel"))).y - seatsAfter.y).toBe(westRel);
+    expect((await boxOf(page.locator("#my-board"))).y - seatsAfter.y).toBeGreaterThan(meRel);
 
     // Narrow keeps both open.
     await page.locator("#east-panel-toggle").click();

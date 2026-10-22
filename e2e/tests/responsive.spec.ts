@@ -143,8 +143,8 @@ for (const vp of VIEWPORTS) {
         await expect(page.locator("#waiting-count")).toBeHidden();
       }
 
-      // --- table: neighbours fold into summaries below md, and stay open across updates
-      // Details are hidden until the toggle is pressed on every size (ring layout).
+      // --- table: details are hidden until the toggle is pressed on every size
+      // (ring layout); open panels stay open across live updates.
       await expect(page.locator("#west-panel-details")).toBeHidden();
       await page.locator("#west-panel-toggle").click();
       await expect(page.locator("#west-panel-details")).toBeVisible();
