@@ -25,7 +25,7 @@ defmodule HeliosWeb.GameLive do
   alias Helios.{Catalogue, Games, Lobbies}
   alias Helios.Games.Choice
   alias HeliosWeb.GameComponents.ExtraTurn
-  alias HeliosWeb.{GameFormat, Presence, TurnFx}
+  alias HeliosWeb.{GameFormat, Presence, TableLayout, TurnFx}
 
   @impl true
   def render(assigns) do
@@ -49,7 +49,7 @@ defmodule HeliosWeb.GameLive do
           event={@age_summary}
           ctx={%{me: @view.me, names: @names, view: @view}}
         />
-        <div class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-3 px-2 pt-3 sm:gap-4 sm:px-4 sm:pt-4 lg:px-8">
+        <div class="mx-auto flex w-full max-w-[96rem] flex-1 flex-col gap-3 px-2 pt-3 sm:gap-4 sm:px-4 sm:pt-4 lg:px-8">
           <.top_bar
             view={
               if @replay,
@@ -113,10 +113,8 @@ defmodule HeliosWeb.GameLive do
                 </p>
                 <.table_area
                   :if={@boards_available}
-                  me={@me}
-                  west={@west}
-                  east={@east}
-                  others={@others}
+                  layout={@table_layout}
+                  me_id={@view.me}
                   names={@names}
                   statuses={@statuses}
                   ai_ids={@ai_ids}
@@ -148,10 +146,8 @@ defmodule HeliosWeb.GameLive do
               </div>
             <% else %>
               <.table_area
-                me={@me}
-                west={@west}
-                east={@east}
-                others={@others}
+                layout={@table_layout}
+                me_id={@view.me}
                 names={@names}
                 statuses={@statuses}
                 ai_ids={@ai_ids}
@@ -204,10 +200,8 @@ defmodule HeliosWeb.GameLive do
     """
   end
 
-  attr :me, :map, required: true
-  attr :west, :map, required: true
-  attr :east, :map, required: true
-  attr :others, :list, required: true
+  attr :layout, :map, required: true
+  attr :me_id, :string, required: true
   attr :names, :map, required: true
   attr :statuses, :map, required: true
   attr :ai_ids, :any, default: MapSet.new()
@@ -216,57 +210,127 @@ defmodule HeliosWeb.GameLive do
   defp table_area(assigns) do
     ~H"""
     <div id="table" class="flex flex-1 flex-col gap-3 pb-1 sm:gap-4">
-      <div class="grid items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-[1fr_1.6fr_1fr]">
+      <div
+        id="seats"
+        phx-hook=".BoardPanels"
+        class="mx-auto flex max-w-[min(42rem,100%)] flex-col gap-3 sm:gap-4 xl:relative xl:block xl:w-full xl:max-w-none xl:min-h-(--ring-height)"
+        style={"--ring-height: #{@layout.ring_height}rem; --me-built-max: #{TableLayout.me_built_max()}rem"}
+      >
+        <svg
+          id="table-ring"
+          class="hidden xl:block absolute inset-x-0 top-0 w-full pointer-events-none"
+          style={"height: #{@layout.ring_height}rem"}
+          viewBox={"0 0 100 #{@layout.ring_height}"}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path
+            d={@layout.ring_path}
+            fill="none"
+            stroke="currentColor"
+            stroke-width="0.25"
+            class="text-stone-400/50"
+          />
+        </svg>
         <.player_board
-          id="west-panel"
-          label="West"
-          player={@west}
+          :for={seat <- @layout.seats}
+          id={board_dom_id(seat)}
+          label={TableLayout.label(seat)}
+          player={seat.player}
           names={@names}
-          status={@statuses[@west.name]}
-          ai={MapSet.member?(@ai_ids, @west.name)}
-          random={MapSet.member?(@random_now, @west.name)}
-        />
-        <.player_board
-          id="my-board"
-          label="You"
-          player={@me}
-          names={@names}
-          status={@statuses[@me.name]}
-          ai={MapSet.member?(@ai_ids, @me.name)}
-          random={MapSet.member?(@random_now, @me.name)}
-          mine
-          class="order-first md:col-span-2 lg:order-none lg:col-span-1"
-        />
-        <.player_board
-          id="east-panel"
-          label="East"
-          player={@east}
-          names={@names}
-          status={@statuses[@east.name]}
-          ai={MapSet.member?(@ai_ids, @east.name)}
-          random={MapSet.member?(@random_now, @east.name)}
+          status={@statuses[seat.player.name]}
+          ai={MapSet.member?(@ai_ids, seat.player.name)}
+          random={MapSet.member?(@random_now, seat.player.name)}
+          mine={seat.role == :me}
+          neighbours={TableLayout.neighbours(seat, @names, @me_id)}
+          panel_align={seat.panel_align}
+          style={board_style(seat)}
+          class={board_class(seat)}
         />
       </div>
-      <section
-        :if={@others != []}
-        id="other-players"
-        class="grid items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4"
-      >
-        <article :for={player <- @others} id={"player-#{player.name}"} class="min-w-0">
-          <.player_board
-            id={"board-#{player.name}"}
-            label=""
-            player={player}
-            names={@names}
-            status={@statuses[player.name]}
-            ai={MapSet.member?(@ai_ids, player.name)}
-            random={MapSet.member?(@random_now, player.name)}
-          />
-        </article>
-      </section>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".BoardPanels">
+        export default {
+          mounted() {
+            this.boundClick = (e) => this.documentClick(e)
+            this.boundKey = (e) => this.keydown(e)
+            document.addEventListener("click", this.boundClick)
+            document.addEventListener("keydown", this.boundKey)
+          },
+          destroyed() {
+            document.removeEventListener("click", this.boundClick)
+            document.removeEventListener("keydown", this.boundKey)
+          },
+          wide() {
+            return window.matchMedia("(min-width: 80rem)").matches
+          },
+          openSections() {
+            return [...this.el.querySelectorAll("section.is-open")]
+          },
+          sectionOf(target) {
+            return target && target.closest ? target.closest("section[data-player]") : null
+          },
+          open(section) {
+            if (this.wide()) this.closeOthers(section)
+            this.js().addClass(section, "is-open")
+            const btn = section.querySelector("[data-board-toggle]")
+            if (btn) this.js().setAttribute(btn, "aria-expanded", "true")
+          },
+          close(section) {
+            this.js().removeClass(section, "is-open")
+            const btn = section.querySelector("[data-board-toggle]")
+            if (btn) this.js().setAttribute(btn, "aria-expanded", "false")
+          },
+          closeOthers(except) {
+            for (const section of this.openSections()) {
+              if (section !== except) this.close(section)
+            }
+          },
+          closeAll() {
+            for (const section of this.openSections()) this.close(section)
+          },
+          documentClick(e) {
+            const toggle = e.target.closest && e.target.closest("[data-board-toggle]")
+            if (toggle) {
+              const section = this.sectionOf(toggle)
+              if (section && this.el.contains(section)) {
+                if (section.classList.contains("is-open")) this.close(section)
+                else this.open(section)
+                return
+              }
+            }
+            if (!this.wide()) return
+            const open = this.openSections()
+            if (open.length === 0) return
+            if (e.target.closest && e.target.closest("#card-sheet, #card-sheet-scrim")) return
+            if (e.target.closest && e.target.closest("#dock, #action-panel, #action-scrim")) return
+            if (open.some((s) => s.contains(e.target))) return
+            this.closeAll()
+          },
+          keydown(e) {
+            if (e.key !== "Escape") return
+            if (document.querySelector("#card-sheet") || document.querySelector("#action-panel")) return
+            this.closeAll()
+          },
+        }
+      </script>
     </div>
     """
   end
+
+  defp board_dom_id(%{role: :me}), do: "my-board"
+  defp board_dom_id(%{role: :west}), do: "west-panel"
+  defp board_dom_id(%{role: :east}), do: "east-panel"
+  defp board_dom_id(%{player: player}), do: "board-#{player.name}"
+
+  defp board_class(%{role: :me}), do: "xl:relative xl:z-10 xl:ml-[30%] xl:w-[40%]"
+
+  defp board_class(_seat),
+    do: "xl:absolute xl:z-10 xl:left-(--ring-left) xl:top-(--ring-top) xl:w-(--ring-width)"
+
+  defp board_style(%{role: :me}), do: nil
+
+  defp board_style(%{ring: ring}),
+    do: "--ring-left: #{ring.left}%; --ring-top: #{ring.top}rem; --ring-width: #{ring.width}%"
 
   @impl true
   def mount(%{"game_id" => game_id}, _session, socket) do
@@ -365,14 +429,11 @@ defmodule HeliosWeb.GameLive do
   # The table shows the frame's public boards; @view keeps the final view (scores, me, neighbours).
   defp assign_frame(socket) do
     frame = current_frame(socket.assigns.replay)
-    table = %{socket.assigns.view | players: frame.players}
     by_name = Map.new(frame.players, &{&1.name, &1})
 
     assign(socket,
-      me: Map.fetch!(by_name, table.me),
-      west: Map.fetch!(by_name, table.west),
-      east: Map.fetch!(by_name, table.east),
-      others: GameFormat.others(table),
+      me: Map.fetch!(by_name, socket.assigns.view.me),
+      table_layout: TableLayout.build(frame.players, socket.assigns.view.me),
       statuses: %{}
     )
   end
@@ -808,9 +869,7 @@ defmodule HeliosWeb.GameLive do
     assign(socket,
       view: view,
       me: nil,
-      west: nil,
-      east: nil,
-      others: [],
+      table_layout: nil,
       statuses: GameFormat.statuses(view),
       selected: nil,
       selected_card: nil,
@@ -823,15 +882,12 @@ defmodule HeliosWeb.GameLive do
 
   defp assign_view(socket, view) do
     by_name = Map.new(view.players, &{&1.name, &1})
-    others = GameFormat.others(view)
 
     socket
     |> assign(
       view: view,
       me: Map.fetch!(by_name, view.me),
-      west: Map.fetch!(by_name, view.west),
-      east: Map.fetch!(by_name, view.east),
-      others: others,
+      table_layout: TableLayout.build(view.players, view.me),
       statuses: GameFormat.statuses(view)
     )
     |> assign_selection(socket.assigns[:selected])
