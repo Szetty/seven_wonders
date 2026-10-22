@@ -161,7 +161,7 @@ defmodule HeliosWeb.GameComponents.PlayerBoard do
           "flex-col gap-2",
           @mine && "flex",
           !@mine &&
-            "hidden group-[.is-open]:block xl:absolute xl:top-full xl:mt-2 xl:z-40 xl:w-max xl:max-w-[min(40rem,calc(100vw-2rem))] xl:shadow-xl",
+            "hidden group-[.is-open]:block xl:absolute xl:top-full xl:mt-2 xl:z-40 xl:w-max xl:min-w-64 xl:max-w-[min(40rem,calc(100vw-2rem))] xl:shadow-xl",
           !@mine && @panel_align == :right && "xl:right-0",
           !@mine && @panel_align == :left && "xl:left-0"
         ]}

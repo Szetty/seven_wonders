@@ -13,7 +13,14 @@ import {
   expectTapTargets,
 } from "./support/layout";
 
-/** Boxes of every compact ring board (everything but mine). */
+/**
+ * Boxes of every compact ring board (everything but mine) in document
+ * coordinates (rect + scroll). boundingBox() is viewport-relative, so the
+ * click's scroll-into-view (the west toggle starts below the 800px fold at
+ * 1280x800) shifts every y without a layout change; document coordinates
+ * cancel that harness scroll while a real shift still moves the rect — the
+ * same rationale as the phone test's #seats-relative deltas.
+ */
 async function compactBoxes(page: Page) {
   const sections = page.locator("#seats > section:not(#my-board)");
   const count = await sections.count();
@@ -21,7 +28,15 @@ async function compactBoxes(page: Page) {
   for (let i = 0; i < count; i++) {
     const section = sections.nth(i);
     const id = (await section.getAttribute("id"))!;
-    boxes[id] = await boxOf(section);
+    boxes[id] = await section.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        x: r.x + window.scrollX,
+        y: r.y + window.scrollY,
+        width: r.width,
+        height: r.height,
+      };
+    });
   }
   return boxes;
 }

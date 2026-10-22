@@ -213,12 +213,12 @@ defmodule HeliosWeb.GameLive do
       <div
         id="seats"
         phx-hook=".BoardPanels"
-        class="mx-auto flex max-w-2xl flex-col gap-3 sm:gap-4 xl:relative xl:block xl:w-full xl:max-w-none xl:min-h-(--ring-height)"
+        class="mx-auto flex max-w-[min(42rem,100%)] flex-col gap-3 sm:gap-4 xl:relative xl:block xl:w-full xl:max-w-none xl:min-h-(--ring-height)"
         style={"--ring-height: #{@layout.ring_height}rem; --me-built-max: #{TableLayout.me_built_max()}rem"}
       >
         <svg
           id="table-ring"
-          class="hidden xl:block absolute inset-x-0 top-0 pointer-events-none"
+          class="hidden xl:block absolute inset-x-0 top-0 w-full pointer-events-none"
           style={"height: #{@layout.ring_height}rem"}
           viewBox={"0 0 100 #{@layout.ring_height}"}
           preserveAspectRatio="none"
@@ -302,6 +302,7 @@ defmodule HeliosWeb.GameLive do
             const open = this.openSections()
             if (open.length === 0) return
             if (e.target.closest && e.target.closest("#card-sheet, #card-sheet-scrim")) return
+            if (e.target.closest && e.target.closest("#dock, #action-panel, #action-scrim")) return
             if (open.some((s) => s.contains(e.target))) return
             this.closeAll()
           },
